@@ -44,3 +44,20 @@ pull_request_rules:
       label:
         add:
           - api
+  - name: request reviews from reviewers for API change
+    conditions:
+      - files~=^(api/)
+      - -closed
+      - -draft
+    actions:
+      request_reviews:
+        users_from_teams:
+          - "@csi-addons/kubernetes-csi-addons-reviewers"
+  - name: request reviews from regular contributors
+    conditions:
+      - -closed
+      - -draft
+    actions:
+      request_reviews:
+        users_from_teams:
+          - "@csi-addons/kubernetes-csi-addons-contributors"
