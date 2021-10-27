@@ -15,12 +15,32 @@ pull_request_rules:
       dismiss_reviews:
         approved: true
         changes_requested: false
-  - name: automatic merge
+  - name: merge after two approvals (no API changes)
     conditions:
       - base~=^(main)|(release-.+)$
+      - label!=api
       - "#approved-reviews-by>=2"
       - "#changes-requested-reviews-by=0"
     actions:
       merge: {}
       dismiss_reviews: {}
       delete_head_branch: {}
+  - name: API changes needs approval from a contributor and a reviewer
+    conditions:
+      - base~=^(main)|(release-.+)$
+      - label=api
+      - "#approved-reviews-by>=2"
+      - "#changes-requested-reviews-by=0"
+      - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-contributors"
+      - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-reviewers"
+    actions:
+      merge: {}
+      dismiss_reviews: {}
+      delete_head_branch: {}
+  - name: label API change
+    conditions:
+      - files~=^(api/)
+    actions:
+      label:
+        add:
+          - api
