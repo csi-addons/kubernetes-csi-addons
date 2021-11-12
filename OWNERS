@@ -1,0 +1,5 @@
+approvers:
+  - ceph-csi-team
+
+reviewers:
+  - ceph-csi-team
