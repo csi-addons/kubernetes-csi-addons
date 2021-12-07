@@ -3,7 +3,7 @@
 CSIAddonsNode is a custom resource designed to allow the CSI-Addons Controller(s) to discover CSI-Addons side-cars that are running alongside of CSI-driver components. The information provided in a CSIAddonsNode CR contain details on how to connect to the CSI-Addons side-car.
 
 ```yaml
-apiVersion: csiaddons.openshift.io/v1beta1
+apiVersion: csiaddons.openshift.io/v1alpha1
 kind: CSIAddonsNode
 metadata:
   name: csiaddonsnode-sample
