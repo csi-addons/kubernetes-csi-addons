@@ -1,0 +1,20 @@
+# permissions for end users to view reclaimspacejobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: reclaimspacejob-viewer-role
+rules:
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs/status
+  verbs:
+  - get
