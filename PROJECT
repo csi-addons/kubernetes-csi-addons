@@ -1,0 +1,6 @@
+domain: openshift.io
+layout:
+- go.kubebuilder.io/v3
+projectName: kubernetes-csi-addons
+repo: github.com/csi-addons/kubernetes-csi-addons
+version: "3"
