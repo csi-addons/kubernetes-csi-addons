@@ -1,0 +1,6 @@
+apiVersion: csiaddons.openshift.io/v1alpha1
+kind: CSIAddonsNode
+metadata:
+  name: csiaddonsnode-sample
+spec:
+  # TODO(user): Add fields here
