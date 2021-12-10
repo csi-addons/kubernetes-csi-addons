@@ -32,3 +32,29 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs/status
+  verbs:
+  - get
+  - patch
+  - update
