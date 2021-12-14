@@ -63,7 +63,7 @@ type ReclaimSpaceJobSpec struct {
 	// +kubebuilder:validation:Maximum=1800
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=600
-	RetryDeadlineSeconds int64 `json:"activeDeadlineSeconds"`
+	RetryDeadlineSeconds int64 `json:"retryDeadlineSeconds"`
 }
 
 // ReclaimSpaceJobStatus defines the observed state of ReclaimSpaceJob
