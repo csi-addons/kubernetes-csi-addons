@@ -21,6 +21,7 @@ pull_request_rules:
       - label!=api
       - "#approved-reviews-by>=2"
       - "#changes-requested-reviews-by=0"
+      - "status-success=codespell"
     actions:
       merge: {}
       dismiss_reviews: {}
@@ -33,6 +34,7 @@ pull_request_rules:
       - "#changes-requested-reviews-by=0"
       - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-contributors"
       - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-reviewers"
+      - "status-success=codespell"
     actions:
       merge: {}
       dismiss_reviews: {}
