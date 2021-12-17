@@ -1,6 +1,8 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
+SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
+TAG?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -76,6 +78,14 @@ docker-build: test ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
+
+.PHONY: docker-build-sidecar
+docker-build-sidecar:
+	docker build -f ./build/Containerfile.sidecar -t ${SIDECAR_IMG}:${TAG} .
+
+.PHONY: docker-push-sidecar
+docker-push-sidecar:
+	docker push ${SIDECAR_IMG}:${TAG}
 
 ##@ Deployment
 
