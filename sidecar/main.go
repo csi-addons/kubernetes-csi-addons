@@ -23,6 +23,7 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
+	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/service"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -65,6 +66,7 @@ func main() {
 	}
 
 	sidecarServer := server.NewSidecarServer(*controllerEndpoint)
+	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.Client))
 
 	sidecarServer.Start()
 }
