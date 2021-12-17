@@ -16,7 +16,7 @@ repository.
 ## Reviewing of Pull-Requests
 
 All Pull-Requests are required to be reviewed by at least two others that
-regulary participate in the project. There are two GitHub teams that contain
+regularly participate in the project. There are two GitHub teams that contain
 members who can approve changes:
 
  - @csi-addons/kubernetes-csi-addons-contributors: regular contributors,
