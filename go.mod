@@ -3,10 +3,15 @@ module github.com/csi-addons/kubernetes-csi-addons
 go 1.17
 
 require (
+	github.com/csi-addons/spec v0.1.2-0.20211208151110-e720204c043b
+	github.com/kubernetes-csi/csi-lib-utils v0.10.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
+	google.golang.org/grpc v1.43.0
+	google.golang.org/protobuf v1.27.1
 	k8s.io/apimachinery v0.22.1
 	k8s.io/client-go v0.22.1
+	k8s.io/klog/v2 v2.9.0
 	sigs.k8s.io/controller-runtime v0.10.0
 )
 
@@ -19,6 +24,7 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
@@ -57,7 +63,7 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
+	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -65,7 +71,6 @@ require (
 	k8s.io/api v0.22.1 // indirect
 	k8s.io/apiextensions-apiserver v0.22.1 // indirect
 	k8s.io/component-base v0.22.1 // indirect
-	k8s.io/klog/v2 v2.9.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20210421082810-95288971da7e // indirect
 	k8s.io/utils v0.0.0-20210802155522-efc7438f0176 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
