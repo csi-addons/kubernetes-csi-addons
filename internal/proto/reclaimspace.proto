@@ -1,23 +1,23 @@
 syntax = "proto3";
-package reclaimspace;
+package proto;
 
-option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/service/reclaimspace";
+option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
 
 // ReclaimSpace holds the RPC menthod for allowing the
 // communication between the CSIAddons controller and the sidecar.
 service ReclaimSpace {
     // ControllerReclaimSpace is a procedure that gets called on the CSI
     // sidecar.
-    rpc ControllerReclaimSpace (ControllerReclaimSpaceRequest) returns(ReclaimSpaceResponse) {}
+    rpc ControllerReclaimSpace (ReclaimSpaceRequest) returns(ReclaimSpaceResponse) {}
     
     // NodeReclaimSpace is a procedure that gets called on the CSI
     // sidecar.
-    rpc NodeReclaimSpace (NodeReclaimSpaceRequest) returns(ReclaimSpaceResponse) {}
+    rpc NodeReclaimSpace (ReclaimSpaceRequest) returns(ReclaimSpaceResponse) {}
 
 }
-// ControllerReclaimSpaceRequest contains the information i.e., pv_name
+// ReclaimSpaceRequest contains the information i.e., pv_name
 // received from the CSIAddons controller for performing the reclaim operation.
-message ControllerReclaimSpaceRequest {
+message ReclaimSpaceRequest {
     // The name of the pv. This field is REQUIRED.
     string pv_name = 1;
 }
@@ -32,13 +32,6 @@ message ReclaimSpaceResponse {
     // This field is OPTIONAL. This allows the SP to inform the CO about the
     // storage consumption after the ReclaimSpace operation was executed.
     StorageConsumption post_usage = 2;
-}
-
-// NodeReclaimSpaceRequest contains the information i.e., pv_name
-// received from the CSIAddons controller for performing the reclaim operation.
-message NodeReclaimSpaceRequest {
-    // The name of the pv. This field is REQUIRED.
-    string pv_name = 1;
 }
 
 // StorageConsumption contains the usage in bytes.
