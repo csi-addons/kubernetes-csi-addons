@@ -1,0 +1,21 @@
+---
+# codespell is a GitHub Actions that runs codespell tool to catch misspell
+# Reference https://github.com/codespell-project/actions-codespell
+name: Codespell
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    branches:
+      - '*'
+jobs:
+  codespell:
+    name: codespell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: codespell
+        uses: codespell-project/actions-codespell@master
+        with:
+          skip: .git
+          check_filenames: true
+          check_hidden: true
