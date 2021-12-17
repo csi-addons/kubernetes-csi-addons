@@ -22,6 +22,7 @@ import (
 
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
+	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -62,4 +63,8 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
 	}
+
+	sidecarServer := server.NewSidecarServer(*controllerEndpoint)
+
+	sidecarServer.Start()
 }
