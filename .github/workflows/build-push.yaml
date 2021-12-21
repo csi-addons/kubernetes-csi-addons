@@ -1,0 +1,68 @@
+---
+name: Publish container images in quay.io
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push_controller:
+    name: Push controller container image to quay.io
+    if: github.repository == 'csi-addons/kubernetes-csi-addons'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to quay.io
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push controller container image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x,linux/arm/v7
+          push: true
+          tags: quay.io/csi-addons/k8s-controller:latest
+
+  push_sidecar:
+    name: Push sidecar container image to quay.io
+    if: github.repository == 'csi-addons/kubernetes-csi-addons'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to quay.io
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push sidecar container image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: build/Containerfile.sidecar
+          platforms: linux/amd64,linux/arm64,linux/ppc64le,linux/s390x,linux/arm/v7
+          push: true
+          tags: quay.io/csi-addons/k8s-sidecar:latest
