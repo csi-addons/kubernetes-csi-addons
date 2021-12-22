@@ -8,7 +8,7 @@ on:
 
 jobs:
   build_controller:
-    name: Build controller container image
+    name: build_controller
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -30,7 +30,7 @@ jobs:
           tags: quay.io/csiaddons/k8s-controller:latest
 
   build_sidecar:
-    name: Test sidecar container image
+    name: build_sidecar
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
