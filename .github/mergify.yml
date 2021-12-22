@@ -22,7 +22,7 @@ pull_request_rules:
       - "#approved-reviews-by>=2"
       - "#changes-requested-reviews-by=0"
       - "status-success=codespell"
-      - "status-success=build_container"
+      - "status-success=build_controller"
       - "status-success=build_sidecar"
     actions:
       merge: {}
@@ -37,7 +37,7 @@ pull_request_rules:
       - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-contributors"
       - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-reviewers"
       - "status-success=codespell"
-      - "status-success=build_container"
+      - "status-success=build_controller"
       - "status-success=build_sidecar"
     actions:
       merge: {}
