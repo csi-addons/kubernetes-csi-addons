@@ -1,0 +1,37 @@
+---
+name: Run Golang tests
+
+on:
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  go_mod_verify:
+    name: Verify the contents of the vendor/ directory
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+
+      - name: Verify Go modules
+        run: go mod verify
+
+  go_mod_vendor:
+    name: Check for changed files in the vendor/ directory
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+
+      - name: Vendor all dependencies
+        run: go mod vendor
+
+      - name: Check for uncommitted changes
+        run: make check-all-committed
