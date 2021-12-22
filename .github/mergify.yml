@@ -50,6 +50,13 @@ pull_request_rules:
       label:
         add:
           - api
+  - name: label vendor change
+    conditions:
+      - files~=^(vendor/)
+    actions:
+      label:
+        add:
+          - vendor
   - name: request reviews from reviewers for API change
     conditions:
       - files~=^(api/)

@@ -8,3 +8,5 @@ updates:
     rebase-strategy: "disabled"
     commit-message:
       prefix: "vendor"
+    labels:
+      - vendor
