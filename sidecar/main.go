@@ -33,12 +33,18 @@ import (
 func main() {
 	var (
 		defaultTimeout     = time.Minute * 3
+		defaultStagingPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/"
 		timeout            = flag.Duration("timeout", defaultTimeout, "Timeout for waiting for response")
 		csiAddonsAddress   = flag.String("csi-addons-address", "/run/csi-addons/socket", "CSI Addons endopoint")
 		nodeID             = flag.String("node-id", "", "NodeID")
+		stagingPath        = flag.String("stagingpath", defaultStagingPath, "stagingpath")
 		controllerEndpoint = flag.String("controller-endpoint", "",
 			"The TCP network port where the gRPC server for controller request, will listen (example: `8080`)")
 	)
+	klog.InitFlags(nil)
+	if err := flag.Set("logtostderr", "true"); err != nil {
+		klog.Exitf("failed to set logtostderr flag: %v", err)
+	}
 	flag.Parse()
 
 	csiClient, err := client.New(*csiAddonsAddress, *timeout)
@@ -73,7 +79,7 @@ func main() {
 
 	sidecarServer := server.NewSidecarServer(*controllerEndpoint)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.Client))
-	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.Client, kubeClient))
+	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.Client, kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.Client, kubeClient))
 
 	sidecarServer.Start()
