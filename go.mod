@@ -8,7 +8,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.10.0
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/gomega v1.17.0
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	k8s.io/apimachinery v0.22.1
