@@ -74,6 +74,7 @@ func main() {
 	sidecarServer := server.NewSidecarServer(*controllerEndpoint)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.Client))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.Client, kubeClient))
+	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.Client, kubeClient))
 
 	sidecarServer.Start()
 }
