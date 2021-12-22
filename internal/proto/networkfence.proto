@@ -1,0 +1,32 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
+
+// NetworkFence holds the RPC method for allowing the communication between
+// the CSIAddons controller and the sidecar for fencing operations.
+service NetworkFence {
+    // FenceClusterNetwork RPC call to fence the cluster network.
+    rpc FenceClusterNetwork (NetworkFenceRequest) returns(NetworkFenceResponse) {}
+    // UnFenceClusterNetwork RPC call to un-fence the cluster network.
+    rpc UnFenceClusterNetwork (NetworkFenceRequest) returns(NetworkFenceResponse) {}
+}
+
+// NetworkFenceRequest holds the required information to fence/unfence
+// the cluster network.
+message NetworkFenceRequest {
+  // Plugin specific parameters passed in as opaque key-value pairs.
+  map<string, string> parameters = 1;
+  // Secrets required by the driver to complete the request.
+  string secret_name = 2;
+  string secret_namespace = 3;
+  // list of CIDR blocks on which the fencing/unfencing operation is expected
+  // to be performed.
+  repeated string cidrs = 4;
+}
+
+// NetworkFenceResponse is returned by the CSI-driver as a result of
+// the FenceRequest call.
+message NetworkFenceResponse {
+  // Intentionally empty.
+}
