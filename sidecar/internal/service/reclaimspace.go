@@ -17,12 +17,18 @@ package service
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	kube "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/kubernetes"
 	csiReclaimSpace "github.com/csi-addons/spec/lib/go/reclaimspace"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-csi/csi-lib-utils/accessmodes"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -35,15 +41,17 @@ type ReclaimSpaceServer struct {
 	controllerClient csiReclaimSpace.ReclaimSpaceControllerClient
 	nodeClient       csiReclaimSpace.ReclaimSpaceNodeClient
 	kubeClient       *kubernetes.Clientset
+	stagingPath      string
 }
 
 // NewReclaimSpaceServer creates a new ReclaimSpaceServer which handles the proto.ReclaimSpace
 // Service requests.
-func NewReclaimSpaceServer(c *grpc.ClientConn, kc *kubernetes.Clientset) *ReclaimSpaceServer {
+func NewReclaimSpaceServer(c *grpc.ClientConn, kc *kubernetes.Clientset, sp string) *ReclaimSpaceServer {
 	return &ReclaimSpaceServer{
 		controllerClient: csiReclaimSpace.NewReclaimSpaceControllerClient(c),
 		nodeClient:       csiReclaimSpace.NewReclaimSpaceNodeClient(c),
 		kubeClient:       kc,
+		stagingPath:      sp,
 	}
 }
 
@@ -61,22 +69,50 @@ func (rs *ReclaimSpaceServer) ControllerReclaimSpace(
 	pvName := req.GetPvName()
 	klog.Info(pvName)
 
-	// TODO: get following params using kubeClient and pvName
+	pv, err := rs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get pv: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get pv %q", pvName)
+	}
+
+	if pv.Spec.CSI == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "pv %q is not a CSI volume", pvName)
+	}
+
+	volID := pv.Spec.CSI.VolumeHandle
+	volAttributes := pv.Spec.CSI.VolumeAttributes
 
 	csiReq := &csiReclaimSpace.ControllerReclaimSpaceRequest{
-		VolumeId:   "",
-		Parameters: map[string]string{},
-		Secrets:    map[string]string{},
+		VolumeId:   volID,
+		Parameters: volAttributes,
 	}
-	res, err := rs.controllerClient.ControllerReclaimSpace(ctx, csiReq)
+
+	// FIXME: use ControllerPublishSecret instead, but it is not set in the PV
+	if pv.Spec.CSI.NodeStageSecretRef != nil {
+		// Get the secrets from the k8s cluster
+		csiReq.Secrets, err = kube.GetSecret(ctx, rs.kubeClient, pv.Spec.CSI.NodeStageSecretRef.Name, pv.Spec.CSI.NodeStageSecretRef.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get secret: %v", err)
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+
+	csiRes, err := rs.controllerClient.ControllerReclaimSpace(ctx, csiReq)
 	if err != nil {
 		return nil, err
 	}
+	if csiRes == nil {
+		return nil, status.Error(codes.InvalidArgument, "nil value returned as the response of ControllerReclaimSpace")
+	}
+	res := &proto.ReclaimSpaceResponse{}
+	if csiRes.PreUsage != nil {
+		res.PreUsage = &proto.StorageConsumption{UsageBytes: csiRes.PreUsage.UsageBytes}
+	}
+	if csiRes.PostUsage != nil {
+		res.PostUsage = &proto.StorageConsumption{UsageBytes: csiRes.PostUsage.UsageBytes}
+	}
 
-	return &proto.ReclaimSpaceResponse{
-		PreUsage:  &proto.StorageConsumption{UsageBytes: res.PreUsage.UsageBytes},
-		PostUsage: &proto.StorageConsumption{UsageBytes: res.PostUsage.UsageBytes},
-	}, nil
+	return res, nil
 }
 
 // NodeReclaimSpace fetches required information from kubernetes cluster and calls
@@ -88,22 +124,56 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 	pvName := req.GetPvName()
 	klog.Info(pvName)
 
-	// TODO: get following params using kubeClient and pvName
+	pv, err := rs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get pv: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get pv %q", pvName)
+	}
+
+	if pv.Spec.CSI == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "pv %q is not a CSI volume", pvName)
+	}
+	volID := pv.Spec.CSI.VolumeHandle
+	csiMode, err := accessmodes.ToCSIAccessMode(pv.Spec.AccessModes, true)
+	if err != nil {
+		klog.Errorf("Failed to map access mode: %v", err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	stPath := filepath.Join(rs.stagingPath, pvName, "globalmount")
 
 	csiReq := &csiReclaimSpace.NodeReclaimSpaceRequest{
-		VolumeId:          "",
+		VolumeId:          volID,
 		VolumePath:        "",
-		StagingTargetPath: "",
-		VolumeCapability:  &csi.VolumeCapability{},
-		Secrets:           map[string]string{},
+		StagingTargetPath: stPath,
+		VolumeCapability: &csi.VolumeCapability{
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csiMode,
+			},
+		},
 	}
-	res, err := rs.nodeClient.NodeReclaimSpace(ctx, csiReq)
+
+	if pv.Spec.CSI.NodeStageSecretRef != nil {
+		// Get the secrets from the k8s cluster
+		csiReq.Secrets, err = kube.GetSecret(ctx, rs.kubeClient, pv.Spec.CSI.NodeStageSecretRef.Name, pv.Spec.CSI.NodeStageSecretRef.Namespace)
+		if err != nil {
+			klog.Errorf("Failed to get secret: %v", err)
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+	csiRes, err := rs.nodeClient.NodeReclaimSpace(ctx, csiReq)
 	if err != nil {
 		return nil, err
 	}
+	if csiRes == nil {
+		return nil, status.Error(codes.InvalidArgument, "nil value returned as the response of NodeReclaimSpace")
+	}
+	res := &proto.ReclaimSpaceResponse{}
+	if csiRes.PreUsage != nil {
+		res.PreUsage = &proto.StorageConsumption{UsageBytes: csiRes.PreUsage.UsageBytes}
+	}
+	if csiRes.PostUsage != nil {
+		res.PostUsage = &proto.StorageConsumption{UsageBytes: csiRes.PostUsage.UsageBytes}
+	}
 
-	return &proto.ReclaimSpaceResponse{
-		PreUsage:  &proto.StorageConsumption{UsageBytes: res.PreUsage.UsageBytes},
-		PostUsage: &proto.StorageConsumption{UsageBytes: res.PostUsage.UsageBytes},
-	}, nil
+	return res, nil
 }
