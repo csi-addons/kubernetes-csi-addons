@@ -3,6 +3,7 @@ module github.com/csi-addons/kubernetes-csi-addons
 go 1.17
 
 require (
+	github.com/container-storage-interface/spec v1.5.0
 	github.com/csi-addons/spec v0.1.2-0.20211208151110-e720204c043b
 	github.com/kubernetes-csi/csi-lib-utils v0.10.0
 	github.com/onsi/ginkgo v1.16.4
