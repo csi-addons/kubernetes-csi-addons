@@ -35,6 +35,32 @@ rules:
 - apiGroups:
   - csiaddons.openshift.io
   resources:
+  - networkfences
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfences/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfences/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
   - reclaimspacejobs
   verbs:
   - create
