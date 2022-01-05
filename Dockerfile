@@ -8,7 +8,7 @@ ENV GOPATH=/workspace/go
 WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /workspace/manager main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /workspace/manager cmd/manager/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
