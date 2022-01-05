@@ -10,6 +10,9 @@ WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /workspace/csi-addons-sidecar ./sidecar
 
+# Build the csi-addons tool for admin usage and testing
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /workspace/csi-addons ./cmd/csi-addons
+
 # Use distroless as minimal base image to package the sidecar binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:latest
