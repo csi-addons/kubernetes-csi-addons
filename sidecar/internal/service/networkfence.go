@@ -18,8 +18,8 @@ package service
 import (
 	"context"
 
+	kube "github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
-	kube "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/kubernetes"
 
 	fence "github.com/csi-addons/spec/lib/go/fence"
 	"google.golang.org/grpc"
