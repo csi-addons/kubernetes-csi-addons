@@ -24,6 +24,9 @@ pull_request_rules:
       - "status-success=codespell"
       - "status-success=build_controller"
       - "status-success=build_sidecar"
+      - "status-success=go_mod_verify"
+      - "status-success=go_mod_vendor"
+      - "status-success=make_test"
     actions:
       merge: {}
       dismiss_reviews: {}
@@ -39,6 +42,9 @@ pull_request_rules:
       - "status-success=codespell"
       - "status-success=build_controller"
       - "status-success=build_sidecar"
+      - "status-success=go_mod_verify"
+      - "status-success=go_mod_vendor"
+      - "status-success=make_test"
     actions:
       merge: {}
       dismiss_reviews: {}
