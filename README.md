@@ -38,6 +38,15 @@ the CSI-nodeplugin containers. The side-car registers itself by creating a
 `CSIAddonsNode` CR that the CSI-Addons Controller can use to connect to the
 side-car and execute operations.
 
+### `csi-addons` executable
+
+The `csi-addons` executable can be used to call CSI-Addons operations against a
+CSI-driver. It is included in the side-car container image, so that manual
+execution by admins and (automated) testing can easily be done.
+
+See the [`csi-addons` tool documentation](cmd/csi-addons/README.md) for more
+details.
+
 ## Controller
 
 The CSI-Addons Controller handles the requests from users to initiate an
