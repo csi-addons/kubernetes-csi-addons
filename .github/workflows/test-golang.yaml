@@ -8,7 +8,7 @@ on:
 
 jobs:
   make_test:
-    name: Basic testing
+    name: make_test
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -26,7 +26,7 @@ jobs:
         run: make check-all-committed
 
   go_mod_verify:
-    name: Verify the contents of the vendor/ directory
+    name: go_mod_verify
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -41,7 +41,7 @@ jobs:
         run: go mod verify
 
   go_mod_vendor:
-    name: Check for changed files in the vendor/ directory
+    name: go_mod_vendor
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
