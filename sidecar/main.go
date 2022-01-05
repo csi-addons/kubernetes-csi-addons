@@ -20,10 +20,10 @@ import (
 	"flag"
 	"time"
 
+	"github.com/csi-addons/kubernetes-csi-addons/internal/sidecar/service"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
-	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/service"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
 
 	"k8s.io/client-go/kubernetes"
