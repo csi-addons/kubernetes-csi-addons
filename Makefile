@@ -69,11 +69,11 @@ check-all-committed: ## Fail in case there are uncommitted changes
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager cmd/manager/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run ./cmd/manager/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
