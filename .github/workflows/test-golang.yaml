@@ -7,6 +7,24 @@ on:
       - "*"
 
 jobs:
+  make_test:
+    name: Basic testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Run "make test"
+        run: make test
+
+      - name: Check for uncommitted changes
+        run: make check-all-committed
+
   go_mod_verify:
     name: Verify the contents of the vendor/ directory
     runs-on: ubuntu-latest
