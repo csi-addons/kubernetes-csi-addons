@@ -19,8 +19,8 @@ import (
 	"context"
 	"path/filepath"
 
+	kube "github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
-	kube "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/kubernetes"
 	csiReclaimSpace "github.com/csi-addons/spec/lib/go/reclaimspace"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
