@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= quay.io/csiaddons/k8s-controller:latest
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
 TAG?= latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
