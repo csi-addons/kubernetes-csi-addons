@@ -21,30 +21,62 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 )
 
 const (
 	podNameEnvKey      = "POD_NAME"
 	podNamespaceEnvKey = "POD_NAMESPACE"
 	podUIDEnvKey       = "POD_UID"
+
+	// nodeCreationRetry is the delay for calling newCSIAddonsNode after a
+	// failure.
+	nodeCreationRetry = time.Minute * 5
 )
 
 // Deploy creates CSIAddonsNode custom resource with all required information.
+// When information to create the CSIAddonsNode is missing, an error will be
+// returned immediately. If creating the CSIAddonsNode in the Kubernetes
+// cluster fails (missing CRD, RBAC limitations, ...), an error will be logged,
+// and creation will be retried.
 func Deploy(config *rest.Config, driverName, nodeID, endpoint string) error {
 	object, err := getCSIAddonsNode(driverName, endpoint, nodeID)
 	if err != nil {
 		return fmt.Errorf("failed to get csiaddonsNode object: %w", err)
 	}
 
-	err = csiaddonsv1alpha1.AddToScheme(scheme.Scheme)
+	// loop until the CSIAddonsNode has been created
+	wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
+		err := newCSIAddonsNode(config, object)
+		if err != nil {
+			klog.Errorf("failed to create CSIAddonsNode %s/%s: %v",
+				object.Namespace, object.Name, err)
+
+			// return false to retry, discard the error
+			return false, nil
+		}
+
+		// no error, so the CSIAddonsNode has been created
+		return true, nil
+	})
+
+	return nil
+}
+
+// newCSIAddonsNode initializes the CRD and creates the CSIAddonsNode object in
+// the Kubernetes cluster.
+func newCSIAddonsNode(config *rest.Config, node *csiaddonsv1alpha1.CSIAddonsNode) error {
+	err := csiaddonsv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		return fmt.Errorf("failed to add scheme: %w", err)
 	}
@@ -62,9 +94,9 @@ func Deploy(config *rest.Config, driverName, nodeID, endpoint string) error {
 
 	err = c.Post().
 		Resource("csiaddonsnodes").
-		Namespace(object.Namespace).
-		Name(object.Name).
-		Body(object).
+		Namespace(node.Namespace).
+		Name(node.Name).
+		Body(node).
 		Do(context.TODO()).
 		Into(nil)
 
