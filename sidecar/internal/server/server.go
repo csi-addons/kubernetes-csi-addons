@@ -77,7 +77,7 @@ func (ss *SidecarServer) Start() {
 
 	listener, err := net.Listen(ss.scheme, ss.endpoint)
 	if err != nil {
-		klog.Fatalf("failed to listen on %q: %w", listener.Addr().String(), err)
+		klog.Fatalf("failed to listen on %q: %w", listener.Addr(), err)
 	}
 
 	ss.serve(listener)
@@ -86,7 +86,7 @@ func (ss *SidecarServer) Start() {
 // serve starts the actual process of listening for requests on the gRPC
 // server.
 func (ss *SidecarServer) serve(listener net.Listener) {
-	klog.Infof("Listening for CSI-Addons requests on address: %#v", listener.Addr())
+	klog.Infof("Listening for CSI-Addons requests on address: %s", listener.Addr())
 
 	// start to serve requests
 	err := ss.server.Serve(listener)
