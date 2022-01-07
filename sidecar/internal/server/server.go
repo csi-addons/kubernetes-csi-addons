@@ -53,7 +53,7 @@ func NewSidecarServer(endpoint string) *SidecarServer {
 	}
 
 	ss.scheme = "tcp"
-	ss.endpoint = ":" + endpoint
+	ss.endpoint = endpoint
 
 	return ss
 }

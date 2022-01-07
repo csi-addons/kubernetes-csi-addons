@@ -24,6 +24,7 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/service"
+	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -38,14 +39,21 @@ func main() {
 		csiAddonsAddress   = flag.String("csi-addons-address", "/run/csi-addons/socket", "CSI Addons endopoint")
 		nodeID             = flag.String("node-id", "", "NodeID")
 		stagingPath        = flag.String("stagingpath", defaultStagingPath, "stagingpath")
-		controllerEndpoint = flag.String("controller-endpoint", "",
+		controllerPort     = flag.String("controller-port", "",
 			"The TCP network port where the gRPC server for controller request, will listen (example: `8080`)")
+		controllerIP = flag.String("controller-ip", "",
+			"The TCP network ip address where the gRPC server for controller request, will listen (example: `192.168.61.228`)")
 	)
 	klog.InitFlags(nil)
 	if err := flag.Set("logtostderr", "true"); err != nil {
 		klog.Exitf("failed to set logtostderr flag: %v", err)
 	}
 	flag.Parse()
+
+	controllerEndpoint, err := util.ValidateControllerEndpoint(*controllerIP, *controllerPort)
+	if err != nil {
+		klog.Fatalf("Failed to validate controller endpoint: %w", err)
+	}
 
 	csiClient, err := client.New(*csiAddonsAddress, *timeout)
 	if err != nil {
@@ -72,12 +80,12 @@ func main() {
 		klog.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = csiaddonsnode.Deploy(cfg, driverName, *nodeID, *controllerEndpoint)
+	err = csiaddonsnode.Deploy(cfg, driverName, *nodeID, controllerEndpoint)
 	if err != nil {
 		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
 	}
 
-	sidecarServer := server.NewSidecarServer(*controllerEndpoint)
+	sidecarServer := server.NewSidecarServer(controllerEndpoint)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.Client))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.Client, kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.Client, kubeClient))

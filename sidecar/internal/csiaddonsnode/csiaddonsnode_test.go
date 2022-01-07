@@ -59,12 +59,10 @@ func Test_getCSIAddonsNode(t *testing.T) {
 		podName     = "pod"
 		podNamspace = "default"
 		podUID      = "123"
-		podIP       = "110"
 	)
 	t.Setenv(podNameEnvKey, podName)
 	t.Setenv(podNamespaceEnvKey, podNamspace)
 	t.Setenv(podUIDEnvKey, podUID)
-	t.Setenv(podIPEnvKey, podIP)
 
 	type args struct {
 		driverName string
@@ -82,7 +80,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 			name: "Test 1",
 			args: args{
 				driverName: "example.com",
-				endpoint:   "6060",
+				endpoint:   "192.168.61.228:6060",
 				nodeID:     "123",
 			},
 			want: &csiaddonsv1alpha1.CSIAddonsNode{
@@ -102,7 +100,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 				Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
 					Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{
 						Name:     "example.com",
-						EndPoint: podIP + ":" + "6060",
+						EndPoint: "192.168.61.228:6060",
 						NodeID:   "123",
 					},
 				},
@@ -113,7 +111,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 			name: "Test 2",
 			args: args{
 				driverName: "csi.example.com",
-				endpoint:   "8060",
+				endpoint:   "[2001:0db8:3c4d:0015:0000:0000:1a2f:1a2b]:8080",
 				nodeID:     "32532-1312-435354",
 			},
 			want: &csiaddonsv1alpha1.CSIAddonsNode{
@@ -133,7 +131,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 				Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
 					Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{
 						Name:     "csi.example.com",
-						EndPoint: podIP + ":" + "8060",
+						EndPoint: "[2001:0db8:3c4d:0015:0000:0000:1a2f:1a2b]:8080",
 						NodeID:   "32532-1312-435354",
 					},
 				},
