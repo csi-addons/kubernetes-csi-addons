@@ -86,7 +86,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 			want: &csiaddonsv1alpha1.CSIAddonsNode{
 				TypeMeta: v1.TypeMeta{},
 				ObjectMeta: v1.ObjectMeta{
-					Name:      podUID,
+					Name:      podName,
 					Namespace: podNamspace,
 					OwnerReferences: []v1.OwnerReference{
 						{
@@ -117,7 +117,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 			want: &csiaddonsv1alpha1.CSIAddonsNode{
 				TypeMeta: v1.TypeMeta{},
 				ObjectMeta: v1.ObjectMeta{
-					Name:      podUID,
+					Name:      podName,
 					Namespace: podNamspace,
 					OwnerReferences: []v1.OwnerReference{
 						{

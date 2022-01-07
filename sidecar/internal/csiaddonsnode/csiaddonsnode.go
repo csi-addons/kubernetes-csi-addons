@@ -102,7 +102,7 @@ func getCSIAddonsNode(driverName, endpoint, nodeID string) (*csiaddonsv1alpha1.C
 
 	return &csiaddonsv1alpha1.CSIAddonsNode{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      podUID,
+			Name:      podName,
 			Namespace: podNamespace,
 			OwnerReferences: []v1.OwnerReference{
 				{
