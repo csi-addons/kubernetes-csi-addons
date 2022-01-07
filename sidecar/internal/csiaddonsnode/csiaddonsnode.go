@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
@@ -75,6 +75,8 @@ func Deploy(config *rest.Config, driverName, nodeID, endpoint string) error {
 
 // newCSIAddonsNode initializes the CRD and creates the CSIAddonsNode object in
 // the Kubernetes cluster.
+// If the CSIAddonsNode object already exists, it will not be re-created or
+// modified, and the existing object is kept as-is.
 func newCSIAddonsNode(config *rest.Config, node *csiaddonsv1alpha1.CSIAddonsNode) error {
 	err := csiaddonsv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -100,7 +102,7 @@ func newCSIAddonsNode(config *rest.Config, node *csiaddonsv1alpha1.CSIAddonsNode
 		Do(context.TODO()).
 		Into(nil)
 
-	if err != nil && !strings.Contains(err.Error(), "already exists") {
+	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create csiaddonsnode object: %w", err)
 	}
 
