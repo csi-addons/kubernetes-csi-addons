@@ -35,7 +35,6 @@ const (
 	podNameEnvKey      = "POD_NAME"
 	podNamespaceEnvKey = "POD_NAMESPACE"
 	podUIDEnvKey       = "POD_UID"
-	podIPEnvKey        = "POD_IP"
 )
 
 // Deploy creates CSIAddonsNode custom resource with all required information.
@@ -100,10 +99,6 @@ func getCSIAddonsNode(driverName, endpoint, nodeID string) (*csiaddonsv1alpha1.C
 	if err != nil {
 		return nil, err
 	}
-	podIP, err := lookupEnv(podIPEnvKey)
-	if err != nil {
-		return nil, err
-	}
 
 	return &csiaddonsv1alpha1.CSIAddonsNode{
 		ObjectMeta: v1.ObjectMeta{
@@ -121,7 +116,7 @@ func getCSIAddonsNode(driverName, endpoint, nodeID string) (*csiaddonsv1alpha1.C
 		Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
 			Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{
 				Name:     driverName,
-				EndPoint: podIP + ":" + endpoint,
+				EndPoint: endpoint,
 				NodeID:   nodeID,
 			},
 		},
