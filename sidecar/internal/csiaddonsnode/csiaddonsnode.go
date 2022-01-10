@@ -147,6 +147,15 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 	if mgr.PodUID == "" {
 		return nil, fmt.Errorf("%w: missing Pod UID", errInvalidConfig)
 	}
+	if mgr.Driver == "" {
+		return nil, fmt.Errorf("%w: missing drivername", errInvalidConfig)
+	}
+	if mgr.Endpoint == "" {
+		return nil, fmt.Errorf("%w: missing endpoint", errInvalidConfig)
+	}
+	if mgr.Node == "" {
+		return nil, fmt.Errorf("%w: missing node", errInvalidConfig)
+	}
 
 	return &csiaddonsv1alpha1.CSIAddonsNode{
 		ObjectMeta: v1.ObjectMeta{
