@@ -4,6 +4,7 @@
 resources:
 - bases/csiaddons.openshift.io_csiaddonsnodes.yaml
 - bases/csiaddons.openshift.io_reclaimspacejobs.yaml
+- bases/csiaddons.openshift.io_networkfences.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

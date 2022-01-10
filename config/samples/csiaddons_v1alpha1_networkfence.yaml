@@ -1,0 +1,6 @@
+apiVersion: csiaddons.openshift.io/v1alpha1
+kind: NetworkFence
+metadata:
+  name: networkfence-sample
+spec:
+  # TODO(user): Add fields here
