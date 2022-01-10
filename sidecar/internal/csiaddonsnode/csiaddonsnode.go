@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
@@ -78,15 +77,15 @@ func Deploy(config *rest.Config, driverName, nodeID, endpoint string) error {
 // If the CSIAddonsNode object already exists, it will not be re-created or
 // modified, and the existing object is kept as-is.
 func newCSIAddonsNode(config *rest.Config, node *csiaddonsv1alpha1.CSIAddonsNode) error {
-	err := csiaddonsv1alpha1.AddToScheme(scheme.Scheme)
+	scheme, err := csiaddonsv1alpha1.SchemeBuilder.Build()
 	if err != nil {
 		return fmt.Errorf("failed to add scheme: %w", err)
 	}
 
 	crdConfig := *config
-	crdConfig.ContentConfig.GroupVersion = &csiaddonsv1alpha1.GroupVersion
+	crdConfig.GroupVersion = &csiaddonsv1alpha1.GroupVersion
 	crdConfig.APIPath = "/apis"
-	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme.Scheme)
+	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme)
 	crdConfig.UserAgent = rest.DefaultKubernetesUserAgent()
 
 	c, err := rest.UnversionedRESTClientFor(&crdConfig)
