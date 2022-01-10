@@ -80,7 +80,13 @@ func main() {
 		klog.Fatalf("Failed to create client: %v", err)
 	}
 
-	err = csiaddonsnode.Deploy(cfg, driverName, *nodeID, controllerEndpoint)
+	nodeMgr := &csiaddonsnode.Manager{
+		Config:   cfg,
+		Driver:   driverName,
+		Node:     *nodeID,
+		Endpoint: controllerEndpoint,
+	}
+	err = nodeMgr.Deploy()
 	if err != nil {
 		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
 	}
