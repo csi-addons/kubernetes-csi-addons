@@ -100,7 +100,7 @@ func newCSIAddonsNode(config *rest.Config, node *csiaddonsv1alpha1.CSIAddonsNode
 		Name(node.Name).
 		Body(node).
 		Do(context.TODO()).
-		Into(nil)
+		Error()
 
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create csiaddonsnode object: %w", err)
