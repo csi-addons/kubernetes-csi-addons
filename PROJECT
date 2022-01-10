@@ -22,4 +22,13 @@ resources:
   kind: ReclaimSpaceJob
   path: github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: false
+  controller: true
+  domain: openshift.io
+  group: csiaddons
+  kind: NetworkFence
+  path: github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1
+  version: v1alpha1
 version: "3"
