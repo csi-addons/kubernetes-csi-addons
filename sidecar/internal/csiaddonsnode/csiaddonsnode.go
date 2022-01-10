@@ -43,20 +43,36 @@ const (
 	nodeCreationRetry = time.Minute * 5
 )
 
+// Manager is a helper that creates the CSIAddonsNode for the running sidecar.
+type Manager struct {
+	// Config is a ReST Config for the Kubernets API.
+	Config *rest.Config
+
+	// Driver contains the name of the CSI-driver.
+	Driver string
+
+	// Node is the hostname of the system where the sidecar is running.
+	Node string
+
+	// Endpoint is the location where the sidecar receives connections on
+	// from the CSI-Addons Controller.
+	Endpoint string
+}
+
 // Deploy creates CSIAddonsNode custom resource with all required information.
 // When information to create the CSIAddonsNode is missing, an error will be
 // returned immediately. If creating the CSIAddonsNode in the Kubernetes
 // cluster fails (missing CRD, RBAC limitations, ...), an error will be logged,
 // and creation will be retried.
-func Deploy(config *rest.Config, driverName, nodeID, endpoint string) error {
-	object, err := getCSIAddonsNode(driverName, endpoint, nodeID)
+func (mgr *Manager) Deploy() error {
+	object, err := mgr.getCSIAddonsNode()
 	if err != nil {
 		return fmt.Errorf("failed to get csiaddonsNode object: %w", err)
 	}
 
 	// loop until the CSIAddonsNode has been created
 	wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
-		err := newCSIAddonsNode(config, object)
+		err := mgr.newCSIAddonsNode(object)
 		if err != nil {
 			klog.Errorf("failed to create CSIAddonsNode %s/%s: %v",
 				object.Namespace, object.Name, err)
@@ -76,13 +92,13 @@ func Deploy(config *rest.Config, driverName, nodeID, endpoint string) error {
 // the Kubernetes cluster.
 // If the CSIAddonsNode object already exists, it will not be re-created or
 // modified, and the existing object is kept as-is.
-func newCSIAddonsNode(config *rest.Config, node *csiaddonsv1alpha1.CSIAddonsNode) error {
+func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) error {
 	scheme, err := csiaddonsv1alpha1.SchemeBuilder.Build()
 	if err != nil {
 		return fmt.Errorf("failed to add scheme: %w", err)
 	}
 
-	crdConfig := *config
+	crdConfig := *mgr.Config
 	crdConfig.GroupVersion = &csiaddonsv1alpha1.GroupVersion
 	crdConfig.APIPath = "/apis"
 	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme)
@@ -119,7 +135,7 @@ func lookupEnv(name string) (string, error) {
 }
 
 // getCSIAddonsNode fills required information and return CSIAddonsNode object.
-func getCSIAddonsNode(driverName, endpoint, nodeID string) (*csiaddonsv1alpha1.CSIAddonsNode, error) {
+func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error) {
 	podName, err := lookupEnv(podNameEnvKey)
 	if err != nil {
 		return nil, err
@@ -148,9 +164,9 @@ func getCSIAddonsNode(driverName, endpoint, nodeID string) (*csiaddonsv1alpha1.C
 		},
 		Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
 			Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{
-				Name:     driverName,
-				EndPoint: endpoint,
-				NodeID:   nodeID,
+				Name:     mgr.Driver,
+				EndPoint: mgr.Endpoint,
+				NodeID:   mgr.Node,
 			},
 		},
 	}, nil
