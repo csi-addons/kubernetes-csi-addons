@@ -68,11 +68,6 @@ func main() {
 		klog.Fatalf("Failed to probe driver: %w", err)
 	}
 
-	driverName, err := csiClient.GetDriverName()
-	if err != nil {
-		klog.Fatalf("Failed to get driver name: %v", err)
-	}
-
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("Failed to get cluster config: %w", err)
@@ -84,8 +79,8 @@ func main() {
 	}
 
 	nodeMgr := &csiaddonsnode.Manager{
+		Client:       csiClient,
 		Config:       cfg,
-		Driver:       driverName,
 		Node:         *nodeID,
 		Endpoint:     controllerEndpoint,
 		PodName:      *podName,

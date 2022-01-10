@@ -17,15 +17,38 @@ limitations under the License.
 package csiaddonsnode
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 
+	"google.golang.org/grpc"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
+
+// mockClient implements a fake interface for the Client type.
+type mockClient struct {
+	// Driver contains the drivername obtained with GetDriverName()
+	driver string
+}
+
+func NewMockClient(driver string) client.Client {
+	return &mockClient{driver: driver}
+}
+
+func (mc *mockClient) GetGRPCClient() *grpc.ClientConn {
+	return nil
+}
+
+func (mc *mockClient) Probe() error {
+	return nil
+}
+
+func (mc *mockClient) GetDriverName() (string, error) {
+	return mc.driver, nil
+}
 
 func Test_getCSIAddonsNode(t *testing.T) {
 	var (
@@ -33,9 +56,6 @@ func Test_getCSIAddonsNode(t *testing.T) {
 		podNamspace = "default"
 		podUID      = "123"
 	)
-	t.Setenv(podNameEnvKey, podName)
-	t.Setenv(podNamespaceEnvKey, podNamspace)
-	t.Setenv(podUIDEnvKey, podUID)
 
 	type args struct {
 		driverName string
@@ -114,7 +134,15 @@ func Test_getCSIAddonsNode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getCSIAddonsNode(tt.args.driverName, tt.args.endpoint, tt.args.nodeID)
+			mgr := &Manager{
+				Client:       NewMockClient(tt.args.driverName),
+				Node:         tt.args.nodeID,
+				Endpoint:     tt.args.endpoint,
+				PodName:      "pod",
+				PodNamespace: "default",
+				PodUID:       "123",
+			}
+			got, err := mgr.getCSIAddonsNode()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getCSIAddonsNode() error = %v, wantErr %v", err, tt.wantErr)
 				return
