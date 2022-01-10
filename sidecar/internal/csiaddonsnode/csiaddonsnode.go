@@ -23,6 +23,7 @@ import (
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,9 +55,6 @@ type Manager struct {
 
 	// Config is a ReST Config for the Kubernets API.
 	Config *rest.Config
-
-	// Driver contains the name of the CSI-driver.
-	Driver string
 
 	// Node is the hostname of the system where the sidecar is running.
 	Node string
@@ -152,14 +150,20 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 	if mgr.PodUID == "" {
 		return nil, fmt.Errorf("%w: missing Pod UID", errInvalidConfig)
 	}
-	if mgr.Driver == "" {
-		return nil, fmt.Errorf("%w: missing drivername", errInvalidConfig)
-	}
 	if mgr.Endpoint == "" {
 		return nil, fmt.Errorf("%w: missing endpoint", errInvalidConfig)
 	}
 	if mgr.Node == "" {
 		return nil, fmt.Errorf("%w: missing node", errInvalidConfig)
+	}
+
+	driver, err := mgr.Client.GetDriverName()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get driver name: %w", err)
+	}
+	if driver == "" {
+		return nil, fmt.Errorf("%w: CSI-driver returned an empty driver name",
+			errInvalidConfig)
 	}
 
 	return &csiaddonsv1alpha1.CSIAddonsNode{
@@ -177,7 +181,7 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 		},
 		Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
 			Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{
-				Name:     mgr.Driver,
+				Name:     driver,
 				EndPoint: mgr.Endpoint,
 				NodeID:   mgr.Node,
 			},
