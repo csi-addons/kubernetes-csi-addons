@@ -27,33 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func Test_lookupEnv(t *testing.T) {
-
-	t.Run("Env Var set", func(t *testing.T) {
-		key := "hello"
-		value := "world"
-		t.Setenv(key, value)
-
-		got, err := lookupEnv(key)
-		if (err != nil) != false {
-			t.Errorf("lookupEnv() error = %v, wantErr %v", err, false)
-			return
-		}
-		if got != value {
-			t.Errorf("lookupEnv() = %v, want %v", got, value)
-		}
-	})
-
-	t.Run("Env Var not set", func(t *testing.T) {
-		key := "hello"
-		_, err := lookupEnv(key)
-		if err == nil {
-			t.Errorf("lookupEnv() error = %v, wantErr %v", err,
-				fmt.Errorf("Required environemental variable %q not found", key))
-		}
-	})
-}
-
 func Test_getCSIAddonsNode(t *testing.T) {
 	var (
 		podName     = "pod"

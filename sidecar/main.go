@@ -43,6 +43,9 @@ func main() {
 			"The TCP network port where the gRPC server for controller request, will listen (example: `8080`)")
 		controllerIP = flag.String("controller-ip", "",
 			"The TCP network ip address where the gRPC server for controller request, will listen (example: `192.168.61.228`)")
+		podName      = flag.String("pod", "", "name of the Pod that contains this sidecar")
+		podNamespace = flag.String("namespace", "", "namespace of the Pod that contains this sidecar")
+		podUID       = flag.String("pod-uid", "", "UID of the Pod that contains this sidecar")
 	)
 	klog.InitFlags(nil)
 	if err := flag.Set("logtostderr", "true"); err != nil {
@@ -81,10 +84,13 @@ func main() {
 	}
 
 	nodeMgr := &csiaddonsnode.Manager{
-		Config:   cfg,
-		Driver:   driverName,
-		Node:     *nodeID,
-		Endpoint: controllerEndpoint,
+		Config:       cfg,
+		Driver:       driverName,
+		Node:         *nodeID,
+		Endpoint:     controllerEndpoint,
+		PodName:      *podName,
+		PodNamespace: *podNamespace,
+		PodUID:       *podUID,
 	}
 	err = nodeMgr.Deploy()
 	if err != nil {
