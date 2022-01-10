@@ -1,11 +1,20 @@
 ---
 defaults:
   actions:
-    merge:
+    queue:
+      name: default
       method: rebase
       rebase_fallback: merge
-      strict: smart
-      strict_method: rebase
+      update_method: rebase
+
+queue_rules:
+  - name: default
+    conditions:
+      - "status-success=codespell"
+      - "status-success=build_controller"
+      - "status-success=build_sidecar"
+      - "status-success=go_mod_verify"
+      - "status-success=go_mod_vendor"
 
 pull_request_rules:
   - name: remove outdated approvals
@@ -28,7 +37,7 @@ pull_request_rules:
       - "status-success=go_mod_vendor"
       - "status-success=make_test"
     actions:
-      merge: {}
+      queue: {}
       dismiss_reviews: {}
       delete_head_branch: {}
   - name: API changes needs approval from a contributor and a reviewer
@@ -46,7 +55,7 @@ pull_request_rules:
       - "status-success=go_mod_vendor"
       - "status-success=make_test"
     actions:
-      merge: {}
+      queue: {}
       dismiss_reviews: {}
       delete_head_branch: {}
   - name: label API change
