@@ -18,13 +18,13 @@ package csiaddonsnode
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,13 +34,15 @@ import (
 )
 
 const (
-	podNameEnvKey      = "POD_NAME"
-	podNamespaceEnvKey = "POD_NAMESPACE"
-	podUIDEnvKey       = "POD_UID"
-
 	// nodeCreationRetry is the delay for calling newCSIAddonsNode after a
 	// failure.
 	nodeCreationRetry = time.Minute * 5
+)
+
+var (
+	// errInvalidConfig is returned when an invalid configuration setting
+	// is detected.
+	errInvalidConfig = errors.New("invalid configuration")
 )
 
 // Manager is a helper that creates the CSIAddonsNode for the running sidecar.
@@ -57,6 +59,16 @@ type Manager struct {
 	// Endpoint is the location where the sidecar receives connections on
 	// from the CSI-Addons Controller.
 	Endpoint string
+
+	// PodName is the (unique) name of the Pod that contains this sidecar.
+	PodName string
+
+	// PodNamespace is the Kubernetes Namespace where the Pod with this
+	// sidecar is running.
+	PodNamespace string
+
+	// PodUID is the UID of the Pod that contains this sidecar.
+	PodUID string
 }
 
 // Deploy creates CSIAddonsNode custom resource with all required information.
@@ -117,48 +129,35 @@ func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) erro
 		Do(context.TODO()).
 		Error()
 
-	if err != nil && !errors.IsAlreadyExists(err) {
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create csiaddonsnode object: %w", err)
 	}
 
 	return nil
 }
 
-// lookupEnc returns environmental variable value given the name.
-func lookupEnv(name string) (string, error) {
-	val, ok := os.LookupEnv(name)
-	if !ok {
-		return val, fmt.Errorf("required environmental variable %q not found", name)
-	}
-
-	return val, nil
-}
-
 // getCSIAddonsNode fills required information and return CSIAddonsNode object.
 func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error) {
-	podName, err := lookupEnv(podNameEnvKey)
-	if err != nil {
-		return nil, err
+	if mgr.PodName == "" {
+		return nil, fmt.Errorf("%w: missing Pod name", errInvalidConfig)
 	}
-	podNamespace, err := lookupEnv(podNamespaceEnvKey)
-	if err != nil {
-		return nil, err
+	if mgr.PodNamespace == "" {
+		return nil, fmt.Errorf("%w: missing Pod namespace", errInvalidConfig)
 	}
-	podUID, err := lookupEnv(podUIDEnvKey)
-	if err != nil {
-		return nil, err
+	if mgr.PodUID == "" {
+		return nil, fmt.Errorf("%w: missing Pod UID", errInvalidConfig)
 	}
 
 	return &csiaddonsv1alpha1.CSIAddonsNode{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      podName,
-			Namespace: podNamespace,
+			Name:      mgr.PodName,
+			Namespace: mgr.PodNamespace,
 			OwnerReferences: []v1.OwnerReference{
 				{
 					APIVersion: "v1",
 					Kind:       "Pod",
-					Name:       podName,
-					UID:        types.UID(podUID),
+					Name:       mgr.PodName,
+					UID:        types.UID(mgr.PodUID),
 				},
 			},
 		},
