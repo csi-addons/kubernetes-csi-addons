@@ -18,6 +18,7 @@ package schema
 
 import (
 	"fmt"
+
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 )
 
@@ -246,7 +247,6 @@ func newExtensions(s *apiextensions.JSONSchemaProps) (*Extensions, error) {
 		XListMapKeys:      s.XListMapKeys,
 		XListType:         s.XListType,
 		XMapType:          s.XMapType,
-		XValidations:      s.XValidations,
 	}
 
 	if s.XPreserveUnknownFields != nil {
