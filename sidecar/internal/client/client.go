@@ -31,35 +31,50 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// Client holds the GRPC connenction details
-type Client struct {
-	Client  *grpc.ClientConn
+// Client is an interface that describes the methods which can be called on the
+// client connection.
+// This is mostly useful for (unit) testing where a client can not connect to a
+// Kubernetes cluster.
+type Client interface {
+	GetGRPCClient() *grpc.ClientConn
+	Probe() error
+	GetDriverName() (string, error)
+}
+
+// clientImpl holds the GRPC connenction details
+type clientImpl struct {
+	client  *grpc.ClientConn
 	Timeout time.Duration
 	// Interval of trying to call Probe() until it succeeds
 	probeInterval time.Duration
 }
 
 // Connect to the GRPC client
-func (c *Client) connect(address string) (*grpc.ClientConn, error) {
+func (c *clientImpl) connect(address string) (*grpc.ClientConn, error) {
 	return connection.Connect(address, metrics.NewCSIMetricsManager(""), connection.OnConnectionLoss(connection.ExitOnConnectionLoss()))
 }
 
 // New creates and returns the GRPC client
-func New(address string, timeout time.Duration) (*Client, error) {
-	c := &Client{}
+func New(address string, timeout time.Duration) (Client, error) {
+	c := &clientImpl{}
 	cc, err := c.connect(address)
 	if err != nil {
 		return nil, err
 	}
-	c.Client = cc
+	c.client = cc
 	c.Timeout = timeout
 	c.probeInterval = time.Second
 	return c, nil
 }
 
+// GetGRPCClient returns the connected GRPC client.
+func (c *clientImpl) GetGRPCClient() *grpc.ClientConn {
+	return c.client
+}
+
 // Probe calls Probe() of a CSI driver and waits until the driver becomes ready.
 // Any error other than timeout is returned.
-func (c *Client) Probe() error {
+func (c *clientImpl) Probe() error {
 	for {
 		klog.Info("Probing CSI driver for readiness")
 		ready, err := c.probeOnce()
@@ -87,11 +102,11 @@ func (c *Client) Probe() error {
 }
 
 // probeOnce calls driver Probe() just once and returns its result without any processing.
-func (c *Client) probeOnce() (bool, error) {
+func (c *clientImpl) probeOnce() (bool, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), c.Timeout)
 	defer cancel()
 
-	identityClient := identity.NewIdentityClient(c.Client)
+	identityClient := identity.NewIdentityClient(c.client)
 	req := identity.ProbeRequest{}
 
 	rsp, err := identityClient.Probe(ctx, &req)
@@ -109,11 +124,11 @@ func (c *Client) probeOnce() (bool, error) {
 }
 
 // GetDriverName gets the driver name from the driver
-func (c *Client) GetDriverName() (string, error) {
+func (c *clientImpl) GetDriverName() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	identityClient := identity.NewIdentityClient(c.Client)
+	identityClient := identity.NewIdentityClient(c.client)
 
 	req := identity.GetIdentityRequest{}
 	rsp, err := identityClient.GetIdentity(ctx, &req)

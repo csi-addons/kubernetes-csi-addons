@@ -47,6 +47,11 @@ var (
 
 // Manager is a helper that creates the CSIAddonsNode for the running sidecar.
 type Manager struct {
+	// Client contains the gRPC connection to the CSI-driver that supports
+	// the CSI-Addons operations. This is used to get the identity of the
+	// CSI-driver that is included in the CSIAddonsNode object.
+	Client client.Client
+
 	// Config is a ReST Config for the Kubernets API.
 	Config *rest.Config
 
