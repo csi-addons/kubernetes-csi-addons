@@ -120,10 +120,12 @@ CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0)
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+# kustomize gets installed from the vendor/ directory. The tools.go file is
+# used to select the major version of kustomize.
+KUSTOMIZE = $(shell go env GOPATH)/bin/kustomize
 .PHONY: kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+kustomize:
+	cd vendor && go install ./$(shell grep kustomize tools.go | sed 's/.*_ "//;s/"//')
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
