@@ -17,11 +17,11 @@ limitations under the License.
 package connection
 
 import (
-	"reflect"
 	"sync"
 	"testing"
 
 	"github.com/csi-addons/spec/lib/go/identity"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConnectionPool(t *testing.T) {
@@ -39,127 +39,165 @@ func TestNewConnectionPool(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewConnectionPool(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewConnectionPool() = %v, want %v", got, tt.want)
-			}
+			res := NewConnectionPool()
+			assert.Equal(t, tt.want, res)
 		})
 	}
 }
 
 func TestConnectionPool_PutGetDelete(t *testing.T) {
 
-	t.Run(("test single Put, Get, Delete"), func(t *testing.T) {
+	t.Run(("test single Put, Get, Get without nodeID, Delete"), func(t *testing.T) {
 		cp := NewConnectionPool()
+		driverName := "example.io"
+		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
 			Capabilities: []*identity.Capability{},
-			NodeID:       "one",
-			DriverName:   "example.io",
+			NodeID:       nodeID,
+			DriverName:   driverName,
 			Timeout:      0,
 		}
 
 		cp.Put(key1, conn1)
 
-		conns, unLock := cp.Get()
-		if len(*conns) != 1 {
-			t.Errorf("connection map should contain only one value: %+v", *conns)
-		}
-		for k, v := range *conns {
+		conns := cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, 1, len(conns))
+		for k, v := range conns {
 			if k == key1 {
-				if !reflect.DeepEqual(*v, *conn1) {
-					t.Errorf("expected value %+v is not equal to returned value %+v", Connection{}, *v)
-				}
+				assert.Equal(t, *conn1, *v)
 			}
 		}
-		unLock()
+
+		// nodeID is optional
+		conns = cp.GetByNodeID(driverName, "")
+		assert.Equal(t, 1, len(conns))
+		for k, v := range conns {
+			if k == key1 {
+				assert.Equal(t, *conn1, *v)
+			}
+		}
+
+		// non-matching driverName
+		conns = cp.GetByNodeID("", "")
+		assert.Equal(t, 0, len(conns))
 
 		cp.Delete(key1)
 
-		conns, unLock = cp.Get()
-		defer unLock()
-		if len(*conns) != 0 {
-			t.Errorf("Connection map should be empty: %+v", *conns)
-		}
+		conns = cp.GetByNodeID(driverName, nodeID)
+		assert.Empty(t, conns)
 	})
 
 	t.Run(("test Put with same key twice"), func(t *testing.T) {
 		cp := NewConnectionPool()
+		driverName := "example.io"
+		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
 			Capabilities: []*identity.Capability{},
-			NodeID:       "one",
-			DriverName:   "example.io",
+			NodeID:       nodeID,
+			DriverName:   driverName,
 			Timeout:      0,
 		}
+
 		conn2 := &Connection{
-			Capabilities: []*identity.Capability{},
-			NodeID:       "two",
-			DriverName:   "two.example.io",
-			Timeout:      0,
+			Capabilities: []*identity.Capability{
+				{
+					Type: &identity.Capability_Service_{
+						Service: &identity.Capability_Service{
+							Type: 0,
+						},
+					},
+				},
+			},
+			NodeID:     nodeID,
+			DriverName: driverName,
+			Timeout:    0,
 		}
 
 		cp.Put(key1, conn1)
 
-		conns, unLock := cp.Get()
-		for k, v := range *conns {
+		conns := cp.GetByNodeID(driverName, nodeID)
+		for k, v := range conns {
 			if k == key1 {
-				if !reflect.DeepEqual(*v, *conn1) {
-					t.Errorf("expected value %+v is not equal to returned value %+v", *conn1, *v)
-				}
+				assert.Equal(t, *conn1, *v)
 			}
 		}
-		unLock()
 
 		cp.Put(key1, conn2)
 
-		conns, unLock = cp.Get()
-		for k, v := range *conns {
+		conns = cp.GetByNodeID(driverName, nodeID)
+		for k, v := range conns {
 			if k == key1 {
-				if !reflect.DeepEqual(*v, *conn2) {
-					t.Errorf("expected value %+v is not equal to returned value %+v", *conn2, *v)
-				}
+				assert.Equal(t, *conn2, *v)
 			}
 		}
-		unLock()
 
 		cp.Delete(key1)
 
-		conns, unLock = cp.Get()
-		defer unLock()
-		if len(*conns) != 0 {
-			t.Errorf("Connection map should be empty: %+v", *conns)
-		}
+		conns = cp.GetByNodeID(driverName, nodeID)
+		assert.Empty(t, conns)
 	})
 
 	t.Run(("test Delete with same key twice"), func(t *testing.T) {
 		cp := NewConnectionPool()
+		driverName := "example.io"
+		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
 			Capabilities: []*identity.Capability{},
-			NodeID:       "one",
-			DriverName:   "example.io",
+			NodeID:       nodeID,
+			DriverName:   driverName,
 			Timeout:      0,
 		}
 		cp.Put(key1, conn1)
 
-		conns, unLock := cp.Get()
-		for k, v := range *conns {
+		conns := cp.GetByNodeID(driverName, nodeID)
+		for k, v := range conns {
 			if k == key1 {
-				if !reflect.DeepEqual(*v, *conn1) {
-					t.Errorf("expected value %+v is not equal to returned value %+v", *conn1, *v)
-				}
+				assert.Equal(t, *conn1, *v)
 			}
 		}
-		unLock()
 
 		cp.Delete(key1)
 		cp.Delete(key1)
 
-		conns, unLock = cp.Get()
-		defer unLock()
-		if len(*conns) != 0 {
-			t.Errorf("Connection map should be empty: %+v", *conns)
-		}
+		conns = cp.GetByNodeID(driverName, nodeID)
+		assert.Empty(t, conns)
 	})
 
+	t.Run(("test Put after Get, verify no change in first Get variable"), func(t *testing.T) {
+		cp := NewConnectionPool()
+		driverName := "example.io"
+		nodeID := "one"
+		key1 := "one"
+		conn1 := &Connection{
+			Capabilities: []*identity.Capability{},
+			NodeID:       nodeID,
+			DriverName:   driverName,
+			Timeout:      0,
+		}
+		cp.Put(key1, conn1)
+
+		conns := cp.GetByNodeID(driverName, nodeID)
+		for k, v := range conns {
+			if k == key1 {
+				assert.Equal(t, *conn1, *v)
+			}
+		}
+
+		conn2 := &Connection{
+			Capabilities: []*identity.Capability{},
+			NodeID:       nodeID,
+			DriverName:   driverName,
+			Timeout:      1,
+		}
+		cp.Put(key1, conn2)
+		assert.Equal(t, 1, len(conns))
+		for k, v := range conns {
+			if k == key1 {
+				assert.Equal(t, *conn1, *v)
+			}
+		}
+	})
 }
