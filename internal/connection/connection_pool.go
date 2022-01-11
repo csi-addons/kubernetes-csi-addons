@@ -62,11 +62,21 @@ func (cp *ConnectionPool) Delete(key string) {
 	delete(cp.pool, key)
 }
 
-// Get returns map of connections and unlock function to be called
-// after parsing the connections.
-func (cp *ConnectionPool) Get() (*map[string]*Connection, func()) {
-	rlock := cp.rwlock.RLocker()
-	rlock.Lock()
+// GetByNodeID returns map of connections, filtered with given driverName and optional nodeID.
+func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) map[string]*Connection {
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
 
-	return &cp.pool, rlock.Unlock
+	newPool := make(map[string]*Connection)
+	for k, v := range cp.pool {
+		if v.DriverName != driverName {
+			continue
+		}
+		if nodeID != "" && v.NodeID != nodeID {
+			continue
+		}
+		newPool[k] = v
+	}
+
+	return newPool
 }
