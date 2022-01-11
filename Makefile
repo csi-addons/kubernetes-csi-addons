@@ -3,6 +3,9 @@
 IMG ?= quay.io/csiaddons/k8s-controller:latest
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
 TAG?= latest
+
+BUNDLE_VERSION ?= 0.0.1
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -133,6 +136,12 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest:
 	go build -o $(ENVTEST) ./vendor/$(shell grep setup-envtest tools.go | sed 's/.*_ "//;s/"//')
+
+# operator-sdk gets installed from the vendor/ directory.
+OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
+.PHONY: operator-sdk
+operator-sdk:
+	go build -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools.go | sed 's/.*_ "//;s/"//')
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
