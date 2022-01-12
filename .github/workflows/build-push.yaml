@@ -7,6 +7,32 @@ on:
       - main
 
 jobs:
+  push_bundle:
+    name: Push bundle container image to quay.io
+    if: github.repository == 'csi-addons/kubernetes-csi-addons'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Generate the bundle contents
+        run: make bundle
+
+      - name: Login to quay.io
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push bundle container image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: bundle.Dockerfile
+          push: true
+          tags: quay.io/csiaddons/k8s-bundle:latest
+
   push_controller:
     name: Push controller container image to quay.io
     if: github.repository == 'csi-addons/kubernetes-csi-addons'
