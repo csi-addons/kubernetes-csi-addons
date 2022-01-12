@@ -57,7 +57,21 @@ By listing the `CSIAddonsNode` CRs, the CSI-Addons Controller knows how to
 connect to the side-cars. By checking the supported capabilities of the
 side-cars, it can decide where to execute operations that the user requested.
 
-### Installation
+### Installation by operator
+
+A CSI-Addons bundle can be used to install the CSI-Addons Controller with the
+following steps:
+
+```console
+$ kubectl create namespace storage-csi-addons
+$ make operator-sdk
+$ ./bin/operator-sdk run bundle -n storage-csi-addons quay.io/csiaddons/k8s-bundle:latest
+```
+
+In the future, the bundle is expected to become available in the
+[OperatorHub][operatorhub].
+
+### Installation with `kustomize`
 
 This project uses `kustomize` and a `Makefile` for deploying. By running the
 command
@@ -100,3 +114,4 @@ replicaset.apps/csi-addons-controller-manager-687d47b8c7   1         1         1
 
 [csi_addons]: https://github.com/csi-addons/spec/
 [csi]: https://kubernetes-csi.github.io/docs/
+[operatorhub]: https://operatorhub.io/
