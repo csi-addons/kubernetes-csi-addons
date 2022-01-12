@@ -7,6 +7,33 @@ on:
       - "*"
 
 jobs:
+  build_bundle:
+    name: build_bundle
+    if: github.repository == 'csi-addons/kubernetes-csi-addons'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Install Go 1.17
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+
+      - name: Generate the bundle contents
+        run: make bundle
+
+      - name: Validate the bundle contents
+        run: make bundle-validate
+
+      - name: Build bundle container image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: bundle.Dockerfile
+          push: false
+          tags: quay.io/csiaddons/k8s-bundle:latest
+
   build_controller:
     name: build_controller
     runs-on: ubuntu-latest
