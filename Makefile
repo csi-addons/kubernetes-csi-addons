@@ -2,6 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/csiaddons/k8s-controller:latest
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
+BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
 TAG?= latest
 
 BUNDLE_VERSION ?= 0.0.1
@@ -47,6 +48,11 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./cmd/... ./controllers/... ./sidecar/..." output:crd:artifacts:config=config/crd/bases
+
+.PHONY: bundle
+bundle: kustomize operator-sdk
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=csi-addons --version=$(BUNDLE_VERSION)
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -94,6 +100,14 @@ docker-build-sidecar:
 .PHONY: docker-push-sidecar
 docker-push-sidecar:
 	docker push ${SIDECAR_IMG}:${TAG}
+
+.PHONY: docker-build-bundle
+docker-build-bundle: bundle
+	docker build -f ./bundle.Dockerfile -t ${BUNDLE_IMG}:${TAG} .
+
+.PHONY: docker-push-bundle
+docker-push-bundle:
+	docker push ${BUNDLE_IMG}:${TAG}
 
 ##@ Deployment
 
