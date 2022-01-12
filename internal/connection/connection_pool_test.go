@@ -201,3 +201,76 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 		}
 	})
 }
+
+func TestConnectionPool_getByDriverName(t *testing.T) {
+	type fields struct {
+		pool   map[string]*Connection
+		rwlock *sync.RWMutex
+	}
+	type args struct {
+		driverName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   map[string]*Connection
+	}{
+		{
+			name: "matching driverName present",
+			fields: fields{
+				pool: map[string]*Connection{
+					"one": {
+						DriverName: "driver-1",
+					},
+					"two": {
+						DriverName: "driver-2",
+					},
+					"three": {
+						DriverName: "driver-1",
+					},
+				},
+				rwlock: &sync.RWMutex{},
+			},
+			args: args{
+				driverName: "driver-1",
+			},
+			want: map[string]*Connection{
+				"one": {
+					DriverName: "driver-1",
+				},
+				"three": {
+					DriverName: "driver-1",
+				},
+			},
+		},
+		{
+			name: "matching driverName absent",
+			fields: fields{
+				pool: map[string]*Connection{
+					"one": {
+						DriverName: "driver-1",
+					},
+					"two": {
+						DriverName: "driver-2",
+					},
+				},
+				rwlock: &sync.RWMutex{},
+			},
+			args: args{
+				driverName: "driver-3",
+			},
+			want: map[string]*Connection{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cp := &ConnectionPool{
+				pool:   tt.fields.pool,
+				rwlock: tt.fields.rwlock,
+			}
+			res := cp.getByDriverName(tt.args.driverName)
+			assert.Equal(t, tt.want, res)
+		})
+	}
+}
