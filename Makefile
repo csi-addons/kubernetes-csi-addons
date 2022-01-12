@@ -128,10 +128,11 @@ KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize:
 	go build -o $(KUSTOMIZE) ./vendor/$(shell grep kustomize tools.go | sed 's/.*_ "//;s/"//')
 
+# setup-envtest gets installed from the vendor/ directory.
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
-envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+envtest:
+	go build -o $(ENVTEST) ./vendor/$(shell grep setup-envtest tools.go | sed 's/.*_ "//;s/"//')
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
