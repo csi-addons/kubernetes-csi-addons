@@ -75,6 +75,11 @@ test: manifests generate fmt vet envtest ## Run tests.
 check-all-committed: ## Fail in case there are uncommitted changes
 	test -z "$(shell git status --short)" || (echo "files were modified: " ; git status --short ; false)
 
+.PHONY: bundle-validate
+bundle-validate: IMAGE_BUILDER ?= $(shell which podman docker | head -n1 | xargs basename)
+bundle-validate: operator-sdk
+	$(OPERATOR_SDK) bundle validate --image-builder=$(IMAGE_BUILDER) ./bundle
+
 ##@ Build
 
 .PHONY: build
