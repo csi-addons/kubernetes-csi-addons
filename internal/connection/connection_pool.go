@@ -62,21 +62,34 @@ func (cp *ConnectionPool) Delete(key string) {
 	delete(cp.pool, key)
 }
 
-// GetByNodeID returns map of connections, filtered with given driverName and optional nodeID.
-func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) map[string]*Connection {
-	cp.rwlock.RLock()
-	defer cp.rwlock.RUnlock()
-
+// getByDriverName returns map of connections filtered by driverName. This function
+// must be called with read lock held.
+func (cp *ConnectionPool) getByDriverName(driverName string) map[string]*Connection {
 	newPool := make(map[string]*Connection)
 	for k, v := range cp.pool {
 		if v.DriverName != driverName {
-			continue
-		}
-		if nodeID != "" && v.NodeID != nodeID {
 			continue
 		}
 		newPool[k] = v
 	}
 
 	return newPool
+}
+
+// GetByNodeID returns map of connections, filtered with given driverName and optional nodeID.
+func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) map[string]*Connection {
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
+
+	pool := cp.getByDriverName(driverName)
+	result := make(map[string]*Connection)
+	for k, v := range pool {
+		// since nodeID is options,check only if it is not empty
+		if nodeID != "" && v.NodeID != nodeID {
+			continue
+		}
+		result[k] = v
+	}
+
+	return result
 }
