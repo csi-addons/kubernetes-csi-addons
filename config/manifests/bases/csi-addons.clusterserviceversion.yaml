@@ -1,0 +1,59 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: csi-addons.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: CSIAddonsNode is the Schema for the csiaddonsnode API
+      displayName: CSIAddons Node
+      kind: CSIAddonsNode
+      name: csiaddonsnodes.csiaddons.openshift.io
+      version: v1alpha1
+    - description: NetworkFence is the Schema for the networkfences API
+      displayName: Network Fence
+      kind: NetworkFence
+      name: networkfences.csiaddons.openshift.io
+      version: v1alpha1
+    - description: ReclaimSpaceJob is the Schema for the reclaimspacejobs API
+      displayName: Reclaim Space Job
+      kind: ReclaimSpaceJob
+      name: reclaimspacejobs.csiaddons.openshift.io
+      version: v1alpha1
+  description: CSI Addons provides the CSI Addons Controller that enables advanced
+    storage operations for CSI-drivers.
+  displayName: CSI Addons
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - storage
+  - csi
+  links:
+  - name: CSI Addons
+    url: https://github.com/csi-addons
+  maintainers:
+  - email: ndevos@redhat.com
+    name: Niels de Vos
+  maturity: alpha
+  provider:
+    name: CSI Addons Community
+  version: 0.0.0
