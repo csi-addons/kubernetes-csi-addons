@@ -18,19 +18,51 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"time"
 
+	"github.com/go-logr/logr"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
+	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 )
 
-// NetworkFenceReconciler reconciles a NetworkFence object
+// NetworkFenceReconciler reconciles a NetworkFence object.
 type NetworkFenceReconciler struct {
 	client.Client
+	// Scheme defines methods for serializing and deserializing API objects.
 	Scheme *runtime.Scheme
+	// ConnectionPool consists of map of Connection objects
+	Connpool *conn.ConnectionPool
+	// Timeout for the Reconcile operation.
+	Timeout time.Duration
+}
+
+const (
+	networkFenceFinalizer = "csiaddons.openshift.io/network-fence"
+)
+
+// validateNetworkFenceSpec validates the NetworkFence spec and checks if values are neither nil nor empty.
+func validateNetworkFenceSpec(nwFence *csiaddonsv1alpha1.NetworkFence) error {
+	if nwFence == nil {
+		return errors.New("NetworkFence resource is empty")
+	}
+	if nwFence.Spec.Driver == "" {
+		return errors.New("required parameter driver is not specified")
+	}
+	if nwFence.Spec.Cidrs == nil {
+		return errors.New("required parameter cidrs is not specified")
+	}
+	return nil
 }
 
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=networkfences,verbs=get;list;watch;create;update;patch;delete
@@ -39,17 +71,74 @@ type NetworkFenceReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the NetworkFence object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.10.0/pkg/reconcile
 func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// fetch NetworkFence object instance
+	nwFence := &csiaddonsv1alpha1.NetworkFence{}
+	err := r.Get(ctx, req.NamespacedName, nwFence)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			logger.Info("NetworkFence resource not found or deleted")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// validate NetworkFence object so as its parameters are neither empty nor nil.
+	err = validateNetworkFenceSpec(nwFence)
+	if err != nil {
+		logger.Error(err, "failed to validate NetworkFence spec")
+
+		nwFence.Status.Result = csiaddonsv1alpha1.FencingOperationResultFailed
+		nwFence.Status.Message = fmt.Sprintf("Failed to validate Networkfence parameters: %v", util.GetErrorMessage(err))
+		statusErr := r.Client.Status().Update(ctx, nwFence)
+		if statusErr != nil {
+			logger.Error(statusErr, "Failed to update networkfence status")
+
+			return ctrl.Result{}, statusErr
+		}
+
+		// invalid parameter, do not requeue
+		return ctrl.Result{}, nil
+	}
+
+	logger = logger.WithValues("DriverName", nwFence.Spec.Driver, "CIDRs", nwFence.Spec.Cidrs)
+
+	client, err := r.getNetworkFenceClient(nwFence.Spec.Driver, "")
+	if err != nil {
+		logger.Error(err, "Failed to get NetworkFenceClient")
+		return ctrl.Result{}, err
+	}
+
+	// check if the networkfence object is getting deleted, if yes, then send
+	// UnfenceCluster request to the driver.
+	// After the UnfenceCluster request is processed, the finalizer will be removed
+	// so that the networkfence object can be deleted gracefully.
+	if !nwFence.GetDeletionTimestamp().IsZero() {
+		if util.ContainsInSlice(nwFence.GetFinalizers(), networkFenceFinalizer) {
+
+			err := r.unfenceClusterNetwork(ctx, nwFence, client, logger)
+			if err != nil {
+				logger.Error(err, "failed to unfence cluster network")
+				return ctrl.Result{}, err
+			}
+		}
+		logger.Info("NetworkFence object is terminated, skipping reconciliation")
+		return ctrl.Result{}, nil
+	}
+
+	err = r.fenceClusterNetwork(ctx, nwFence, client, logger)
+	if err != nil {
+		logger.Error(err, "failed to fence cluster network")
+		return ctrl.Result{}, err
+	}
+	nwFence.Status.Result = csiaddonsv1alpha1.FencingOperationResultSucceeded
+	nwFence.Status.Message = "NetworkFence operation succeeded"
+	if err := r.Client.Update(ctx, nwFence); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -58,5 +147,61 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *NetworkFenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&csiaddonsv1alpha1.NetworkFence{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
+}
+
+// fenceClusterNetwork adds a finalizer and sends a FenceClusterNetwork request.
+func (r *NetworkFenceReconciler) fenceClusterNetwork(ctx context.Context, nwFence *csiaddonsv1alpha1.NetworkFence, controllerClient proto.NetworkFenceClient, logger logr.Logger) error {
+
+	// add finalizer to the networkfence object if not already present.
+	if err := r.addFinalizerToNetworkFence(ctx, &logger, nwFence); err != nil {
+		logger.Error(err, "Failed to add NetworkFence finalizer")
+		return err
+	}
+
+	// send FenceClusterNetwork request.
+	logger.Info("FenceClusterNetwork Request")
+	timeoutContext, cancel := context.WithTimeout(ctx, r.Timeout)
+	defer cancel()
+	_, err := controllerClient.FenceClusterNetwork(timeoutContext, &proto.NetworkFenceRequest{
+		Parameters:      nwFence.Spec.Parameters,
+		SecretName:      nwFence.Spec.Secret.Name,
+		SecretNamespace: nwFence.Spec.Secret.Namespace,
+		Cidrs:           nwFence.Spec.Cidrs,
+	})
+	if err != nil {
+		logger.Error(err, "failed to fence cluster network")
+		return err
+	}
+	logger.Info("FenceClusterNetwork Request Succeeded")
+
+	return nil
+}
+
+// unfenceClusterNetwork sends a UnfenceClusterNetwork request and removes the finalizer on success.
+func (r *NetworkFenceReconciler) unfenceClusterNetwork(ctx context.Context, nwFence *csiaddonsv1alpha1.NetworkFence, controllerClient proto.NetworkFenceClient, logger logr.Logger) error {
+
+	timeoutContext, cancel := context.WithTimeout(ctx, r.Timeout)
+	defer cancel()
+	_, err := controllerClient.UnFenceClusterNetwork(timeoutContext, &proto.NetworkFenceRequest{
+		Parameters:      nwFence.Spec.Parameters,
+		SecretName:      nwFence.Spec.Secret.Name,
+		SecretNamespace: nwFence.Spec.Secret.Namespace,
+		Cidrs:           nwFence.Spec.Cidrs,
+	})
+	if err != nil {
+		return err
+	}
+	logger.Info("UnfenceClusterNetwork Request Succeeded")
+
+	// once all finalizers have been removed, the object will then be
+	// deleted.
+	logger.Info("Removing finalizer")
+	if err := r.removeFinalizerFromNetworkFence(ctx, &logger, nwFence); err != nil {
+		logger.Error(err, "Failed to remove NetworkFence finalizer")
+		return err
+	}
+
+	return nil
 }
