@@ -53,6 +53,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 bundle: kustomize operator-sdk
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=csi-addons --version=$(BUNDLE_VERSION)
+	mkdir -p ./bundle/tests/scorecard && $(KUSTOMIZE) build config/scorecard --output=./bundle/tests/scorecard/config.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
