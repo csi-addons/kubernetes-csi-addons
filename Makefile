@@ -123,10 +123,10 @@ controller-gen:
 
 # kustomize gets installed from the vendor/ directory. The tools.go file is
 # used to select the major version of kustomize.
-KUSTOMIZE = $(shell go env GOPATH)/bin/kustomize
+KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
 kustomize:
-	cd vendor && go install ./$(shell grep kustomize tools.go | sed 's/.*_ "//;s/"//')
+	go build -o $(KUSTOMIZE) ./vendor/$(shell grep kustomize tools.go | sed 's/.*_ "//;s/"//')
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
