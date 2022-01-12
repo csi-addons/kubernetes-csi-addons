@@ -18,6 +18,10 @@ testbin/*
 
 !vendor/**/zz_generated.*
 
+# operator-sdk generated bundle files
+bundle.Dockerfile
+bundle
+
 # editor and IDE paraphernalia
 .idea
 *.swp
