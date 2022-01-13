@@ -19,7 +19,7 @@ jobs:
           go-version: '1.17'
 
       - name: Generate the bundle contents
-        run: make bundle
+        run: make bundle TAG=${{ github.ref_name }}
 
       - name: Validate the bundle contents
         run: make bundle-validate
