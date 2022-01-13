@@ -34,6 +34,7 @@ import (
 	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
+	"github.com/csi-addons/spec/lib/go/identity"
 )
 
 // NetworkFenceReconciler reconciles a NetworkFence object.
@@ -241,4 +242,28 @@ func (r *NetworkFenceReconciler) removeFinalizerFromNetworkFence(
 	}
 
 	return nil
+}
+
+// getNetworkFenceClient returns a NetworkFenceClient for the given driver.
+func (r *NetworkFenceReconciler) getNetworkFenceClient(drivername, nodeID string) (proto.NetworkFenceClient, error) {
+	conns := r.Connpool.GetByNodeID(drivername, nodeID)
+
+	// Iterate through the connections and find the one that matches the driver name
+	// provided in the NetworkFence spec; so that corresponding network fence and
+	// unfence operations can be performed.
+	for _, v := range conns {
+		for _, cap := range v.Capabilities {
+			// validate if NETWORK_FENCE capability is supported by the driver.
+			if cap.GetNetworkFence() == nil {
+				continue
+			}
+
+			// validate of NETWORK_FENCE capability is enabled by the storage driver.
+			if cap.GetNetworkFence().GetType() == identity.Capability_NetworkFence_NETWORK_FENCE {
+				return proto.NewNetworkFenceClient(v.Client), nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no connections for driver: %s", drivername)
 }
