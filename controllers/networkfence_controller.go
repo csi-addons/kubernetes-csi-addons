@@ -205,3 +205,40 @@ func (r *NetworkFenceReconciler) unfenceClusterNetwork(ctx context.Context, nwFe
 
 	return nil
 }
+
+// addFinalizerToNetworkFence adds a finalizer to the Networkfence instance.
+func (r *NetworkFenceReconciler) addFinalizerToNetworkFence(
+	ctx context.Context,
+	logger *logr.Logger,
+	networkFence *csiaddonsv1alpha1.NetworkFence) error {
+
+	if !util.ContainsInSlice(networkFence.Finalizers, networkFenceFinalizer) {
+		logger.Info("adding finalizer to NetworkFence object", "Finalizer", networkFenceFinalizer)
+
+		networkFence.Finalizers = append(networkFence.Finalizers, networkFenceFinalizer)
+		if err := r.Client.Update(ctx, networkFence); err != nil {
+			return fmt.Errorf("failed to add finalizer (%s) to NetworkFence resource"+
+				" (%s): %w", networkFenceFinalizer, networkFence.GetName(), err)
+		}
+	}
+
+	return nil
+}
+
+// removeFinalizerFromNetworkFence removes the finalizer from the Networkfence instance.
+func (r *NetworkFenceReconciler) removeFinalizerFromNetworkFence(
+	ctx context.Context,
+	logger *logr.Logger,
+	nf *csiaddonsv1alpha1.NetworkFence) error {
+	if util.ContainsInSlice(nf.Finalizers, networkFenceFinalizer) {
+		logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
+
+		nf.Finalizers = util.RemoveFromSlice(nf.Finalizers, networkFenceFinalizer)
+		if err := r.Client.Update(ctx, nf); err != nil {
+			return fmt.Errorf("failed to remove finalizer (%s) from NetworkFence resource"+
+				" %s: %w", networkFenceFinalizer, nf.Name, err)
+		}
+	}
+
+	return nil
+}
