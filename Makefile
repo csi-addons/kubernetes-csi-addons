@@ -3,8 +3,11 @@
 IMG ?= quay.io/csiaddons/k8s-controller:latest
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
 BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
-TAG?= latest
 
+# set TAG to a release for consumption in the bundle
+TAG ?= latest
+
+# version of the package inside the bundle, can be different from the TAG
 BUNDLE_VERSION ?= 0.0.1
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -51,7 +54,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 .PHONY: bundle
 bundle: kustomize operator-sdk
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG):$(TAG)
 	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=csi-addons --version=$(BUNDLE_VERSION)
 	mkdir -p ./bundle/tests/scorecard && $(KUSTOMIZE) build config/scorecard --output=./bundle/tests/scorecard/config.yaml
 
