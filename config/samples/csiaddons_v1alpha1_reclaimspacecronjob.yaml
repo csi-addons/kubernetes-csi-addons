@@ -1,0 +1,11 @@
+---
+apiVersion: csiaddons.openshift.io/v1alpha1
+kind: ReclaimSpaceCronJob
+metadata:
+  name: reclaimspacecronjob-sample
+spec:
+  schedule: "@weekly"
+  jobTemplate:
+    spec:
+      target:
+        persistentVolumeClaim: data-pvc
