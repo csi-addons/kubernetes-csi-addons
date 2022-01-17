@@ -137,7 +137,7 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	nwFence.Status.Result = csiaddonsv1alpha1.FencingOperationResultSucceeded
 	nwFence.Status.Message = "NetworkFence operation succeeded"
-	if err := r.Client.Update(ctx, nwFence); err != nil {
+	if err := r.Client.Status().Update(ctx, nwFence); err != nil {
 		return ctrl.Result{}, err
 	}
 
