@@ -20,6 +20,11 @@ spec:
       kind: NetworkFence
       name: networkfences.csiaddons.openshift.io
       version: v1alpha1
+    - description: ReclaimSpaceCronJob is the Schema for the reclaimspacecronjobs API
+      displayName: Reclaim Space CronJob
+      kind: ReclaimSpaceCronJob
+      name: reclaimspacecronjobs.csiaddons.openshift.io
+      version: v1alpha1
     - description: ReclaimSpaceJob is the Schema for the reclaimspacejobs API
       displayName: Reclaim Space Job
       kind: ReclaimSpaceJob
