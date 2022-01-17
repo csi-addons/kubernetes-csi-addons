@@ -15,7 +15,20 @@ spec:
     singular: networkfence
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.driver
+      name: Driver
+      type: string
+    - jsonPath: .spec.cidrs
+      name: Cidrs
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.result
+      name: Result
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: NetworkFence is the Schema for the networkfences API
@@ -148,6 +161,8 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

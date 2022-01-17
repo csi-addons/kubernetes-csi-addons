@@ -71,15 +71,12 @@ type NetworkFenceStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-
 //+kubebuilder:printcolumn:name="Driver",type="string",JSONPath=".spec.driver"
 //+kubebuilder:printcolumn:name="Cidrs",type="string",JSONPath=".spec.cidrs"
 //+kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 //+kubebuilder:printcolumn:JSONPath=".status.result",name=Result,type=string
-
-//+kubebuilder:object:root=true
-
 //+kubebuilder:resource:path=networkfences,scope=Cluster,singular=networkfence
+
 // NetworkFence is the Schema for the networkfences API
 type NetworkFence struct {
 	metav1.TypeMeta   `json:",inline"`
