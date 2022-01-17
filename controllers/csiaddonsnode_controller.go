@@ -110,7 +110,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		errMessage := util.GetErrorMessage(err)
 		csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateFailed
 		csiAddonsNode.Status.Message = fmt.Sprintf("Failed to establish connection with sidecar: %v", errMessage)
-		statusErr := r.Client.Update(ctx, csiAddonsNode)
+		statusErr := r.Client.Status().Update(ctx, csiAddonsNode)
 		if statusErr != nil {
 			logger.Error(statusErr, "Failed to update status")
 
