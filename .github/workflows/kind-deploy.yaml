@@ -1,0 +1,33 @@
+---
+name: Test deploying controller
+
+on:
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  kind_deploy:
+    name: kind_deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.2.0
+
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Install Go 1.17
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+
+      - name: Deploy the controller and CRDs
+        run: make deploy
+
+      - name: Wait for running controller pod
+        run: kubectl -n csi-addons-system wait pods -l app.kubernetes.io/name=csi-addons --for=condition=Ready=True
+
+      - name: Log the status of the failed controller pod
+        if: ${{ failure() }}
+        run: kubectl -n csi-addons-system describe pods -l app.kubernetes.io/name=csi-addons ; false
