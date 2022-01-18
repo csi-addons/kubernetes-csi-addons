@@ -64,7 +64,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: ${{ secrets.BUILD_PLATFORMS }}
           push: true
           tags: quay.io/csiaddons/k8s-controller:latest
 
@@ -94,6 +94,6 @@ jobs:
         with:
           context: .
           file: build/Containerfile.sidecar
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: ${{ secrets.BUILD_PLATFORMS }}
           push: true
           tags: quay.io/csiaddons/k8s-sidecar:latest
