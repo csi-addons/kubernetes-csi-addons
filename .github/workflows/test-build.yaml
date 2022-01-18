@@ -9,7 +9,6 @@ on:
 jobs:
   build_bundle:
     name: build_bundle
-    if: github.repository == 'csi-addons/kubernetes-csi-addons'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
