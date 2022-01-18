@@ -51,6 +51,9 @@ const (
 
 	// failed condition type.
 	conditionFailed = "Failed"
+	// failed reason type.
+	// TODO: add more useful reason types.
+	reasonFailed = "failed"
 )
 
 // ReclaimSpaceJobReconciler reconciles a ReclaimSpaceJob object.
@@ -429,6 +432,7 @@ func setFailedCondition(
 		ObservedGeneration: observedGeneration,
 		LastTransitionTime: metav1.NewTime(time.Now()),
 		Message:            message,
+		Reason:             reasonFailed,
 	}
 	for i := range *conditions {
 		if (*conditions)[i].Type == conditionFailed {
