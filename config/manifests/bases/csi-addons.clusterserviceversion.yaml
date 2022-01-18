@@ -4,7 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
-  name: csi-addons.v0.0.0
+  name: csi-addons.v0.1.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -61,4 +61,4 @@ spec:
   maturity: alpha
   provider:
     name: CSI Addons Community
-  version: 0.0.0
+  version: 0.1.1
