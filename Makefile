@@ -7,6 +7,11 @@ BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
 # set TAG to a release for consumption in the bundle
 TAG ?= latest
 
+# the PACKAGE_NAME is included in the bundle/CSV and is used in catalogsources
+# for operators (like OperatorHub.io). Products that include the CSI-Addons
+# bundle should use a different PACKAGE_NAME to prevent conflicts.
+PACKAGE_NAME ?= csi-addons
+
 # The default version of the bundle (CSV) can be found in
 # config/manifests/bases/csi-addons.clusterserviceversion.yaml . When tagging a
 # release, the bundle will be versioned with the same value as well.
@@ -59,7 +64,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 .PHONY: bundle
 bundle: kustomize operator-sdk
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(CONTROLLER_IMG):$(TAG)
-	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=csi-addons $(BUNDLE_VERSION)
+	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=$(PACKAGE_NAME) $(BUNDLE_VERSION)
 	mkdir -p ./bundle/tests/scorecard && $(KUSTOMIZE) build config/scorecard --output=./bundle/tests/scorecard/config.yaml
 
 .PHONY: generate
