@@ -45,7 +45,7 @@ func TestSetFailedCondition(t *testing.T) {
 						Status:             v1.ConditionTrue,
 						ObservedGeneration: 0,
 						LastTransitionTime: v1.NewTime(time.Now()),
-						Reason:             "",
+						Reason:             reasonFailed,
 						Message:            "err 1",
 					},
 				},
