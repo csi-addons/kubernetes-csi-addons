@@ -12,6 +12,15 @@ TAG ?= latest
 # bundle should use a different PACKAGE_NAME to prevent conflicts.
 PACKAGE_NAME ?= csi-addons
 
+# By setting RBAC_PROXY_IMG to a different container-image, new versions of
+# the kube-rbac-proxy can easily be tested. Products that include CSI-Addons
+# may want to provide a different location of the container-image.
+# The default value is set in config/default/kustomization.yaml
+#RBAC_PROXY_IMG ?= gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+ifneq ($(RBAC_PROXY_IMG),)
+KUSTOMIZE_RBAC_PROXY := rbac-proxy=$(RBAC_PROXY_IMG)
+endif
+
 # The default version of the bundle (CSV) can be found in
 # config/manifests/bases/csi-addons.clusterserviceversion.yaml . When tagging a
 # release, the bundle will be versioned with the same value as well.
@@ -63,7 +72,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 .PHONY: bundle
 bundle: kustomize operator-sdk
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(CONTROLLER_IMG):$(TAG)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(CONTROLLER_IMG):$(TAG) $(KUSTOMIZE_RBAC_PROXY)
 	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=$(PACKAGE_NAME) $(BUNDLE_VERSION)
 	mkdir -p ./bundle/tests/scorecard && $(KUSTOMIZE) build config/scorecard --output=./bundle/tests/scorecard/config.yaml
 
@@ -143,7 +152,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}:${TAG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}:${TAG} $(KUSTOMIZE_RBAC_PROXY)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
