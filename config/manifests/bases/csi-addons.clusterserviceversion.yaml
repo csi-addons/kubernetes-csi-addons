@@ -56,8 +56,8 @@ spec:
   - name: CSI Addons
     url: https://github.com/csi-addons
   maintainers:
-  - email: ndevos@redhat.com
-    name: Niels de Vos
+  - email: csi-addons@redhat.com
+    name: CSI Addons Community
   maturity: alpha
   provider:
     name: CSI Addons Community

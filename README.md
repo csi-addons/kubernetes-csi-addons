@@ -112,6 +112,21 @@ NAME                                                       DESIRED   CURRENT   R
 replicaset.apps/csi-addons-controller-manager-687d47b8c7   1         1         1       49s
 ```
 
+## Contributing
+
+The [Contribution Guidelines](CONTRIBUTING.md) contain details on the process
+to contribute to this project.
+
+For feature enhancements, or questions about particular features or design
+choices, there is a mailinglist. All regular contributors are encouraged to
+subscribe to the list, and participate in the discussions.
+
+Subscribing can be done through the [mailman web interface][mailman] or by
+[sending an email to csi-addons-request@redhat.com][subscribe] with subject
+`subscribe`.
+
 [csi_addons]: https://github.com/csi-addons/spec/
 [csi]: https://kubernetes-csi.github.io/docs/
 [operatorhub]: https://operatorhub.io/
+[mailman]: https://listman.redhat.com/mailman/listinfo/csi-addons
+[subscribe]: mailto:csi-addons-request@redhat.com?subject=subscribe
