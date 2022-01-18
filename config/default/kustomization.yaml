@@ -72,3 +72,8 @@ vars:
 #    kind: Service
 #    version: v1
 #    name: webhook-service
+
+images:
+- name: rbac-proxy
+  newName: gcr.io/kubebuilder/kube-rbac-proxy
+  newTag: v0.8.0
