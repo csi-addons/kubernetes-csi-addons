@@ -86,11 +86,14 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./api/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
 
+# generate the <package-name>.clusterserviceversion.yaml
+config/manifests/bases/$(PACKAGE_NAME).clusterserviceversion.yaml: config/manifests/bases/clusterserviceversion.yaml.in
+	sed 's/@PACKAGE_NAME@/$(PACKAGE_NAME)/g' < $^ > $@
+
 .PHONY: bundle
-bundle: kustomize operator-sdk
+bundle: config/manifests/bases/$(PACKAGE_NAME).clusterserviceversion.yaml kustomize operator-sdk
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(CONTROLLER_IMG) $(KUSTOMIZE_RBAC_PROXY)
-	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=$(PACKAGE_NAME) $(BUNDLE_VERSION)
-	mkdir -p ./bundle/tests/scorecard && $(KUSTOMIZE) build config/scorecard --output=./bundle/tests/scorecard/config.yaml
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=$(PACKAGE_NAME) $(BUNDLE_VERSION)
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
