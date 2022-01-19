@@ -2,6 +2,8 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
+    # ODF only: disable PR creation, synced from upstream
+    open-pull-requests-limit: 0
     directory: "/"
     schedule:
       interval: "weekly"
