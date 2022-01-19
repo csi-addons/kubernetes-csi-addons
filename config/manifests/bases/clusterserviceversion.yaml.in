@@ -4,7 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
-  name: csi-addons.v0.1.1
+  name: @PACKAGE_NAME@.v0.1.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
