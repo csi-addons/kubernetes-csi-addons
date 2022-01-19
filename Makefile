@@ -7,6 +7,22 @@ BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
 # set TAG to a release for consumption in the bundle
 TAG ?= latest
 
+# In case the *_IMG variables can contain a full qualified container-image
+# resource (includes a ":"), the container-images should not use the TAG
+# valued. The :TAG option will only be added if no predefined version is
+# passed.
+ifneq (findstring $(CONTROLLER_IMG),:)
+CONTROLLER_IMG := $(CONTROLLER_IMG):$(TAG)
+endif
+
+ifneq (findstring $(SIDECAR_IMG),:)
+SIDECAR_IMG := $(SIDECAR_IMG):$(TAG)
+endif
+
+ifneq (findstring $(BUNDLE_IMG),:)
+BUNDLE_IMG := $(BUNDLE_IMG):$(TAG)
+endif
+
 # the PACKAGE_NAME is included in the bundle/CSV and is used in catalogsources
 # for operators (like OperatorHub.io). Products that include the CSI-Addons
 # bundle should use a different PACKAGE_NAME to prevent conflicts.
@@ -72,7 +88,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 
 .PHONY: bundle
 bundle: kustomize operator-sdk
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(CONTROLLER_IMG):$(TAG) $(KUSTOMIZE_RBAC_PROXY)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(CONTROLLER_IMG) $(KUSTOMIZE_RBAC_PROXY)
 	$(KUSTOMIZE) build config/default | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=$(PACKAGE_NAME) $(BUNDLE_VERSION)
 	mkdir -p ./bundle/tests/scorecard && $(KUSTOMIZE) build config/scorecard --output=./bundle/tests/scorecard/config.yaml
 
@@ -114,27 +130,27 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${CONTROLLER_IMG}:${TAG} .
+	docker build -t ${CONTROLLER_IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${CONTROLLER_IMG}:${TAG}
+	docker push ${CONTROLLER_IMG}
 
 .PHONY: docker-build-sidecar
 docker-build-sidecar:
-	docker build -f ./build/Containerfile.sidecar -t ${SIDECAR_IMG}:${TAG} .
+	docker build -f ./build/Containerfile.sidecar -t ${SIDECAR_IMG} .
 
 .PHONY: docker-push-sidecar
 docker-push-sidecar:
-	docker push ${SIDECAR_IMG}:${TAG}
+	docker push ${SIDECAR_IMG}
 
 .PHONY: docker-build-bundle
 docker-build-bundle: bundle
-	docker build -f ./bundle.Dockerfile -t ${BUNDLE_IMG}:${TAG} .
+	docker build -f ./bundle.Dockerfile -t ${BUNDLE_IMG} .
 
 .PHONY: docker-push-bundle
 docker-push-bundle:
-	docker push ${BUNDLE_IMG}:${TAG}
+	docker push ${BUNDLE_IMG}
 
 ##@ Deployment
 
@@ -152,7 +168,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}:${TAG} $(KUSTOMIZE_RBAC_PROXY)
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG} $(KUSTOMIZE_RBAC_PROXY)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
