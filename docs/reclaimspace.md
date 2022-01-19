@@ -63,8 +63,38 @@ spec:
 
 ## Annotating PerstentVolumeClaims
 
-An extension to the controller to automatically create `ReclaimSpaceCronJob`
-based on annotation on PersistentVolumeClaim is being planned.
+`ReclaimSpaceCronJob` CR can also be automatically created by adding 
+`reclaimspace.csiaddons.openshift.io/schedule: "@midnight"` annotation
+to PersistentVolumeClaim object.
+
+```
+$ kubectl get pvc data-pvc
+NAME      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      AGE
+data-pvc  Bound    pvc-f37b8582-4b04-4676-88dd-e1b95c6abf74   1Gi        RWO            default           20h
+
+$ kubectl annotate pvc data-pvc "reclaimspace.csiaddons.openshift.io/schedule=@midnight"
+persistentvolumeclaim/data-pvc annotated
+
+$ kubectl get reclaimspacecronjobs.csiaddons.openshift.io 
+NAME                    SCHEDULE    SUSPEND   ACTIVE   LASTSCHEDULE   AGE
+data-pvc-1642663516   @midnight                                     3s
+
+$ kubectl annotate pvc data-pvc "reclaimspace.csiaddons.openshift.io/schedule=*/1 * * * *" --overwrite=true
+persistentvolumeclaim/data-pvc annotated
+
+$ kubectl get reclaimspacecronjobs.csiaddons.openshift.io
+NAME                  SCHEDULE    SUSPEND   ACTIVE   LASTSCHEDULE   AGE
+data-pvc-1642664617   */1 * * * *                                   3s
+```
+
+- Upon adding annotation as shown above, a `ReclaimSpaceCronJob` with name
+  `"<pvc-name>-xxxxxxx"` is created (pvc name suffixed with current time hash when 
+  the job was created). 
+- `schedule` value is in the same [format as Kubernetes CronJobs][batch_cronjob]
+  that sets the and/or interval of the recurring operation request.
+- Default schedule value `"@weekly"` is used if `schedule` value is empty or in invalid format. 
+- `ReclaimSpaceCronJob` is recreated when `schedule` is modified and deleted when
+  the annotation is removed.
 
 [batch_cronjob]: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
 [go_cron]: https://pkg.go.dev/github.com/robfig/cron/v3#hdr-CRON_Expression_Format
