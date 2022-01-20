@@ -5,6 +5,7 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     olm.skipRange: @SKIP_RANGE@
+    operators.operatorframework.io/operator-type: non-standalone
   name: @PACKAGE_NAME@.v0.1.1
   namespace: placeholder
 spec:
