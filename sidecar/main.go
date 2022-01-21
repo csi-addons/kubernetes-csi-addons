@@ -34,7 +34,7 @@ import (
 func main() {
 	var (
 		defaultTimeout     = time.Minute * 3
-		defaultStagingPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/"
+		defaultStagingPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/"
 		timeout            = flag.Duration("timeout", defaultTimeout, "Timeout for waiting for response")
 		csiAddonsAddress   = flag.String("csi-addons-address", "/run/csi-addons/socket", "CSI Addons endopoint")
 		nodeID             = flag.String("node-id", "", "NodeID")
