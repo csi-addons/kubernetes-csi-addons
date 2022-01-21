@@ -75,7 +75,7 @@ type ReclaimSpaceJobStatus struct {
 	Message string `json:"message,omitempty"`
 
 	// ReclaimedSpace indicates the amount of space reclaimed.
-	ReclaimedSpace resource.Quantity `json:"reclaimedSpace,omitempty"`
+	ReclaimedSpace *resource.Quantity `json:"reclaimedSpace,omitempty"`
 
 	// Conditions are the list of conditions and their status.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

@@ -253,7 +253,9 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 
 	rsJob.Status.Result = csiaddonsv1alpha1.OperationResultSucceeded
 	rsJob.Status.Message = "Reclaim Space operation successfully completed."
-	rsJob.Status.ReclaimedSpace = *resource.NewQuantity(reclaimedSpace, resource.DecimalSI)
+	if nodeReclaimedSpace != nil || controllerReclaimedSpace != nil {
+		rsJob.Status.ReclaimedSpace = resource.NewQuantity(reclaimedSpace, resource.DecimalSI)
+	}
 	rsJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
 	logger.Info("Successfully completed reclaim space operation")
 
