@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -139,7 +140,10 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 		klog.Errorf("Failed to map access mode: %v", err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	stPath := filepath.Join(rs.stagingPath, pvName, "globalmount")
+	stPath := filepath.Join(rs.stagingPath, "pv", pvName, "globalmount")
+	accessType := csi.VolumeCapability_Mount{
+		Mount: &csi.VolumeCapability_MountVolume{},
+	}
 
 	csiReq := &csiReclaimSpace.NodeReclaimSpaceRequest{
 		VolumeId:          volID,
@@ -149,7 +153,15 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 			AccessMode: &csi.VolumeCapability_AccessMode{
 				Mode: csiMode,
 			},
+			AccessType: &accessType,
 		},
+	}
+
+	if *pv.Spec.VolumeMode == corev1.PersistentVolumeBlock {
+		csiReq.StagingTargetPath = filepath.Join(rs.stagingPath, "volumeDevices", "staging", pvName)
+		csiReq.VolumeCapability.AccessType = &csi.VolumeCapability_Block{
+			Block: &csi.VolumeCapability_BlockVolume{},
+		}
 	}
 
 	if pv.Spec.CSI.NodeStageSecretRef != nil {
