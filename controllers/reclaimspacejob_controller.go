@@ -173,6 +173,13 @@ type targetDetails struct {
 	nodeID     string
 }
 
+// canNodeReclaimSpace returns true if nodeID is not empty,
+// indicating volume is mounted to a pod and node reclaimspace
+// request can be sent.
+func (td *targetDetails) canNodeReclaimSpace() bool {
+	return td.nodeID != ""
+}
+
 // reconcile performs time based validation, fetches required details and makes
 // grpc request for controller and node reclaim space operation.
 func (r *ReclaimSpaceJobReconciler) reconcile(
@@ -211,15 +218,22 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 		return err
 	}
 
-	nodeFound, nodeReclaimedSpace, err := r.nodeReclaimSpace(ctx, logger, target)
-	if err != nil {
-		logger.Error(err, "Failed to make node request")
-		setFailedCondition(
-			&rsJob.Status.Conditions,
-			fmt.Sprintf("Failed to make node request: %v", util.GetErrorMessage(err)),
-			rsJob.Generation)
+	var (
+		nodeFound          = false
+		nodeReclaimedSpace *int64
+	)
+	if target.canNodeReclaimSpace() {
+		nodeFound = true
+		nodeReclaimedSpace, err = r.nodeReclaimSpace(ctx, logger, target)
+		if err != nil {
+			logger.Error(err, "Failed to make node request")
+			setFailedCondition(
+				&rsJob.Status.Conditions,
+				fmt.Sprintf("Failed to make node request: %v", util.GetErrorMessage(err)),
+				rsJob.Generation)
 
-		return err
+			return err
+		}
 	}
 
 	controllerFound, controllerReclaimedSpace, err := r.controllerReclaimSpace(ctx, logger, target)
@@ -366,23 +380,21 @@ func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	return true, calculateReclaimedSpace(resp.PreUsage, resp.PostUsage), nil
 }
 
-// controllerReclaimSpace makes node reclaim space request if node client is found
+// nodeReclaimSpace makes node reclaim space request if node client is found
 // and returns amount of reclaimed space.
 // This function returns
-// - boolean to indicate client was found or not
 // - pointer to int64 indicating amount of reclaimed space, it is nil if not available
 // - error
 func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	ctx context.Context,
 	logger *logr.Logger,
-	target *targetDetails) (bool, *int64, error) {
+	target *targetDetails) (*int64, error) {
 	clientName, nodeClient := r.getRSClientWithCap(
 		target.driverName,
 		target.nodeID,
 		identity.Capability_ReclaimSpace_ONLINE)
 	if nodeClient == nil {
-		logger.Info("Node Client not found")
-		return false, nil, nil
+		return nil, errors.New("node Client not found")
 	}
 	*logger = logger.WithValues("nodeClient", clientName)
 
@@ -394,10 +406,10 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	defer cancel()
 	resp, err := nodeClient.NodeReclaimSpace(newCtx, req)
 	if err != nil {
-		return true, nil, err
+		return nil, err
 	}
 
-	return true, calculateReclaimedSpace(resp.PreUsage, resp.PostUsage), nil
+	return calculateReclaimedSpace(resp.PreUsage, resp.PostUsage), nil
 }
 
 // calculateReclaimedSpace returns amount of reclaimed space.
