@@ -176,3 +176,36 @@ func TestCalculateReclaimedSpace(t *testing.T) {
 		})
 	}
 }
+
+func TestCanNodeReclaimSpace(t *testing.T) {
+	tests := []struct {
+		name string
+		td   targetDetails
+		want bool
+	}{
+		{
+			name: "empty nodeID",
+			td: targetDetails{
+				driverName: "csi.example.com",
+				pvName:     "pvc-a8a5c531-9f88-4fc8-b35d-564585fb42a8",
+				nodeID:     "",
+			},
+			want: false,
+		},
+		{
+			name: "non-empty nodeID",
+			td: targetDetails{
+				driverName: "csi.example.com",
+				pvName:     "pvc-a8a5c531-9f88-4fc8-b35d-564585fb42a8",
+				nodeID:     "worker-1",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.td.canNodeReclaimSpace()
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
