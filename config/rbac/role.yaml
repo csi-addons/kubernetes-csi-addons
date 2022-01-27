@@ -31,6 +31,12 @@ rules:
   - patch
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims/finalizers
+  verbs:
+  - update
+- apiGroups:
   - csiaddons.openshift.io
   resources:
   - csiaddonsnodes
