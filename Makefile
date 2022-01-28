@@ -83,8 +83,10 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./api/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG} $(KUSTOMIZE_RBAC_PROXY)
+	$(KUSTOMIZE) build config/default > deploy/controller/setup-controller.yaml
 
 # generate the <package-name>.clusterserviceversion.yaml
 config/manifests/bases/$(PACKAGE_NAME).clusterserviceversion.yaml: config/manifests/bases/clusterserviceversion.yaml.in
