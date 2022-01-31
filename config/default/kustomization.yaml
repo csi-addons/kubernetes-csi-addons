@@ -12,10 +12,7 @@ namePrefix: csi-addons-
 #commonLabels:
 #  someName: someValue
 
-bases:
-- ../crd
-- ../rbac
-- ../manager
+# bases:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook
@@ -24,10 +21,10 @@ bases:
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
 #- ../prometheus
 
-patchesStrategicMerge:
 # Protect the /metrics endpoint by putting it behind auth.
 # If you want your controller-manager to expose the /metrics
 # endpoint w/o any authn/z, please comment the following line.
+patchesStrategicMerge:
 - manager_auth_proxy_patch.yaml
 
 # Mount the controller config file for loading manager configurations
@@ -44,7 +41,7 @@ patchesStrategicMerge:
 #- webhookcainjection_patch.yaml
 
 # the following config is for teaching kustomize how to do var substitution
-vars:
+# vars:
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER' prefix.
 #- name: CERTIFICATE_NAMESPACE # namespace of the certificate CR
 #  objref:
@@ -77,3 +74,9 @@ images:
 - name: rbac-proxy
   newName: gcr.io/kubebuilder/kube-rbac-proxy
   newTag: v0.8.0
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../crd
+- ../rbac
+- ../manager
