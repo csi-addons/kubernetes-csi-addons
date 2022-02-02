@@ -98,3 +98,29 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: quay.io/csiaddons/k8s-sidecar:${{ github.ref_name }}
+
+  publish_release:
+    name: Publish a release based on the tag
+    if: github.repository == 'csi-addons/kubernetes-csi-addons' && github.ref_type  == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+
+      - name: Install Go 1.17
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+
+      - name: Generate manifests for installation by kubectl
+        run: make manifests TAG=${{ github.ref_name }}
+
+      - name: Publish the release and attach YAML files
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          artifacts: "deploy/*/*.yaml"
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
