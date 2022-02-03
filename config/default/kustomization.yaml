@@ -11,12 +11,7 @@
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
 #- ../prometheus
 
-# Protect the /metrics endpoint by putting it behind auth.
-# If you want your controller-manager to expose the /metrics
-# endpoint w/o any authn/z, please comment the following line.
-patchesStrategicMerge:
-- manager_auth_proxy_patch.yaml
-
+# patchesStrategicMerge:
 # Mount the controller config file for loading manager configurations
 # through a ComponentConfig type
 #- manager_config_patch.yaml
@@ -60,10 +55,6 @@ patchesStrategicMerge:
 #    version: v1
 #    name: webhook-service
 
-images:
-- name: rbac-proxy
-  newName: gcr.io/kubebuilder/kube-rbac-proxy
-  newTag: v0.8.0
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
