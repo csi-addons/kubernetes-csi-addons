@@ -171,11 +171,11 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	cd deploy/controller && kubectl apply -f crds.yaml -f rbac.yaml -f setup-controller.yaml
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+	cd deploy/controller && kubectl delete -f setup-controller.yaml -f rbac.yaml -f crds.yaml --ignore-not-found=$(ignore-not-found)
 
 # controller-gen gets installed from the vendor/ directory.
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
