@@ -85,6 +85,7 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 	cd config/default && $(KUSTOMIZE) edit set image rbac-proxy=${RBAC_PROXY_IMG}
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}
 	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
+	$(KUSTOMIZE) build config/rbac > deploy/controller/rbac.yaml
 	$(KUSTOMIZE) build config/default > deploy/controller/setup-controller.yaml
 
 # generate the <package-name>.clusterserviceversion.yaml

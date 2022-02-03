@@ -1,0 +1,284 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: csi-addons-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-addons-controller-manager
+  namespace: csi-addons-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: csi-addons-leader-election-role
+  namespace: csi-addons-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: csi-addons-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - csiaddonsnodes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - csiaddonsnodes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - csiaddonsnodes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfences
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfences/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfences/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacecronjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacecronjobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacecronjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - reclaimspacejobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - volumeattachments
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: csi-addons-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: csi-addons-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: csi-addons-leader-election-rolebinding
+  namespace: csi-addons-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: csi-addons-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: csi-addons-controller-manager
+  namespace: csi-addons-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: csi-addons-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: csi-addons-manager-role
+subjects:
+- kind: ServiceAccount
+  name: csi-addons-controller-manager
+  namespace: csi-addons-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: csi-addons-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: csi-addons-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: csi-addons-controller-manager
+  namespace: csi-addons-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: csi-addons-controller-manager-metrics-service
+  namespace: csi-addons-system
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
