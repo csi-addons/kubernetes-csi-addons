@@ -30,6 +30,8 @@ import (
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"github.com/go-logr/logr"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	scv1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -374,6 +376,11 @@ func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	defer cancel()
 	resp, err := controllerClient.ControllerReclaimSpace(newCtx, req)
 	if err != nil {
+		// Unimplemented suggests that the function is not supported
+		if status.Code(err) == codes.Unimplemented {
+			logger.Info(fmt.Sprintf("ControllerReclaimSpace is not implemented by driver: %v", err))
+			return true, nil, nil
+		}
 		return true, nil, err
 	}
 
@@ -406,6 +413,11 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	defer cancel()
 	resp, err := nodeClient.NodeReclaimSpace(newCtx, req)
 	if err != nil {
+		// Unimplemented suggests that the function is not supported
+		if status.Code(err) == codes.Unimplemented {
+			logger.Info(fmt.Sprintf("NodeReclaimSpace is not implemented by driver: %v", err))
+			return nil, nil
+		}
 		return nil, err
 	}
 
