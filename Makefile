@@ -84,6 +84,7 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./api/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
 	cd config/default && $(KUSTOMIZE) edit set image rbac-proxy=${RBAC_PROXY_IMG}
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}
+	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
 	$(KUSTOMIZE) build config/default > deploy/controller/setup-controller.yaml
 
 # generate the <package-name>.clusterserviceversion.yaml
@@ -162,11 +163,11 @@ endif
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	kubectl apply -f deploy/controller/crds.yaml
 
 .PHONY: uninstall
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+	kubectl delete --ignore-not-found=$(ignore-not-found) -f deploy/controller/crds.yaml
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
