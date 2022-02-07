@@ -55,6 +55,7 @@ func determineFieldOrder() []string {
 		"SecretGenerator",
 		"HelmCharts",
 		"HelmChartInflationGenerator",
+		"HelmGlobals",
 		"GeneratorOptions",
 		"Vars",
 		"Images",
@@ -65,6 +66,8 @@ func determineFieldOrder() []string {
 		"Transformers",
 		"Inventory",
 		"Components",
+		"OpenAPI",
+		"BuildMetadata",
 	}
 
 	// Add deprecated fields here.

@@ -57,9 +57,11 @@ func NewCmdAdd(
 		newCmdAddSecret(fSys, ldr, rf),
 		newCmdAddConfigMap(fSys, ldr, rf),
 		newCmdAddBase(fSys),
+		newCmdAddBuildMetadata(fSys),
 		newCmdAddLabel(fSys, ldr.Validator().MakeLabelValidator()),
 		newCmdAddAnnotation(fSys, ldr.Validator().MakeAnnotationValidator()),
 		newCmdAddTransformer(fSys),
+		newCmdAddGenerator(fSys),
 	)
 	return c
 }
