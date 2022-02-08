@@ -25,13 +25,10 @@ require (
 	sigs.k8s.io/kustomize/kustomize/v4 v4.5.1
 )
 
-replace (
-	// operator-sdk depends on v0.22
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.5
-	k8s.io/apimachinery => k8s.io/apimachinery v0.22.5
-	k8s.io/client-go => k8s.io/client-go v0.22.5
-	k8s.io/component-base => k8s.io/component-base v0.22.5 // indirect
-)
+// module was renamed?
+replace github.com/mikefarah/yaml/v2 => gopkg.in/yaml.v2 v2.4.0
+
+exclude github.com/mikefarah/yaml/v2 v2.4.0
 
 require (
 	cloud.google.com/go v0.81.0 // indirect
@@ -52,6 +49,7 @@ require (
 	github.com/Microsoft/hcsshim v0.8.14 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
@@ -92,6 +90,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.0.1 // indirect
+	github.com/google/cel-go v0.9.0 // indirect
 	github.com/google/certificate-transparency-go v1.0.21 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
@@ -164,6 +163,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.8.1 // indirect
+	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/thoas/go-funk v0.8.0 // indirect
 	github.com/weppos/publicsuffix-go v0.13.0 // indirect
@@ -219,6 +219,7 @@ require (
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.25 // indirect
+	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/kubebuilder/v3 v3.3.0 // indirect
 	sigs.k8s.io/kustomize/api v0.11.1 // indirect
 	sigs.k8s.io/kustomize/cmd/config v0.10.4 // indirect
