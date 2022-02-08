@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 )
 
 var (
@@ -359,7 +359,7 @@ func (a *AnnotationsFile) GetDefaultChannelName() string {
 // SelectDefaultChannel returns the first item in channel list that is sorted
 // in lexicographic order.
 func (a *AnnotationsFile) SelectDefaultChannel() string {
-	return a.SelectDefaultChannel()
+	return a.Annotations.SelectDefaultChannel()
 }
 
 func (a Annotations) SelectDefaultChannel() string {
