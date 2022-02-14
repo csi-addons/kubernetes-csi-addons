@@ -1997,8 +1997,8 @@ sigs.k8s.io/kubebuilder/v3 v3.3.0/go.mod h1:573SPrO9ttCNPvXVuGQRCpjsEsFza/S+8Jo/
 sigs.k8s.io/kustomize/api v0.8.5/go.mod h1:M377apnKT5ZHJS++6H4rQoCHmWtt6qTpp3mbe7p6OLY=
 sigs.k8s.io/kustomize/api v0.8.11/go.mod h1:a77Ls36JdfCWojpUqR6m60pdGY1AYFix4AH83nJtY1g=
 sigs.k8s.io/kustomize/api v0.10.1/go.mod h1:2FigT1QN6xKdcnGS2Ppp1uIWrtWN28Ms8A3OZUZhwr8=
-sigs.k8s.io/kustomize/api v0.11.1 h1:/Vutu+gAqVo8skw1xCZrsZD39SN4Adg+z7FrSTw9pds=
-sigs.k8s.io/kustomize/api v0.11.1/go.mod h1:GZuhith5YcqxIDe0GnRJNx5xxPTjlwaLTt/e+ChUtJA=
+sigs.k8s.io/kustomize/api v0.11.2 h1:6YvCJHFDwsLwAX7zNHBxMZi3k7dGIXI8G9l0saYQI0E=
+sigs.k8s.io/kustomize/api v0.11.2/go.mod h1:GZuhith5YcqxIDe0GnRJNx5xxPTjlwaLTt/e+ChUtJA=
 sigs.k8s.io/kustomize/cmd/config v0.9.7/go.mod h1:MvXCpHs77cfyxRmCNUQjIqCmZyYsbn5PyQpWiq44nW0=
 sigs.k8s.io/kustomize/cmd/config v0.9.13/go.mod h1:7547FLF8W/lTaDf0BDqFTbZxM9zqwEJqCKN9sSR0xSs=
 sigs.k8s.io/kustomize/cmd/config v0.10.2/go.mod h1:K2aW7nXJ0AaT+VA/eO0/dzFLxmpFcTzudmAgDwPY1HQ=
@@ -2007,8 +2007,8 @@ sigs.k8s.io/kustomize/cmd/config v0.10.4/go.mod h1:2woQTJo0oA4wr8G3F8ZFdH2YoaOoG
 sigs.k8s.io/kustomize/kustomize/v4 v4.0.5/go.mod h1:C7rYla7sI8EnxHE/xEhRBSHMNfcL91fx0uKmUlUhrBk=
 sigs.k8s.io/kustomize/kustomize/v4 v4.2.0/go.mod h1:MOkR6fmhwG7hEDRXBYELTi5GSFcLwfqwzTRHW3kv5go=
 sigs.k8s.io/kustomize/kustomize/v4 v4.4.1/go.mod h1:qOKJMMz2mBP+vcS7vK+mNz4HBLjaQSWRY22EF6Tb7Io=
-sigs.k8s.io/kustomize/kustomize/v4 v4.5.1 h1:7R2JOhAlXvdLcWg2DRDQIUO7NDixYVb/FtnXbKzvv+s=
-sigs.k8s.io/kustomize/kustomize/v4 v4.5.1/go.mod h1:VXU79+qO4AXVXZwNvVvGZmttObnzGanv2cSxqvV2He4=
+sigs.k8s.io/kustomize/kustomize/v4 v4.5.2 h1:amBAENjguudCpW89rxdTm9iaIfKYZZGAhXVJ3QHFswo=
+sigs.k8s.io/kustomize/kustomize/v4 v4.5.2/go.mod h1:QTVOb6kVuvFph9Lj0RMpL47EJj0YswivxbEUNsf9XWE=
 sigs.k8s.io/kustomize/kyaml v0.10.15/go.mod h1:mlQFagmkm1P+W4lZJbJ/yaxMd8PqMRSC4cPcfUVt5Hg=
 sigs.k8s.io/kustomize/kyaml v0.10.21/go.mod h1:TYWhGwW9vjoRh3rWqBwB/ZOXyEGRVWe7Ggc3+KZIO+c=
 sigs.k8s.io/kustomize/kyaml v0.11.0/go.mod h1:GNMwjim4Ypgp/MueD3zXHLRJEjz7RvtPae0AwlvEMFM=
