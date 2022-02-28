@@ -112,6 +112,47 @@ NAME                                                       DESIRED   CURRENT   R
 replicaset.apps/csi-addons-controller-manager-687d47b8c7   1         1         1       49s
 ```
 
+### Installation for versioned deployments
+
+The CSI-Addons Controller can also be installed  using the yaml files in `deploy/controller`.
+The versioned deployment is possible with the yaml files that get generated for a release,
+like [release-v0.3.0](https://github.com/csi-addons/kubernetes-csi-addons/releases/tag/v0.3.0).
+You can download the yaml files from there, or use them directly with kubectl.
+
+```console
+$ cd deploy/controller
+
+$ kubectl create -f crds.yaml
+...
+customresourcedefinition.apiextensions.k8s.io/csiaddonsnodes.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/networkfences.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/reclaimspacecronjobs.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/reclaimspacejobs.csiaddons.openshift.io created
+
+$ kubectl create -f rbac.yaml
+... 
+serviceaccount/csi-addons-controller-manager created
+role.rbac.authorization.k8s.io/csi-addons-leader-election-role created
+clusterrole.rbac.authorization.k8s.io/csi-addons-manager-role created
+clusterrole.rbac.authorization.k8s.io/csi-addons-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/csi-addons-proxy-role created
+rolebinding.rbac.authorization.k8s.io/csi-addons-leader-election-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/csi-addons-manager-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/csi-addons-proxy-rolebinding created
+configmap/csi-addons-manager-config created
+service/csi-addons-controller-manager-metrics-service created
+
+$ kubectl create -f setup-controller.yaml
+...
+deployment.apps/csi-addons-controller-manager created
+```
+
+* The crds.yaml create the required crds for reclaimspace operation.
+
+* The rbac.yaml creates the required rbac.
+
+* The setup-controller creates the csi-addons-controller-manager.
+
 ## Contributing
 
 The [Contribution Guidelines](CONTRIBUTING.md) contain details on the process
