@@ -21,20 +21,20 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    control-plane: controller-manager
+    app.kubernetes.io/name: csi-addons
   name: csi-addons-controller-manager
   namespace: csi-addons-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app.kubernetes.io/name: csi-addons
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: controller-manager
+        app.kubernetes.io/name: csi-addons
     spec:
       containers:
       - args:
