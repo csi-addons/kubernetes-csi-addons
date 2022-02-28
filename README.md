@@ -64,60 +64,13 @@ By listing the `CSIAddonsNode` CRs, the CSI-Addons Controller knows how to
 connect to the side-cars. By checking the supported capabilities of the
 side-cars, it can decide where to execute operations that the user requested.
 
-### Installation by operator
-
-A CSI-Addons bundle can be used to install the CSI-Addons Controller with the
-following steps:
-
-```console
-$ kubectl create namespace storage-csi-addons
-$ make operator-sdk
-$ ./bin/operator-sdk run bundle -n storage-csi-addons quay.io/csiaddons/k8s-bundle:latest
-```
-
-In the future, the bundle is expected to become available in the
-[OperatorHub][operatorhub].
-
-### Installation with `kustomize`
-
-This project uses `kustomize` and a `Makefile` for deploying. By running the
-command
-
-```console
-$ make deploy
-...
-customresourcedefinition.apiextensions.k8s.io/csiaddonsnodes.csiaddons.openshift.io created
-customresourcedefinition.apiextensions.k8s.io/reclaimspacejobs.csiaddons.openshift.io created
-serviceaccount/csi-addons-controller-manager created
-role.rbac.authorization.k8s.io/csi-addons-leader-election-role created
-clusterrole.rbac.authorization.k8s.io/csi-addons-manager-role created
-clusterrole.rbac.authorization.k8s.io/csi-addons-metrics-reader created
-clusterrole.rbac.authorization.k8s.io/csi-addons-proxy-role created
-rolebinding.rbac.authorization.k8s.io/csi-addons-leader-election-rolebinding created
-clusterrolebinding.rbac.authorization.k8s.io/csi-addons-manager-rolebinding created
-clusterrolebinding.rbac.authorization.k8s.io/csi-addons-proxy-rolebinding created
-configmap/csi-addons-manager-config created
-service/csi-addons-controller-manager-metrics-service created
-deployment.apps/csi-addons-controller-manager created
-```
-
-the different components for the Controller will get deployed in the
-`csi-addons-system` Namespace.
-
-```console
-$ kubectl -n csi-addons-system get all
-NAME                                                 READY   STATUS    RESTARTS   AGE
-pod/csi-addons-controller-manager-687d47b8c7-9m56f   2/2     Running   0          49s
-
-NAME                                                    TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-service/csi-addons-controller-manager-metrics-service   ClusterIP   172.30.153.17   <none>        8443/TCP   49s
-
-NAME                                            READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/csi-addons-controller-manager   1/1     1            1           49s
-
-NAME                                                       DESIRED   CURRENT   READY   AGE
-replicaset.apps/csi-addons-controller-manager-687d47b8c7   1         1         1       49s
-```
+The preferred way to install the controllers is to use yaml files that are
+made available with the
+[latest release](https://github.com/csi-addons/kubernetes-csi-addons/releases/latest).
+The detailed documentation for the installation of the CSI-Addons Controller using
+the yaml file is present
+[here](docs/deploy-controller.md). This also includes other methods to deploy the
+controller.
 
 ### Installation for versioned deployments
 
@@ -164,7 +117,6 @@ deployment.apps/csi-addons-controller-manager created
 
 The [Contribution Guidelines](CONTRIBUTING.md) contain details on the process
 to contribute to this project.
-
 For feature enhancements, or questions about particular features or design
 choices, there is a mailinglist. All regular contributors are encouraged to
 subscribe to the list, and participate in the discussions.
