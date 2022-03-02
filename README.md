@@ -1,7 +1,14 @@
 # CSI-Addons for Kubernetes
 
-This repository contains the implementation for the [CSI-Addons][csi_addons]
-specification that can be used with Kubernetes.
+[![GitHub release](https://badgen.net/github/release/csi-addons/kubernetes-csi-addons)](https://github.com/csi-addons/kubernetes-csi-addons/releases)
+[![Go Report
+Card](https://goreportcard.com/badge/github.com/csi-addons/kubernetes-csi-addons)](https://goreportcard.com/report/github.com/csi-addons/kubernetes-csi-addons)
+[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/csi-addons/kubernetes-csi-addons/main)](https://www.tickgit.com/browse?repo=github.com/csi-addons/kubernetes-csi-addons&branch=main)
+
+This repository contains the implementation for the [CSI-Addons
+specification][csi_addons_spec] that can be used with Kubernetes. As such, this
+project is part of the [Container Storage Interface Addons][csi_addons]
+community.
 
 The [CSI API][csi] is tightly integrated with Kubernetes. In order to extend
 the interface, a new CSI-Addons Controller is needed. The CSI-Addons Controller
@@ -166,7 +173,8 @@ Subscribing can be done through the [mailman web interface][mailman] or by
 [sending an email to csi-addons-request@redhat.com][subscribe] with subject
 `subscribe`.
 
-[csi_addons]: https://github.com/csi-addons/spec/
+[csi_addons_spec]: https://github.com/csi-addons/spec/
+[csi_addons]: https://csi-addons.github.io/
 [csi]: https://kubernetes-csi.github.io/docs/
 [operatorhub]: https://operatorhub.io/
 [mailman]: https://listman.redhat.com/mailman/listinfo/csi-addons
