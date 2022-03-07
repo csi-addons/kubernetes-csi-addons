@@ -7,7 +7,7 @@ require (
 	github.com/csi-addons/spec v0.1.2-0.20211220115741-32fa508dadbe
 	github.com/go-logr/logr v1.2.2
 	github.com/golang/protobuf v1.5.2
-	github.com/kubernetes-csi/csi-lib-utils v0.10.0
+	github.com/kubernetes-csi/csi-lib-utils v0.11.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.18.1
 	github.com/operator-framework/operator-sdk v1.17.0
