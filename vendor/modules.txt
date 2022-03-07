@@ -447,7 +447,7 @@ github.com/json-iterator/go
 # github.com/kr/text v0.2.0
 ## explicit
 github.com/kr/text
-# github.com/kubernetes-csi/csi-lib-utils v0.10.0
+# github.com/kubernetes-csi/csi-lib-utils v0.11.0
 ## explicit; go 1.16
 github.com/kubernetes-csi/csi-lib-utils/accessmodes
 github.com/kubernetes-csi/csi-lib-utils/connection
