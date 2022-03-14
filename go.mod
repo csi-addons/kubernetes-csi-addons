@@ -13,7 +13,7 @@ require (
 	github.com/operator-framework/operator-sdk v1.17.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.7.0
-	google.golang.org/grpc v1.44.0
+	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1
 	k8s.io/api v0.23.4
 	k8s.io/apimachinery v0.23.4
