@@ -16,6 +16,8 @@ package scaffolds
 
 import (
 	"github.com/operator-framework/java-operator-plugins/pkg/quarkus/v1alpha/util"
+	"os"
+	"path/filepath"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 
@@ -61,8 +63,12 @@ func (s *initScaffolder) Scaffold() error {
 		machinery.WithConfig(s.config),
 	)
 
+	path := filepath.Join("src", "main", "java")
+
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
 	return scaffold.Execute(
-		&templates.SrcMainJava{},
 		&templates.PomXmlFile{
 			Package:         util.ReverseDomain(s.config.GetDomain()),
 			ProjectName:     s.config.GetProjectName(),
