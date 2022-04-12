@@ -7,6 +7,14 @@ import (
 	"github.com/docker/docker/errdefs"
 )
 
+type notFoundError string
+
+func (e notFoundError) Error() string {
+	return string(e)
+}
+
+func (notFoundError) NotFound() {}
+
 func translateV2AuthError(err error) error {
 	switch e := err.(type) {
 	case *url.Error:

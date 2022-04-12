@@ -21,8 +21,7 @@ type RegistryConfig struct {
 	DBPath            string
 	CacheDir          string
 	PreserveCache     bool
-	SkipTLSVerify     bool
-	PlainHTTP         bool
+	SkipTLS           bool
 	Roots             *x509.CertPool
 }
 
@@ -91,7 +90,7 @@ func NewRegistry(options ...RegistryOption) (registry *Registry, err error) {
 	}
 
 	var resolver remotes.Resolver
-	resolver, err = NewResolver(config.ResolverConfigDir, config.SkipTLSVerify, config.PlainHTTP, config.Roots)
+	resolver, err = NewResolver(config.ResolverConfigDir, config.SkipTLS, config.Roots)
 	if err != nil {
 		return
 	}
@@ -141,14 +140,8 @@ func PreserveCache(preserve bool) RegistryOption {
 	}
 }
 
-func SkipTLSVerify(skip bool) RegistryOption {
+func SkipTLS(skip bool) RegistryOption {
 	return func(config *RegistryConfig) {
-		config.SkipTLSVerify = skip
-	}
-}
-
-func WithPlainHTTP(insecure bool) RegistryOption {
-	return func(config *RegistryConfig) {
-		config.PlainHTTP = insecure
+		config.SkipTLS = skip
 	}
 }

@@ -77,11 +77,8 @@ type RegistryPod struct { //nolint:maligned
 	// The secret's key for this file must be "cert.pem".
 	CASecretName string
 
-	// SkipTLSVerify represents skip TLS certificate verification for container image registries while pulling bundles.
-	SkipTLSVerify bool `json:"SkipTLSVerify"`
-
-	// UseHTTP uses plain HTTP for container image registries while pulling bundles.
-	UseHTTP bool `json:"UseHTTP"`
+	// SkipTLS controls wether to ignore SSL errors while pulling bundle image from registry server.
+	SkipTLS bool `json:"SkipTLS"`
 
 	// pod represents a kubernetes *corev1.pod that will be created on a cluster using an index image
 	pod *corev1.Pod
@@ -308,7 +305,7 @@ func newBool(b bool) *bool {
 
 const cmdTemplate = `mkdir -p {{ dirname .DBPath }} && \
 {{- range $i, $item := .BundleItems }}
-opm registry add -d {{ $.DBPath }} -b {{ $item.ImageTag }} --mode={{ $item.AddMode }}{{ if $.CASecretName }} --ca-file=/certs/cert.pem{{ end }} --skip-tls-verify={{ $.SkipTLSVerify }} --use-http={{ $.UseHTTP }} && \
+opm registry add -d {{ $.DBPath }} -b {{ $item.ImageTag }} --mode={{ $item.AddMode }}{{ if $.CASecretName }} --ca-file=/certs/cert.pem{{ end }} --skip-tls={{ $.SkipTLS }} && \
 {{- end }}
 opm registry serve -d {{ .DBPath }} -p {{ .GRPCPort }}
 `

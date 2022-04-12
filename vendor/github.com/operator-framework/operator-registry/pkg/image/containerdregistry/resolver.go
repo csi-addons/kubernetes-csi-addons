@@ -5,12 +5,8 @@ import (
 	"crypto/x509"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
-	"sync"
 	"time"
 
-	"github.com/adrg/xdg"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/cli/cli/config"
@@ -19,7 +15,7 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-func NewResolver(configDir string, skipTlSVerify, plainHTTP bool, roots *x509.CertPool) (remotes.Resolver, error) {
+func NewResolver(configDir string, insecure bool, roots *x509.CertPool) (remotes.Resolver, error) {
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -36,9 +32,9 @@ func NewResolver(configDir string, skipTlSVerify, plainHTTP bool, roots *x509.Ce
 		},
 	}
 
-	if plainHTTP || skipTlSVerify {
+	if insecure {
 		transport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: insecure,
 		}
 	}
 	headers := http.Header{}
@@ -59,7 +55,7 @@ func NewResolver(configDir string, skipTlSVerify, plainHTTP bool, roots *x509.Ce
 		)),
 		docker.WithClient(client),
 	}
-	if plainHTTP {
+	if insecure {
 		regopts = append(regopts, docker.WithPlainHTTP(docker.MatchAllHosts))
 	}
 
@@ -89,39 +85,14 @@ func credential(cfg *configfile.ConfigFile) func(string) (string, string, error)
 	}
 }
 
-// protects against a data race inside the docker CLI
-// TODO: upstream issue for 20.10.x is tracked here https://github.com/docker/cli/pull/3410
-// newer versions already contain the fix
-var configMutex sync.Mutex
-
 func loadConfig(dir string) (*configfile.ConfigFile, error) {
-	configMutex.Lock()
-	defer configMutex.Unlock()
-
 	if dir == "" {
 		dir = config.Dir()
 	}
 
-	dockerConfigJSON := filepath.Join(dir, config.ConfigFileName)
-	cfg := configfile.New(dockerConfigJSON)
-
-	switch _, err := os.Stat(dockerConfigJSON); {
-	case err == nil:
-		cfg, err = config.Load(dir)
-		if err != nil {
-			return cfg, err
-		}
-	case os.IsNotExist(err):
-		podmanConfig := filepath.Join(xdg.RuntimeDir, "containers/auth.json")
-		if file, err := os.Open(podmanConfig); err == nil {
-			defer file.Close()
-			cfg, err = config.LoadFromReader(file)
-			if err != nil {
-				return cfg, err
-			}
-		} else if !os.IsNotExist(err) {
-			return cfg, err
-		}
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return nil, err
 	}
 
 	if !cfg.ContainsAuth() {
