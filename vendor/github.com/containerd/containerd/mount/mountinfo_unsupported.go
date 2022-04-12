@@ -1,4 +1,4 @@
-// +build openbsd
+// +build !linux,!freebsd,!solaris,!openbsd freebsd,!cgo solaris,!cgo openbsd,!cgo
 
 /*
    Copyright The containerd Authors.
@@ -16,18 +16,19 @@
    limitations under the License.
 */
 
-package local
+package mount
 
 import (
-	"os"
-	"syscall"
-	"time"
+	"fmt"
+	"runtime"
 )
 
-func getATime(fi os.FileInfo) time.Time {
-	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return time.Unix(int64(st.Atim.Sec), int64(st.Atim.Nsec)) //nolint: unconvert // int64 conversions ensure the line compiles for 32-bit systems as well.
-	}
+// Self retrieves a list of mounts for the current running process.
+func Self() ([]Info, error) {
+	return nil, fmt.Errorf("mountinfo.Self is not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+}
 
-	return fi.ModTime()
+// PID collects the mounts for a specific process ID.
+func PID(pid int) ([]Info, error) {
+	return nil, fmt.Errorf("mountinfo.PID is not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }

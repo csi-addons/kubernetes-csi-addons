@@ -25,8 +25,13 @@ require (
 	sigs.k8s.io/kustomize/kustomize/v4 v4.5.4
 )
 
-// module was renamed?
-replace github.com/mikefarah/yaml/v2 => gopkg.in/yaml.v2 v2.4.0
+replace (
+	// v1.5 breaks github.com/deislabs/oras which inturn break operator-sdk
+	// refer https://github.com/operator-framework/operator-sdk/blob/v1.19.0/go.mod#L246
+	github.com/containerd/containerd => github.com/containerd/containerd v1.4.11
+	// module was renamed?
+	github.com/mikefarah/yaml/v2 => gopkg.in/yaml.v2 v2.4.0
+)
 
 exclude github.com/mikefarah/yaml/v2 v2.4.0
 
@@ -133,9 +138,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
-	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
-	github.com/moby/sys/mountinfo v0.4.1 // indirect
 	github.com/moby/term v0.0.0-20210610120745-9d4ed1856297 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

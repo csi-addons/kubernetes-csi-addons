@@ -16,7 +16,7 @@
    limitations under the License.
 */
 
-package userns
+package sys
 
 // RunningInUserNS is a stub for non-Linux systems
 // Always returns false

@@ -1,4 +1,4 @@
-// +build darwin freebsd netbsd
+// +build !windows
 
 /*
    Copyright The containerd Authors.
@@ -16,18 +16,18 @@
    limitations under the License.
 */
 
-package local
+package sys
 
-import (
-	"os"
-	"syscall"
-	"time"
-)
+import "golang.org/x/sys/unix"
 
-func getATime(fi os.FileInfo) time.Time {
-	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return time.Unix(int64(st.Atimespec.Sec), int64(st.Atimespec.Nsec)) //nolint: unconvert // int64 conversions ensure the line compiles for 32-bit systems as well.
-	}
+// RunningPrivileged returns true if the effective user ID of the
+// calling process is 0
+func RunningPrivileged() bool {
+	return unix.Geteuid() == 0
+}
 
-	return fi.ModTime()
+// RunningUnprivileged returns true if the effective user ID of the
+// calling process is not 0
+func RunningUnprivileged() bool {
+	return !RunningPrivileged()
 }

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package userns
+package sys
 
 import (
 	"bufio"
