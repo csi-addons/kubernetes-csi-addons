@@ -40,7 +40,7 @@ func (f *Controller) SetTemplateDefaults() error {
 	}
 
 	if f.Path == "" {
-		f.Path = util.PrependJavaPath(f.ClassName+"Reconciler.java", util.AsPath(f.Package))
+		f.Path = util.PrependJavaPath(f.ClassName+"Controller.java", util.AsPath(f.Package))
 	}
 
 	f.TemplateBody = controllerTemplate
@@ -48,28 +48,37 @@ func (f *Controller) SetTemplateDefaults() error {
 	return nil
 }
 
+// TODO: pass in the name of the operator i.e. replace Memcached
 const controllerTemplate = `package {{ .Package }};
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
-import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.api.*;
+import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 
-public class {{ .ClassName }}Reconciler implements Reconciler<{{ .ClassName }}> { 
-  private final KubernetesClient client;
+@Controller
+public class {{ .ClassName }}Controller implements ResourceController<{{ .ClassName }}> {
 
-  public {{ .ClassName }}Reconciler(KubernetesClient client) {
-    this.client = client;
-  }
+    private final KubernetesClient client;
 
-  // TODO Fill in the rest of the reconciler
+    public {{ .ClassName }}Controller(KubernetesClient client) {
+        this.client = client;
+    }
 
-  @Override
-  public UpdateControl<{{ .ClassName }}> reconcile({{ .ClassName }} resource, Context context) {
-    // TODO: fill in logic
+    // TODO Fill in the rest of the controller
 
-    return UpdateControl.noUpdate();
-  }
+    @Override
+    public void init(EventSourceManager eventSourceManager) {
+        // TODO: fill in init
+    }
+
+    @Override
+    public UpdateControl<{{ .ClassName }}> createOrUpdateResource(
+        {{ .ClassName }} resource, Context<{{ .ClassName }}> context) {
+        // TODO: fill in logic
+
+        return UpdateControl.noUpdate();
+    }
 }
 
 `

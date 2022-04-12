@@ -130,13 +130,10 @@ func (r *ContainerCommandRunner) Unpack(image, src, dst string) error {
 	r.logger.Infof("running %s create", r.containerTool)
 	r.logger.Debugf("%s", command.Args)
 
-	out, err := command.Output()
+	out, err := command.CombinedOutput()
 	if err != nil {
-		msg := err.Error()
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			msg = fmt.Sprintf("%s: %s", err, exitErr.Stderr)
-		}
-		return fmt.Errorf("error creating container %s: %s", string(out), msg)
+		r.logger.Errorf(string(out))
+		return fmt.Errorf("error creating container %s: %v", string(out), err)
 	}
 
 	id := strings.TrimSuffix(string(out), "\n")

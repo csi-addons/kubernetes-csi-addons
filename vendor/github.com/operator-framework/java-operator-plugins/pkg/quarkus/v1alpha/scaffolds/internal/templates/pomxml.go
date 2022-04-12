@@ -57,16 +57,24 @@ const pomxmlTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <maven.compiler.target>11</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <quarkus-sdk.version>3.0.4</quarkus-sdk.version>
-    <quarkus.version>2.7.3.Final</quarkus.version>
+    <fabric8-client.version>5.7.2</fabric8-client.version>
+    <quarkus-sdk.version>2.0.0.Beta5</quarkus-sdk.version>
+    <quarkus.version>2.2.1.Final</quarkus.version>
   </properties>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
-        <groupId>io.quarkiverse.operatorsdk</groupId>
-        <artifactId>quarkus-operator-sdk-bom</artifactId>
-        <version>${quarkus-sdk.version}</version>
+        <groupId>io.fabric8</groupId>
+        <artifactId>kubernetes-client-bom</artifactId>
+        <version>${fabric8-client.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-bom</artifactId>
+        <version>${quarkus.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -76,15 +84,7 @@ const pomxmlTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <dependency>
       <groupId>io.quarkiverse.operatorsdk</groupId>
       <artifactId>quarkus-operator-sdk</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkiverse.operatorsdk</groupId>
-      <artifactId>quarkus-operator-sdk-csv-generator</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
-      <version>${quarkus.version}</version>
+      <version>${quarkus-sdk.version}</version>
     </dependency>
   </dependencies>
 

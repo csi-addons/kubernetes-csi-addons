@@ -7,9 +7,7 @@ import (
 )
 
 // CertsDir is the directory where certificates are stored
-func CertsDir() string {
-	return os.Getenv("programdata") + `\docker\certs.d`
-}
+var CertsDir = os.Getenv("programdata") + `\docker\certs.d`
 
 // cleanPath is used to ensure that a directory name is valid on the target
 // platform. It will be passed in something *similar* to a URL such as

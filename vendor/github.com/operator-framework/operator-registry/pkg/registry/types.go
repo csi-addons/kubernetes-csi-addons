@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/blang/semver/v4"
-	"github.com/operator-framework/api/pkg/constraints"
 )
 
 var (
@@ -56,7 +55,6 @@ const (
 	DeprecatedType = "olm.deprecated"
 	LabelType      = "olm.label"
 	PropertyKey    = "olm.properties"
-	ConstraintType = "olm.constraint"
 )
 
 // APIKey stores GroupVersionKind for use as map keys
@@ -222,16 +220,6 @@ type LabelDependency struct {
 	Label string `json:"label" yaml:"label"`
 }
 
-type CelConstraint struct {
-	// Constraint failure message that surfaces in resolution
-	// This field is optional
-	FailureMessage string `json:"failureMessage" yaml:"failureMessage"`
-
-	// The cel struct that contraints CEL expression
-	// This field is required
-	Cel *constraints.Cel `json:"cel" yaml:"cel"`
-}
-
 type GVKProperty struct {
 	// The group of GVK based property
 	Group string `json:"group" yaml:"group"`
@@ -301,25 +289,6 @@ func (pd *PackageDependency) Validate() []error {
 	return errs
 }
 
-// Validate will validate constraint type and return error(s)
-func (cc *CelConstraint) Validate() []error {
-	errs := []error{}
-	if cc.Cel == nil {
-		errs = append(errs, fmt.Errorf("The CEL field is missing"))
-	} else {
-		if cc.Cel.Rule == "" {
-			errs = append(errs, fmt.Errorf("The CEL expression is missing"))
-			return errs
-		}
-		validator := constraints.NewCelEnvironment()
-		_, err := validator.Validate(cc.Cel.Rule)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("Invalid CEL expression: %s", err.Error()))
-		}
-	}
-	return errs
-}
-
 // GetDependencies returns the list of dependency
 func (d *DependenciesFile) GetDependencies() []*Dependency {
 	var dependencies []*Dependency
@@ -355,13 +324,6 @@ func (e *Dependency) GetTypeValue() interface{} {
 		return dep
 	case LabelType:
 		dep := LabelDependency{}
-		err := json.Unmarshal([]byte(e.GetValue()), &dep)
-		if err != nil {
-			return nil
-		}
-		return dep
-	case ConstraintType:
-		dep := CelConstraint{}
 		err := json.Unmarshal([]byte(e.GetValue()), &dep)
 		if err != nil {
 			return nil
