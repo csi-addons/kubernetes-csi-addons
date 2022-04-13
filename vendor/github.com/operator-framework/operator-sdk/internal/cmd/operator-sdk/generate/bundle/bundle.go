@@ -22,6 +22,9 @@ import (
 	"path/filepath"
 
 	"github.com/operator-framework/api/pkg/apis/scorecard/v1alpha3"
+	"github.com/operator-framework/operator-manifest-tools/pkg/image"
+	"github.com/operator-framework/operator-manifest-tools/pkg/imageresolver"
+	"github.com/operator-framework/operator-manifest-tools/pkg/pullspec"
 	"github.com/operator-framework/operator-registry/pkg/lib/bundle"
 	"sigs.k8s.io/yaml"
 
@@ -188,6 +191,11 @@ func (c bundleCmd) runManifests() (err error) {
 		c.println("Building a ClusterServiceVersion without an existing base")
 	}
 
+	relatedImages, err := genutil.FindRelatedImages(col)
+	if err != nil {
+		return err
+	}
+
 	var opts []gencsv.Option
 	stdout := genutil.NewMultiManifestWriter(os.Stdout)
 	if c.stdout {
@@ -202,6 +210,7 @@ func (c bundleCmd) runManifests() (err error) {
 		Collector:            col,
 		Annotations:          metricsannotations.MakeBundleObjectAnnotations(c.layout),
 		ExtraServiceAccounts: c.extraServiceAccounts,
+		RelatedImages:        relatedImages,
 	}
 	if err := csvGen.Generate(opts...); err != nil {
 		return fmt.Errorf("error generating ClusterServiceVersion: %v", err)
@@ -215,6 +224,14 @@ func (c bundleCmd) runManifests() (err error) {
 	} else {
 		dir := filepath.Join(c.outputDir, bundle.ManifestsDir)
 		if err := genutil.WriteObjectsToFiles(dir, objs...); err != nil {
+			return err
+		}
+	}
+
+	// Pin images to digests if enabled
+	if c.useImageDigests {
+		c.println("pinning image versions to digests instead of tags")
+		if err := c.pinImages(filepath.Join(c.outputDir, "manifests")); err != nil {
 			return err
 		}
 	}
@@ -251,9 +268,7 @@ func writeScorecardConfig(dir string, cfg v1alpha3.Configuration) error {
 
 // runMetadata generates a bundle.Dockerfile and bundle metadata.
 func (c bundleCmd) runMetadata() error {
-
 	c.println("Generating bundle metadata")
-
 	if c.outputDir == "" {
 		c.outputDir = defaultRootDir
 	}
@@ -286,4 +301,27 @@ func (c bundleCmd) runMetadata() error {
 	}
 
 	return bundleMetadata.GenerateMetadata()
+}
+
+// pinImages is used to replace all image tags in the given manifests with digests
+func (c bundleCmd) pinImages(manifestPath string) error {
+	manifests, err := pullspec.FromDirectory(manifestPath, nil)
+	if err != nil {
+		return err
+	}
+	resolver, err := imageresolver.GetResolver(imageresolver.ResolverCrane, nil)
+	if err != nil {
+		return err
+	}
+	if err := image.Pin(resolver, manifests); err != nil {
+		return err
+	}
+
+	for _, manifest := range manifests {
+		if err := manifest.Dump(nil); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
