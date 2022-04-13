@@ -16,6 +16,7 @@ queue_rules:
       - "status-success=build_sidecar"
       - "status-success=go_mod_verify"
       - "status-success=go_mod_vendor"
+      - "status-success=kind_deploy"
 
 pull_request_rules:
   - name: remove outdated approvals
@@ -37,6 +38,7 @@ pull_request_rules:
       - "status-success=build_sidecar"
       - "status-success=go_mod_verify"
       - "status-success=go_mod_vendor"
+      - "status-success=kind_deploy"
       - "status-success=make_test"
     actions:
       queue: {}
@@ -56,6 +58,7 @@ pull_request_rules:
       - "status-success=build_sidecar"
       - "status-success=go_mod_verify"
       - "status-success=go_mod_vendor"
+      - "status-success=kind_deploy"
       - "status-success=make_test"
     actions:
       queue: {}
