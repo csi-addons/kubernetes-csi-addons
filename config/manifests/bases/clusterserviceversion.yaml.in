@@ -4,6 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
+    olm.skipRange: @SKIP_RANGE@
   name: @PACKAGE_NAME@.v0.1.1
   namespace: placeholder
 spec:
@@ -62,3 +63,4 @@ spec:
   provider:
     name: CSI Addons Community
   version: 0.1.1
+  replaces: @REPLACES@
