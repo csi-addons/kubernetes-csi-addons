@@ -129,6 +129,9 @@ spec:
     - jsonPath: .spec.cidrs
       name: Cidrs
       type: string
+    - jsonPath: .spec.fenceState
+      name: FenceState
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -164,6 +167,14 @@ spec:
               driver:
                 description: Driver contains  the name of CSI driver.
                 type: string
+              fenceState:
+                default: Fenced
+                description: FenceState contains the desired state for the CIDRs mentioned
+                  in the Spec. i.e. Fenced or Unfenced
+                enum:
+                - Fenced
+                - Unfenced
+                type: string
               parameters:
                 additionalProperties:
                   type: string
@@ -185,6 +196,7 @@ spec:
             required:
             - cidrs
             - driver
+            - fenceState
             type: object
           status:
             description: NetworkFenceStatus defines the observed state of NetworkFence
@@ -262,7 +274,8 @@ spec:
                 description: Message contains any message from the NetworkFence operation.
                 type: string
               result:
-                description: Result indicates the result of NetworkFence operation.
+                description: Result indicates the result of Network Fence/Unfence
+                  operation.
                 type: string
             type: object
         type: object

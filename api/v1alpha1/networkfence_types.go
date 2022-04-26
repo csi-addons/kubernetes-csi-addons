@@ -20,6 +20,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type FenceState string
+
+const (
+	// Fenced means the CIDRs should be in fenced state
+	Fenced FenceState = "Fenced"
+
+	// Unfenced means the CIDRs should be in unfenced state
+	Unfenced FenceState = "Unfenced"
+)
+
 type FencingOperationResult string
 
 const (
@@ -46,6 +56,13 @@ type NetworkFenceSpec struct {
 	// +kubebuilder:validation:Required
 	Driver string `json:"driver"`
 
+	// FenceState contains the desired state for the CIDRs
+	// mentioned in the Spec. i.e. Fenced or Unfenced
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=Fenced;Unfenced
+	// +kubebuilder:default:=Fenced
+	FenceState FenceState `json:"fenceState"`
+
 	// Cidrs contains a list of CIDR blocks, which are required to be fenced.
 	// +kubebuilder:validation:Required
 	Cidrs []string `json:"cidrs"`
@@ -59,7 +76,7 @@ type NetworkFenceSpec struct {
 
 // NetworkFenceStatus defines the observed state of NetworkFence
 type NetworkFenceStatus struct {
-	// Result indicates the result of NetworkFence operation.
+	// Result indicates the result of Network Fence/Unfence operation.
 	Result FencingOperationResult `json:"result,omitempty"`
 
 	// Message contains any message from the NetworkFence operation.
@@ -73,6 +90,7 @@ type NetworkFenceStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Driver",type="string",JSONPath=".spec.driver"
 //+kubebuilder:printcolumn:name="Cidrs",type="string",JSONPath=".spec.cidrs"
+//+kubebuilder:printcolumn:name="FenceState",type="string",JSONPath=".spec.fenceState"
 //+kubebuilder:printcolumn:JSONPath=".metadata.creationTimestamp",name=Age,type=date
 //+kubebuilder:printcolumn:JSONPath=".status.result",name=Result,type=string
 //+kubebuilder:resource:path=networkfences,scope=Cluster,singular=networkfence
