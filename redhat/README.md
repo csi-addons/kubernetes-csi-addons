@@ -26,6 +26,13 @@ with a Pull-Request. To create a PR that syncs the latest changes from
 `csi-addons/kubernetes-csi-addons:main` into the `main` branch, [click
 here][sync-pr].
 
+If any conflicts arises while syncing the latest changes from
+`csi-addons/kubernetes-csi-addons:main` into the `main` branch, instead
+rebase the downstream `main` branch on top of `csi-addons/kubernetes-csi-addons:main`
+and resolve those conflicts. This will make sure the conflicts are resolved
+in one of the `downstream-only` commits and will make further syncing of the
+upstream changes seamless.
+
 ### Backporting changes from the `main` to `release-*` branches
 
 Once a PR has been merged in the `main` branch that fixes an issue, a new PR
