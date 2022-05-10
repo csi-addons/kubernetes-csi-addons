@@ -63,6 +63,7 @@ func validateNetworkFenceSpec(nwFence *csiaddonsv1alpha1.NetworkFence) error {
 	if nwFence.Spec.Cidrs == nil {
 		return errors.New("required parameter cidrs is not specified")
 	}
+
 	return nil
 }
 
@@ -113,35 +114,75 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	// check if the networkfence object is getting deleted, if yes, then send
-	// UnfenceCluster request to the driver.
-	// After the UnfenceCluster request is processed, the finalizer will be removed
-	// so that the networkfence object can be deleted gracefully.
-	if !nwFence.GetDeletionTimestamp().IsZero() {
+	nf := NetworkFenceInstance{
+		reconciler:       r,
+		logger:           logger,
+		instance:         nwFence,
+		controllerClient: client,
+	}
+
+	// check if the networkfence object is getting deleted and handle it.
+	if !nf.instance.GetDeletionTimestamp().IsZero() {
 		if util.ContainsInSlice(nwFence.GetFinalizers(), networkFenceFinalizer) {
 
-			err := r.unfenceClusterNetwork(ctx, nwFence, client, logger)
+			err := nf.removeFinalizerFromNetworkFence(ctx)
 			if err != nil {
-				logger.Error(err, "failed to unfence cluster network")
+				logger.Error(err, "failed to remove finalizer on NetworkFence resource")
 				return ctrl.Result{}, err
 			}
 		}
+
 		logger.Info("NetworkFence object is terminated, skipping reconciliation")
 		return ctrl.Result{}, nil
 	}
 
-	err = r.fenceClusterNetwork(ctx, nwFence, client, logger)
+	if nwFence.Spec.FenceState == csiaddonsv1alpha1.Fenced {
+		nf.logger.Info("FenceClusterNetwork Request", "namespaced name", req.NamespacedName.String())
+	} else {
+		nf.logger.Info("UnFenceClusterNetwork Request", "namespaced name", req.NamespacedName.String())
+	}
+
+	err = nf.processFencing(ctx)
 	if err != nil {
 		logger.Error(err, "failed to fence cluster network")
+		updateStatusErr := nf.updateStatus(ctx, csiaddonsv1alpha1.FencingOperationResultFailed, err.Error())
+		if updateStatusErr != nil {
+			logger.Error(updateStatusErr, "failed to update status")
+		}
+
 		return ctrl.Result{}, err
 	}
-	nwFence.Status.Result = csiaddonsv1alpha1.FencingOperationResultSucceeded
-	nwFence.Status.Message = "NetworkFence operation succeeded"
-	if err := r.Client.Status().Update(ctx, nwFence); err != nil {
+
+	err = nf.updateStatus(ctx, csiaddonsv1alpha1.FencingOperationResultSucceeded, "fencing operation successful")
+	if err != nil {
+		logger.Error(err, "failed to update status")
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// NetworkFenceInstance contains the attributes
+// that can be useful in reconciling a particular
+// instance of the NetworkFence resource.
+type NetworkFenceInstance struct {
+	reconciler       *NetworkFenceReconciler
+	controllerClient proto.NetworkFenceClient
+	logger           logr.Logger
+	instance         *csiaddonsv1alpha1.NetworkFence
+}
+
+func (nf *NetworkFenceInstance) updateStatus(ctx context.Context,
+	result csiaddonsv1alpha1.FencingOperationResult, message string) error {
+	nf.instance.Status.Result = result
+	nf.instance.Status.Message = message
+	if err := nf.reconciler.Client.Status().Update(ctx, nf.instance); err != nil {
+		nf.logger.Error(err, "failed to update status")
+
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -152,74 +193,80 @@ func (r *NetworkFenceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// fenceClusterNetwork adds a finalizer and sends a FenceClusterNetwork request.
-func (r *NetworkFenceReconciler) fenceClusterNetwork(ctx context.Context, nwFence *csiaddonsv1alpha1.NetworkFence, controllerClient proto.NetworkFenceClient, logger logr.Logger) error {
+// processFencing adds a finalizer and handles the fencing request.
+func (nf *NetworkFenceInstance) processFencing(ctx context.Context) error {
 
 	// add finalizer to the networkfence object if not already present.
-	if err := r.addFinalizerToNetworkFence(ctx, &logger, nwFence); err != nil {
-		logger.Error(err, "Failed to add NetworkFence finalizer")
+	if err := nf.addFinalizerToNetworkFence(ctx); err != nil {
+		nf.logger.Error(err, "Failed to add NetworkFence finalizer")
 		return err
 	}
 
+	return nf.processFencingRequest(ctx)
+}
+
+// processFencingRequest creates the fencing request based on
+// the spec and then calls appropriate function to either
+// fence or unfence based on the spec.
+func (nf *NetworkFenceInstance) processFencingRequest(ctx context.Context) error {
 	// send FenceClusterNetwork request.
-	logger.Info("FenceClusterNetwork Request")
-	timeoutContext, cancel := context.WithTimeout(ctx, r.Timeout)
+	request := &proto.NetworkFenceRequest{
+		Parameters:      nf.instance.Spec.Parameters,
+		SecretName:      nf.instance.Spec.Secret.Name,
+		SecretNamespace: nf.instance.Spec.Secret.Namespace,
+		Cidrs:           nf.instance.Spec.Cidrs,
+	}
+
+	if nf.instance.Spec.FenceState == csiaddonsv1alpha1.Fenced {
+		return nf.fenceClusterNetwork(ctx, request)
+	}
+
+	return nf.unfenceClusterNetwork(ctx, request)
+}
+
+// fenceClusterNetwork sends the fencing request
+func (nf *NetworkFenceInstance) fenceClusterNetwork(ctx context.Context, request *proto.NetworkFenceRequest) error {
+	timeoutContext, cancel := context.WithTimeout(ctx, nf.reconciler.Timeout)
 	defer cancel()
-	_, err := controllerClient.FenceClusterNetwork(timeoutContext, &proto.NetworkFenceRequest{
-		Parameters:      nwFence.Spec.Parameters,
-		SecretName:      nwFence.Spec.Secret.Name,
-		SecretNamespace: nwFence.Spec.Secret.Namespace,
-		Cidrs:           nwFence.Spec.Cidrs,
-	})
+
+	_, err := nf.controllerClient.FenceClusterNetwork(timeoutContext, request)
+
 	if err != nil {
-		logger.Error(err, "failed to fence cluster network")
+		nf.logger.Error(err, "failed to fence cluster network")
 		return err
 	}
-	logger.Info("FenceClusterNetwork Request Succeeded")
+
+	nf.logger.Info("FenceClusterNetwork Request Succeeded")
 
 	return nil
 }
 
-// unfenceClusterNetwork sends a UnfenceClusterNetwork request and removes the finalizer on success.
-func (r *NetworkFenceReconciler) unfenceClusterNetwork(ctx context.Context, nwFence *csiaddonsv1alpha1.NetworkFence, controllerClient proto.NetworkFenceClient, logger logr.Logger) error {
-
-	timeoutContext, cancel := context.WithTimeout(ctx, r.Timeout)
+// unfenceClusterNetwork sends the unfencing request
+func (nf *NetworkFenceInstance) unfenceClusterNetwork(ctx context.Context, request *proto.NetworkFenceRequest) error {
+	timeoutContext, cancel := context.WithTimeout(ctx, nf.reconciler.Timeout)
 	defer cancel()
-	_, err := controllerClient.UnFenceClusterNetwork(timeoutContext, &proto.NetworkFenceRequest{
-		Parameters:      nwFence.Spec.Parameters,
-		SecretName:      nwFence.Spec.Secret.Name,
-		SecretNamespace: nwFence.Spec.Secret.Namespace,
-		Cidrs:           nwFence.Spec.Cidrs,
-	})
-	if err != nil {
-		return err
-	}
-	logger.Info("UnfenceClusterNetwork Request Succeeded")
 
-	// once all finalizers have been removed, the object will then be
-	// deleted.
-	logger.Info("Removing finalizer")
-	if err := r.removeFinalizerFromNetworkFence(ctx, &logger, nwFence); err != nil {
-		logger.Error(err, "Failed to remove NetworkFence finalizer")
+	_, err := nf.controllerClient.UnFenceClusterNetwork(timeoutContext, request)
+
+	if err != nil {
+		nf.logger.Error(err, "failed to unfence cluster network")
 		return err
 	}
+
+	nf.logger.Info("UnFenceClusterNetwork Request Succeeded")
 
 	return nil
 }
 
 // addFinalizerToNetworkFence adds a finalizer to the Networkfence instance.
-func (r *NetworkFenceReconciler) addFinalizerToNetworkFence(
-	ctx context.Context,
-	logger *logr.Logger,
-	networkFence *csiaddonsv1alpha1.NetworkFence) error {
+func (nf *NetworkFenceInstance) addFinalizerToNetworkFence(ctx context.Context) error {
+	if !util.ContainsInSlice(nf.instance.Finalizers, networkFenceFinalizer) {
+		nf.logger.Info("adding finalizer to NetworkFence object", "Finalizer", networkFenceFinalizer)
 
-	if !util.ContainsInSlice(networkFence.Finalizers, networkFenceFinalizer) {
-		logger.Info("adding finalizer to NetworkFence object", "Finalizer", networkFenceFinalizer)
-
-		networkFence.Finalizers = append(networkFence.Finalizers, networkFenceFinalizer)
-		if err := r.Client.Update(ctx, networkFence); err != nil {
+		nf.instance.Finalizers = append(nf.instance.Finalizers, networkFenceFinalizer)
+		if err := nf.reconciler.Client.Update(ctx, nf.instance); err != nil {
 			return fmt.Errorf("failed to add finalizer (%s) to NetworkFence resource"+
-				" (%s): %w", networkFenceFinalizer, networkFence.GetName(), err)
+				" (%s): %w", networkFenceFinalizer, nf.instance.GetName(), err)
 		}
 	}
 
@@ -227,17 +274,14 @@ func (r *NetworkFenceReconciler) addFinalizerToNetworkFence(
 }
 
 // removeFinalizerFromNetworkFence removes the finalizer from the Networkfence instance.
-func (r *NetworkFenceReconciler) removeFinalizerFromNetworkFence(
-	ctx context.Context,
-	logger *logr.Logger,
-	nf *csiaddonsv1alpha1.NetworkFence) error {
-	if util.ContainsInSlice(nf.Finalizers, networkFenceFinalizer) {
-		logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
+func (nf *NetworkFenceInstance) removeFinalizerFromNetworkFence(ctx context.Context) error {
+	if util.ContainsInSlice(nf.instance.Finalizers, networkFenceFinalizer) {
+		nf.logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
 
-		nf.Finalizers = util.RemoveFromSlice(nf.Finalizers, networkFenceFinalizer)
-		if err := r.Client.Update(ctx, nf); err != nil {
+		nf.instance.Finalizers = util.RemoveFromSlice(nf.instance.Finalizers, networkFenceFinalizer)
+		if err := nf.reconciler.Client.Update(ctx, nf.instance); err != nil {
 			return fmt.Errorf("failed to remove finalizer (%s) from NetworkFence resource"+
-				" %s: %w", networkFenceFinalizer, nf.Name, err)
+				" %s: %w", networkFenceFinalizer, nf.instance.Name, err)
 		}
 	}
 
