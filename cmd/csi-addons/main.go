@@ -30,7 +30,7 @@ import (
 
 const (
 	endpoint    = "unix:///tmp/csi-addons.sock"
-	stagingPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/"
+	stagingPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/"
 )
 
 // command contains the parsed arguments that were passed while running the
@@ -40,6 +40,8 @@ type command struct {
 	stagingPath      string
 	operation        string
 	persistentVolume string
+	drivername       string
+	legacy           bool
 }
 
 // cmd is the single instance of the command struct, used inside main().
@@ -50,6 +52,8 @@ func init() {
 	flag.StringVar(&cmd.stagingPath, "stagingpath", stagingPath, "staging path")
 	flag.StringVar(&cmd.operation, "operation", "", "csi-addons operation")
 	flag.StringVar(&cmd.persistentVolume, "persistentvolume", "", "name of the PersistentVolume")
+	flag.StringVar(&cmd.drivername, "drivername", "", "name of the CSI driver")
+	flag.BoolVar(&cmd.legacy, "legacy", false, "use legacy format for old Kubernetes versions")
 
 	// output to show when --help is passed
 	flag.Usage = func() {

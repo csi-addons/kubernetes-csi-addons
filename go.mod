@@ -10,10 +10,10 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.11.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
-	github.com/operator-framework/operator-sdk v1.20.0
+	github.com/operator-framework/operator-sdk v1.20.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.7.1
-	google.golang.org/grpc v1.46.0
+	google.golang.org/grpc v1.46.2
 	google.golang.org/protobuf v1.28.0
 	k8s.io/api v0.23.6
 	k8s.io/apimachinery v0.23.6
@@ -147,7 +147,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5 // indirect
 	github.com/operator-framework/api v0.14.1-0.20220413143725-33310d6154f3 // indirect
-	github.com/operator-framework/helm-operator-plugins v0.0.9 // indirect
+	github.com/operator-framework/helm-operator-plugins v0.0.10 // indirect
 	github.com/operator-framework/java-operator-plugins v0.3.0 // indirect
 	github.com/operator-framework/operator-manifest-tools v0.2.0 // indirect
 	github.com/operator-framework/operator-registry v1.21.0 // indirect
