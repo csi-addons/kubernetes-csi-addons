@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
@@ -83,7 +84,17 @@ func (nrs *NodeReclaimSpace) Init(c *command) error {
 	if c.stagingPath == "" {
 		return fmt.Errorf("stagingpath is not set")
 	}
-	nrs.stagingTargetPath = fmt.Sprintf("%s/%s/globalmount", c.stagingPath, c.persistentVolume)
+
+	if !c.legacy {
+		if c.drivername == "" {
+			return fmt.Errorf("drivername is not set")
+		}
+
+		unique := sha256.Sum256([]byte(c.persistentVolume))
+		nrs.stagingTargetPath = fmt.Sprintf("%s/%s/%s/globalmount", c.stagingPath, c.drivername, fmt.Sprintf("%x", unique))
+	} else {
+		nrs.stagingTargetPath = fmt.Sprintf("%s/pv/%s/globalmount", c.stagingPath, c.persistentVolume)
+	}
 
 	return nil
 }
