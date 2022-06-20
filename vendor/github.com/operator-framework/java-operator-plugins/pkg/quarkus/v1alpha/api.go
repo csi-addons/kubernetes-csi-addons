@@ -15,18 +15,27 @@
 package v1
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/operator-framework/java-operator-plugins/pkg/quarkus/v1alpha/scaffolds"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
+
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/model/resource"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
 	pluginutil "sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
-
-	"github.com/operator-framework/java-operator-plugins/pkg/quarkus/v1alpha/scaffolds"
 )
+
+const filePath = "Makefile"
 
 type createAPIOptions struct {
 	CRDVersion string
@@ -81,7 +90,40 @@ func (p *createAPISubcommand) PostScaffold() error {
 
 func (p *createAPISubcommand) Scaffold(fs machinery.Filesystem) error {
 	scaffolder := scaffolds.NewCreateAPIScaffolder(p.config, *p.resource)
+
+	var s = fmt.Sprintf(makefileBundleCRDFile, p.resource.Plural, p.resource.QualifiedGroup(), p.resource.Version)
+	foundLine := findOldFilesForReplacement(filePath, s)
+
+	if !foundLine {
+		makefileBytes, err := afero.ReadFile(fs.FS, filePath)
+		if err != nil {
+			return err
+		}
+
+		projectName := p.config.GetProjectName()
+		if projectName == "" {
+			dir, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("error getting current directory: %w", err)
+			}
+			projectName = strings.ToLower(filepath.Base(dir))
+		}
+
+		makefileBytes = append(makefileBytes, []byte(fmt.Sprintf(makefileBundleVarFragment, p.resource.Plural, p.resource.QualifiedGroup(), p.resource.Version, projectName))...)
+
+		makefileBytes = append([]byte(fmt.Sprintf(makefileBundleImageFragement, p.config.GetDomain(), projectName)), makefileBytes...)
+
+		var mode os.FileMode = 0644
+		if info, err := fs.FS.Stat(filePath); err == nil {
+			mode = info.Mode()
+		}
+		if err := afero.WriteFile(fs.FS, filePath, makefileBytes, mode); err != nil {
+			return fmt.Errorf("error updating Makefile: %w", err)
+		}
+	}
+
 	scaffolder.InjectFS(fs)
+
 	if err := scaffolder.Scaffold(); err != nil {
 		return err
 	}
@@ -116,3 +158,82 @@ func (p *createAPISubcommand) InjectResource(res *resource.Resource) error {
 
 	return nil
 }
+
+// findOldFilesForReplacement verifies marker (## marker) and if it found then merge new api CRD file to the odler logic
+func findOldFilesForReplacement(path, newfile string) bool {
+
+	f, err := os.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// remember to close the file at the end of the program
+	defer f.Close()
+
+	// read the file line by line using scanner
+	scanner := bufio.NewScanner(f)
+	var foundMarker bool
+	for scanner.Scan() {
+		// do something with a line
+		if scanner.Text() == "## marker" {
+			foundMarker = true
+			break
+		}
+	}
+
+	if foundMarker {
+		scanner.Scan()
+		catLine := scanner.Text()
+
+		splitByPipe := strings.Split(catLine, "|")
+
+		finalString := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(splitByPipe[0]), "cat"), "target/kubernetes/kubernetes.yml")
+
+		updatedLine := "	" + "cat" + finalString + newfile + " target/kubernetes/kubernetes.yml" + " |" + splitByPipe[1]
+
+		if err := scanner.Err(); err != nil {
+			log.Error(err, "Unable to scan existing bundle target command from the Makefile. New bundle target command being created. This may overwrite any existing commands.")
+			return false
+		}
+
+		// ReplaceInFile replaces all instances of old with new in the file at path.
+		err = util.ReplaceInFile(path, catLine, updatedLine)
+		if err != nil {
+			log.Error(err, "Unable to replace existing bundle target command from the Makefile. New bundle target command being created. This may overwrite any existing commands.")
+			return false
+		}
+	}
+
+	return foundMarker
+}
+
+const (
+	makefileBundleCRDFile = `target/kubernetes/%[1]s.%[2]s-%[3]s.yml`
+)
+
+const (
+	makefileBundleVarFragment = `
+##@Bundle
+.PHONY: bundle
+bundle:  ## Generate bundle manifests and metadata, then validate generated files.
+## marker
+	cat target/kubernetes/%[1]s.%[2]s-%[3]s.yml target/kubernetes/kubernetes.yml | operator-sdk generate bundle -q --overwrite --version 0.1.1 --default-channel=stable --channels=stable --package=%[4]s
+	operator-sdk bundle validate ./bundle
+	
+.PHONY: bundle-build
+bundle-build: ## Build the bundle image.
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	
+.PHONY: bundle-push
+bundle-push: ## Push the bundle image.
+	docker push $(BUNDLE_IMG)
+`
+)
+
+const (
+	makefileBundleImageFragement = `
+VERSION ?= 0.0.1
+IMAGE_TAG_BASE ?= %[1]s/%[2]s
+BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
+`
+)
