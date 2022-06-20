@@ -62,19 +62,19 @@ func (s *apiScaffolder) Scaffold() error {
 	var createAPITemplates []machinery.Builder
 	createAPITemplates = append(createAPITemplates,
 		&model.Model{
-			Package:   util.ReverseDomain(s.config.GetDomain()),
+			Package:   util.ReverseDomain(util.SanitizeDomain(s.config.GetDomain())),
 			ClassName: util.ToClassname(s.resource.Kind),
 		},
 		&model.ModelSpec{
-			Package:   util.ReverseDomain(s.config.GetDomain()),
+			Package:   util.ReverseDomain(util.SanitizeDomain(s.config.GetDomain())),
 			ClassName: util.ToClassname(s.resource.Kind),
 		},
 		&model.ModelStatus{
-			Package:   util.ReverseDomain(s.config.GetDomain()),
+			Package:   util.ReverseDomain(util.SanitizeDomain(s.config.GetDomain())),
 			ClassName: util.ToClassname(s.resource.Kind),
 		},
 		&controller.Controller{
-			Package:   util.ReverseDomain(s.config.GetDomain()),
+			Package:   util.ReverseDomain(util.SanitizeDomain(s.config.GetDomain())),
 			ClassName: util.ToClassname(s.resource.Kind),
 		},
 	)
