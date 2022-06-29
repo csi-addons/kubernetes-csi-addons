@@ -1594,7 +1594,7 @@ k8s.io/component-base/metrics
 k8s.io/component-base/metrics/legacyregistry
 k8s.io/component-base/traces
 k8s.io/component-base/version
-# k8s.io/klog/v2 v2.60.1
+# k8s.io/klog/v2 v2.70.0
 ## explicit; go 1.13
 k8s.io/klog/v2
 k8s.io/klog/v2/internal/buffer
