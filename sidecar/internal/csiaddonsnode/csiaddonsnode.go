@@ -86,7 +86,7 @@ func (mgr *Manager) Deploy() error {
 	}
 
 	// loop until the CSIAddonsNode has been created
-	wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
+	_ = wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
 		err := mgr.newCSIAddonsNode(object)
 		if err != nil {
 			klog.Errorf("failed to create CSIAddonsNode %s/%s: %v",
@@ -96,6 +96,8 @@ func (mgr *Manager) Deploy() error {
 			return false, nil
 		}
 
+		klog.Infof("CSIAddonsNode '%s/%s' successfully created",
+			object.Namespace, object.Name)
 		// no error, so the CSIAddonsNode has been created
 		return true, nil
 	})
@@ -132,7 +134,22 @@ func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) erro
 		Do(context.TODO()).
 		Error()
 
-	if err != nil && !apierrors.IsAlreadyExists(err) {
+	if apierrors.IsAlreadyExists(err) {
+		// delete the pre-existing node object.
+		_, err = c.Delete().
+			Resource("csiaddonsnodes").
+			Namespace(node.Namespace).
+			Name(node.Name).
+			DoRaw(context.TODO())
+		if err != nil {
+			return fmt.Errorf("failed to delete pre-existing csiaddonsnode object: %w", err)
+		}
+
+		// create new node object after deletion.
+		return mgr.newCSIAddonsNode(node)
+	}
+
+	if err != nil {
 		return fmt.Errorf("failed to create csiaddonsnode object: %w", err)
 	}
 
