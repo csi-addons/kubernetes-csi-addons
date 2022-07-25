@@ -10,7 +10,7 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.11.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
-	github.com/operator-framework/operator-sdk v1.22.1
+	github.com/operator-framework/operator-sdk v1.22.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.0
 	google.golang.org/grpc v1.48.0
