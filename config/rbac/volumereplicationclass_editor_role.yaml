@@ -1,0 +1,24 @@
+# permissions for end users to edit volumereplicationclasses.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: volumereplicationclass-editor-role
+rules:
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplicationclasses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplicationclasses/status
+  verbs:
+  - get
