@@ -1,6 +1,7 @@
 domain: openshift.io
 layout:
 - go.kubebuilder.io/v3
+multigroup: true
 projectName: kubernetes-csi-addons
 repo: github.com/csi-addons/kubernetes-csi-addons
 resources:
@@ -40,4 +41,20 @@ resources:
   kind: PersistentVolumeClaim
   path: k8s.io/api/core/v1
   version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: openshift.io
+  group: replication.storage
+  kind: VolumeReplication
+  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: openshift.io
+  group: replication.storage
+  kind: VolumeReplicationClass
+  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  version: v1alpha1
 version: "3"

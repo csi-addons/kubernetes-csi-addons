@@ -31,6 +31,16 @@ spec:
       kind: ReclaimSpaceJob
       name: reclaimspacejobs.csiaddons.openshift.io
       version: v1alpha1
+    - description: VolumeReplicationClass is the Schema for the volumereplicationclasses API
+      displayName: Volume Replication Class
+      kind: VolumeReplicationClass
+      name: volumereplicationclasses.replication.storage.openshift.io
+      version: v1alpha1
+    - description: VolumeReplication is the Schema for the volumereplications API
+      displayName: Volume Replication
+      kind: VolumeReplication
+      name: volumereplications.replication.storage.openshift.io
+      version: v1alpha1
   description: CSI Addons provides the CSI Addons Controller that enables advanced
     storage operations for CSI-drivers.
   displayName: CSI Addons
