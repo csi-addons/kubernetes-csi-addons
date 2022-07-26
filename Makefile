@@ -91,7 +91,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./api/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./apis/...,./api/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG} rbac-proxy=${RBAC_PROXY_IMG}
 	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
 	$(KUSTOMIZE) build config/rbac > deploy/controller/rbac.yaml

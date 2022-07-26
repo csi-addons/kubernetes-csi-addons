@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
+	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/controllers"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	//+kubebuilder:scaffold:imports
@@ -51,6 +52,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(csiaddonsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(replicationstoragev1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
