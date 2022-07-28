@@ -20,12 +20,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,6 +39,8 @@ import (
 
 var (
 	csiAddonsNodeFinalizer = csiaddonsv1alpha1.GroupVersion.Group + "/csiaddonsnode"
+
+	errLegacyEndpoint = errors.New("legacy formatted endpoint")
 )
 
 // CSIAddonsNodeReconciler reconciles a CSIAddonsNode object
@@ -45,6 +50,7 @@ type CSIAddonsNodeReconciler struct {
 	ConnPool *connection.ConnectionPool
 }
 
+//+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=csiaddonsnodes,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=csiaddonsnodes/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=csiaddonsnodes/finalizers,verbs=update
@@ -85,7 +91,13 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	nodeID := csiAddonsNode.Spec.Driver.NodeID
 	driverName := csiAddonsNode.Spec.Driver.Name
-	endPoint := csiAddonsNode.Spec.Driver.EndPoint
+
+	endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
+	if err != nil {
+		logger.Error(err, "Failed to resolve endpoint")
+		return ctrl.Result{}, fmt.Errorf("Failed to resolve endpoint %q: %w", csiAddonsNode.Spec.Driver.EndPoint, err)
+	}
+
 	key := csiAddonsNode.Namespace + "/" + csiAddonsNode.Name
 	logger = logger.WithValues("NodeID", nodeID, "EndPoint", endPoint, "DriverName", driverName)
 
@@ -182,6 +194,65 @@ func (r *CSIAddonsNodeReconciler) removeFinalizer(
 	}
 
 	return nil
+}
+
+// resolveEndpoint parses the endpoint and returned a string that can be used
+// by GRPC to connect to the sidecar.
+func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL string) (string, error) {
+	namespace, podname, port, err := parseEndpoint(rawURL)
+	if err != nil && errors.Is(err, errLegacyEndpoint) {
+		return rawURL, nil
+	} else if err != nil {
+		return "", err
+	} else if namespace == "" {
+		return "", fmt.Errorf("failed to get namespace from endpoint %q", rawURL)
+	} else if podname == "" {
+		return "", fmt.Errorf("failed to get pod from endpoint %q", rawURL)
+	}
+
+	pod := &corev1.Pod{}
+	err = r.Client.Get(ctx, client.ObjectKey{
+		Namespace: namespace,
+		Name:      podname,
+	}, pod)
+	if err != nil {
+		return "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
+	} else if pod.Status.PodIP == "" {
+		return "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
+	}
+
+	return fmt.Sprintf("%s:%s", pod.Status.PodIP, port), nil
+}
+
+// parseEndpoint returns the rawURL if it is in the legacy <IP-address>:<port>
+// format. When the recommended format is used, it returns the Namespace,
+// PodName, Port and error instead.
+func parseEndpoint(rawURL string) (string, string, string, error) {
+	// assume old formatted endpoint, don't parse it
+	if !strings.Contains(rawURL, "://") {
+		return "", "", "", errLegacyEndpoint
+	}
+
+	endpoint, err := url.Parse(rawURL)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to parse endpoint %q: %w", rawURL, err)
+	}
+
+	if endpoint.Scheme != "pod" {
+		return "", "", "", fmt.Errorf("endpoint scheme %q not supported", endpoint.Scheme)
+	}
+
+	// split hostname -> pod.namespace
+	parts := strings.Split(endpoint.Hostname(), ".")
+	podname := parts[0]
+	namespace := ""
+	if len(parts) == 2 {
+		namespace = parts[1]
+	} else if len(parts) > 2 {
+		return "", "", "", fmt.Errorf("hostname %q is not in <pod>.<namespace> format", endpoint.Hostname())
+	}
+
+	return namespace, podname, endpoint.Port(), nil
 }
 
 // validateCSIAddonsNodeSpec validates if Name and Endpoint are not empty.
