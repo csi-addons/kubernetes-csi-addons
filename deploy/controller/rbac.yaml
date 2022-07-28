@@ -87,6 +87,14 @@ rules:
   verbs:
   - update
 - apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - csiaddons.openshift.io
   resources:
   - csiaddonsnodes
