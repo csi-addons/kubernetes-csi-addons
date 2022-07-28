@@ -53,7 +53,7 @@ func main() {
 	}
 	flag.Parse()
 
-	controllerEndpoint, err := util.ValidateControllerEndpoint(*controllerIP, *controllerPort)
+	controllerEndpoint, err := util.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
 		klog.Fatalf("Failed to validate controller endpoint: %w", err)
 	}
