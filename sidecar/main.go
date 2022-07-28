@@ -92,7 +92,7 @@ func main() {
 		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
 	}
 
-	sidecarServer := server.NewSidecarServer(controllerEndpoint)
+	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.GetGRPCClient(), kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))

@@ -43,9 +43,10 @@ type SidecarServer struct {
 	services []SidecarService
 }
 
-// NewSidecarServer create a new SidecarServer on the given endpoint. The
-// endpoint should be an ip address. Only tcp ports are supported.
-func NewSidecarServer(endpoint string) *SidecarServer {
+// NewSidecarServer create a new SidecarServer on the given IP-address and
+// port. If the IP-address is an empty string, the server will listen on all
+// available IP-addresses. Only tcp ports are supported.
+func NewSidecarServer(ip, port string) *SidecarServer {
 	ss := &SidecarServer{}
 
 	if ss.services == nil {
@@ -53,7 +54,7 @@ func NewSidecarServer(endpoint string) *SidecarServer {
 	}
 
 	ss.scheme = "tcp"
-	ss.endpoint = endpoint
+	ss.endpoint = ip + ":" + port
 
 	return ss
 }
