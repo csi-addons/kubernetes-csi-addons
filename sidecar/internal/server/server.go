@@ -77,7 +77,7 @@ func (ss *SidecarServer) Start() {
 
 	listener, err := net.Listen(ss.scheme, ss.endpoint)
 	if err != nil {
-		klog.Fatalf("failed to listen on %q: %w", listener.Addr(), err)
+		klog.Fatalf("failed to listen on %s (%s): %v", ss.endpoint, ss.scheme, err)
 	}
 
 	ss.serve(listener)
