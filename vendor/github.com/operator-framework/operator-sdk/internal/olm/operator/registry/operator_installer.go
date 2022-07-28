@@ -31,6 +31,8 @@ import (
 
 	olmclient "github.com/operator-framework/operator-sdk/internal/olm/client"
 	"github.com/operator-framework/operator-sdk/internal/olm/operator"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 type OperatorInstaller struct {
@@ -142,7 +144,7 @@ func (o OperatorInstaller) UpgradeOperator(ctx context.Context) (*v1alpha1.Clust
 	log.Infof("Found existing catalog source with name %s and namespace %s", cs.Name, cs.Namespace)
 
 	// Update catalog source
-	err := o.CatalogUpdater.UpdateCatalog(ctx, cs)
+	err := o.CatalogUpdater.UpdateCatalog(ctx, cs, subscription)
 	if err != nil {
 		return nil, fmt.Errorf("update catalog error: %v", err)
 	}
@@ -345,11 +347,17 @@ func (o OperatorInstaller) waitForInstallPlan(ctx context.Context, sub *v1alpha1
 		Name:      sub.GetName(),
 	}
 
+	// Get the previous InstallPlanRef
+	prevIPRef := corev1.ObjectReference{}
+	if sub.Status.InstallPlanRef != nil {
+		prevIPRef = *sub.Status.InstallPlanRef
+	}
+
 	ipCheck := wait.ConditionFunc(func() (done bool, err error) {
 		if err := o.cfg.Client.Get(ctx, subKey, sub); err != nil {
 			return false, err
 		}
-		if sub.Status.InstallPlanRef != nil {
+		if sub.Status.InstallPlanRef != nil && sub.Status.InstallPlanRef.Name != prevIPRef.Name {
 			return true, nil
 		}
 		return false, nil
