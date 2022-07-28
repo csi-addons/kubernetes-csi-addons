@@ -10,3 +10,12 @@ updates:
       prefix: "vendor"
     labels:
       - vendor
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    rebase-strategy: "disabled"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - testing
