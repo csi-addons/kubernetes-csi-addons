@@ -32,9 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
-	"github.com/csi-addons/kubernetes-csi-addons/controllers"
+	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	//+kubebuilder:scaffold:imports
 )

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
