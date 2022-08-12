@@ -96,6 +96,7 @@ func main() {
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.GetGRPCClient(), kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))
+	sidecarServer.RegisterService(service.NewReplicationServer(csiClient.GetGRPCClient(), kubeClient))
 
 	sidecarServer.Start()
 }
