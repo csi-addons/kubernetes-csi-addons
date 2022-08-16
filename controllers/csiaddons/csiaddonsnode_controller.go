@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -149,10 +150,11 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *CSIAddonsNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *CSIAddonsNodeReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&csiaddonsv1alpha1.CSIAddonsNode{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(ctrlOptions).
 		Complete(r)
 }
 

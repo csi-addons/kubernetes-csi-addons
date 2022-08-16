@@ -32,6 +32,7 @@ import (
 	ref "k8s.io/client-go/tools/reference"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -190,7 +191,7 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ReclaimSpaceCronJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ReclaimSpaceCronJobReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &csiaddonsv1alpha1.ReclaimSpaceJob{}, jobOwnerKey, func(rawObj client.Object) []string {
 		// extract the owner from job object.
 		job, ok := rawObj.(*csiaddonsv1alpha1.ReclaimSpaceJob)
@@ -213,6 +214,7 @@ func (r *ReclaimSpaceCronJobReconciler) SetupWithManager(mgr ctrl.Manager) error
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).
 		Owns(&csiaddonsv1alpha1.ReclaimSpaceJob{}).
+		WithOptions(ctrlOptions).
 		Complete(r)
 }
 
