@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -160,10 +161,11 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ReclaimSpaceJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ReclaimSpaceJobReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&csiaddonsv1alpha1.ReclaimSpaceJob{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(ctrlOptions).
 		Complete(r)
 }
 
