@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -168,7 +169,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	err := mgr.GetFieldIndexer().IndexField(
 		context.Background(),
 		&csiaddonsv1alpha1.ReclaimSpaceCronJob{},
@@ -204,6 +205,7 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager) err
 		For(&corev1.PersistentVolumeClaim{}).
 		Owns(&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).
 		WithEventFilter(pred).
+		WithOptions(ctrlOptions).
 		Complete(r)
 }
 
