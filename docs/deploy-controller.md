@@ -2,6 +2,18 @@
 
 The CSI-Addons Controller can be deployed by different ways:
 
+## Configuration
+
+**Available command line arguments:**
+
+| Option                        | Default value   | Description                 |
+| ----------------------------- | --------------- | --------------------------------------------- |
+| `--metrics-bind-address`      | `:8080`         | The address the metric endpoint binds to.     |
+| `--health-probe-bind-address` | `:8081`         | The address the probe endpoint binds to.      |
+| `--leader-elect`              | `false`         | Enable leader election for controller manager.|
+| `--reclaim-space-timeout`     | `3m`            | Timeout for reclaimspace operation            |
+| `--max-concurrent-reconciles` | 100             | Maximum number of concurrent reconciles       |
+
 ## Installation for versioned deployments
 
 The CSI-Addons Controller can also be installed  using the yaml files in `deploy/controller`.
@@ -21,7 +33,7 @@ customresourcedefinition.apiextensions.k8s.io/reclaimspacecronjobs.csiaddons.ope
 customresourcedefinition.apiextensions.k8s.io/reclaimspacejobs.csiaddons.openshift.io created
 
 $ kubectl create -f rbac.yaml
-... 
+...
 serviceaccount/csi-addons-controller-manager created
 role.rbac.authorization.k8s.io/csi-addons-leader-election-role created
 clusterrole.rbac.authorization.k8s.io/csi-addons-manager-role created
