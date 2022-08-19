@@ -80,7 +80,7 @@ spec:
             description: CSIAddonsNodeStatus defines the observed state of CSIAddonsNode
             properties:
               message:
-                description: Messgae is a human-readable message indicating details
+                description: Message is a human-readable message indicating details
                   about why the CSIAddonsNode is in this state.
                 type: string
               reason:
