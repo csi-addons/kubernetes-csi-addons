@@ -61,7 +61,7 @@ type CSIAddonsNodeStatus struct {
 	// to the CSI Driver.
 	State CSIAddonsNodeState `json:"state,omitempty"`
 
-	// Messgae is a human-readable message indicating details about why the CSIAddonsNode
+	// Message is a human-readable message indicating details about why the CSIAddonsNode
 	// is in this state.
 	// +optional
 	Message string `json:"message,omitempty"`

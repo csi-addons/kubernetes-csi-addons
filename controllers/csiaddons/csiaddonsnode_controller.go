@@ -103,7 +103,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger = logger.WithValues("NodeID", nodeID, "EndPoint", endPoint, "DriverName", driverName)
 
 	if !csiAddonsNode.DeletionTimestamp.IsZero() {
-		// if deletion timestap is set, the CSIAddonsNode is getting deleted,
+		// if deletion timestamp is set, the CSIAddonsNode is getting deleted,
 		// delete connections and remove finalizer.
 		logger.Info("Deleting connection")
 		r.ConnPool.Delete(key)
