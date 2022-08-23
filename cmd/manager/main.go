@@ -37,6 +37,7 @@ import (
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
+	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	//+kubebuilder:scaffold:imports
 )
@@ -137,6 +138,16 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
+		os.Exit(1)
+	}
+	if err = (&replicationController.VolumeReplicationReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Connpool: connPool,
+		Timeout:  defaultTimeout,
+		Log:      ctrl.Log.WithName("controllers").WithName("VolumeReplication"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
