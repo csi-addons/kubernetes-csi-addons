@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var mockVolumeReplicationClassObj = &replicationv1alpha1.VolumeReplicationClass{
@@ -61,7 +63,7 @@ func TestGetVolumeReplicaClass(t *testing.T) {
 		}
 
 		reconciler := createFakeVolumeReplicationReconciler(t, objects...)
-		vrcObj, err := reconciler.getVolumeReplicationClass(reconciler.Log, mockVolumeReplicationClassObj.Name)
+		vrcObj, err := reconciler.getVolumeReplicationClass(log.FromContext(context.TODO()), mockVolumeReplicationClassObj.Name)
 
 		if tc.errorExpected {
 			assert.Error(t, err)
