@@ -199,6 +199,35 @@ rules:
   - patch
   - update
 - apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications/status
+  verbs:
+  - update
+- apiGroups:
   - storage.k8s.io
   resources:
   - volumeattachments

@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/container-storage-interface/spec v1.6.0
-	github.com/csi-addons/spec v0.1.2-0.20211220115741-32fa508dadbe
+	github.com/csi-addons/spec v0.1.2-0.20220804080457-522edd16192e
 	github.com/go-logr/logr v1.2.3
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.11.0
