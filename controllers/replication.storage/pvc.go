@@ -24,6 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+
+	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 )
 
 // getPVCDataSource get pvc, pv object from the request.
@@ -55,4 +57,37 @@ func (r VolumeReplicationReconciler) getPVCDataSource(logger logr.Logger, req ty
 	}
 
 	return pvc, pv, nil
+}
+
+// annotatePVCWithOwner will add the VolumeReplication details to the PVC annotations.
+func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, logger logr.Logger, req types.NamespacedName, pvc *corev1.PersistentVolumeClaim) error {
+	if pvc.ObjectMeta.Annotations == nil {
+		pvc.ObjectMeta.Annotations = map[string]string{}
+	}
+
+	ownerName := pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
+	if ownerName == "" {
+		pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = req.Name
+		err := r.Update(ctx, pvc)
+		if err != nil {
+			logger.Error(err, "Failed to update PVC annotation", "Name", pvc.Name)
+
+			return fmt.Errorf("failed to update PVC %q annotation for VolumeReplication: %w",
+				pvc.Name, err)
+		}
+
+		return nil
+	}
+
+	if ownerName != req.Name {
+		logger.Info("cannot change the owner of PVC",
+			"PVC name", pvc.Name,
+			"current owner", ownerName,
+			"requested owner", req.Name)
+
+		return fmt.Errorf("PVC %q not owned by VolumeReplication %q",
+			pvc.Name, req.Name)
+	}
+
+	return nil
 }

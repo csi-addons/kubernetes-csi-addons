@@ -21,6 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	VolumeReplicationNameAnnotation = "replication.storage.openshift.io/volume-replication-name"
+)
+
 // ReplicationState represents the replication operations to be performed on the volume.
 // +kubebuilder:validation:Enum=primary;secondary;resync
 type ReplicationState string
