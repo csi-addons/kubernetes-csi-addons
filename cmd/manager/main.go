@@ -145,8 +145,7 @@ func main() {
 		Scheme:   mgr.GetScheme(),
 		Connpool: connPool,
 		Timeout:  defaultTimeout,
-		Log:      ctrl.Log.WithName("controllers").WithName("VolumeReplication"),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
 		os.Exit(1)
 	}

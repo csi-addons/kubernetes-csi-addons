@@ -41,6 +41,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -59,7 +61,6 @@ var (
 // VolumeReplicationReconciler reconciles a VolumeReplication object.
 type VolumeReplicationReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 	// ConnectionPool consists of map of Connection objects
 	Connpool *conn.ConnectionPool
@@ -81,7 +82,7 @@ type VolumeReplicationReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := r.Log.WithValues("Request.Name", req.Name, "Request.Namespace", req.Namespace)
+	logger := log.FromContext(ctx, "Request.Name", req.Name, "Request.Namespace", req.Namespace)
 
 	// Fetch VolumeReplication instance
 	instance := &replicationv1alpha1.VolumeReplication{}
@@ -385,10 +386,9 @@ func (r *VolumeReplicationReconciler) updateReplicationStatus(
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *VolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	err := r.waitForCrds()
 	if err != nil {
-		r.Log.Error(err, "failed to wait for crds")
 
 		return err
 	}
@@ -397,11 +397,13 @@ func (r *VolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&replicationv1alpha1.VolumeReplication{}).
-		WithEventFilter(pred).Complete(r)
+		WithEventFilter(pred).
+		WithOptions(ctrlOptions).
+		Complete(r)
 }
 
 func (r *VolumeReplicationReconciler) waitForCrds() error {
-	logger := r.Log.WithName("checkingDependencies")
+	logger := log.FromContext(context.TODO(), "Name", "checkingDependencies")
 
 	err := r.waitForVolumeReplicationResource(logger, volumeReplicationClass)
 	if err != nil {
