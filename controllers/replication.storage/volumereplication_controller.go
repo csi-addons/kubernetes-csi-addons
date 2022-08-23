@@ -172,6 +172,12 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		logger.Info("Replication handle", "ReplicationHandleName", replicationHandle)
 	}
 
+	err = r.annotatePVCWithOwner(ctx, logger, nameSpacedName, pvc)
+	if err != nil {
+		logger.Error(err, "Failed to annotate PVC owner")
+		return ctrl.Result{}, err
+	}
+
 	replicationClient, err := r.getReplicationClient(vrcObj.Spec.Provisioner)
 	if err != nil {
 		logger.Error(err, "Failed to get ReplicationClient")

@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -172,6 +171,70 @@ func TestGetVolumeHandle(t *testing.T) {
 			assert.NotEqual(t, nil, resultPVC)
 			assert.NotEqual(t, nil, resultPV)
 			assert.Equal(t, tc.expectedVolumeHandle, resultPV.Spec.CSI.VolumeHandle)
+		}
+	}
+}
+
+func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
+	t.Parallel()
+	vrName := "test-vr"
+
+	testcases := []struct {
+		name          string
+		pvc           *corev1.PersistentVolumeClaim
+		errorExpected bool
+	}{
+		{
+			name:          "case 1: no VR is owning the PVC",
+			pvc:           mockPersistentVolumeClaim,
+			errorExpected: false,
+		},
+		{
+			name: "case 2: pvc is already owned by same VR",
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pvc-name",
+					Namespace: mockNamespace,
+					Annotations: map[string]string{
+						replicationv1alpha1.VolumeReplicationNameAnnotation: vrName,
+					},
+				},
+			},
+			errorExpected: false,
+		},
+		{
+			name: "case 2: pvc is owned by different VR",
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "pvc-name",
+					Namespace: mockNamespace,
+					Annotations: map[string]string{
+						replicationv1alpha1.VolumeReplicationNameAnnotation: "test-vr-1",
+					},
+				},
+			},
+			errorExpected: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		volumeReplication := &replicationv1alpha1.VolumeReplication{}
+		mockVolumeReplicationObj.DeepCopyInto(volumeReplication)
+
+		testPVC := &corev1.PersistentVolumeClaim{}
+		tc.pvc.DeepCopyInto(testPVC)
+
+		namespacedName := types.NamespacedName{
+			Name:      vrName,
+			Namespace: mockNamespace,
+		}
+
+		reconciler := createFakeVolumeReplicationReconciler(t, testPVC, volumeReplication)
+		err := reconciler.annotatePVCWithOwner(context.TODO(), log.FromContext(context.TODO()), namespacedName, testPVC)
+		if tc.errorExpected {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
 		}
 	}
 }
