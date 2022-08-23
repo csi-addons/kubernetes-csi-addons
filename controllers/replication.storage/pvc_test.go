@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
@@ -27,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -102,7 +103,6 @@ func createFakeVolumeReplicationReconciler(t *testing.T, obj ...runtime.Object) 
 	return VolumeReplicationReconciler{
 		Client: client,
 		Scheme: scheme,
-		Log:    logf.Log.WithName("controller_volumereplication_test"),
 	}
 }
 
@@ -164,7 +164,7 @@ func TestGetVolumeHandle(t *testing.T) {
 		}
 
 		reconciler := createFakeVolumeReplicationReconciler(t, testPV, testPVC, volumeReplication)
-		resultPVC, resultPV, err := reconciler.getPVCDataSource(reconciler.Log, namespacedName)
+		resultPVC, resultPV, err := reconciler.getPVCDataSource(log.FromContext(context.TODO()), namespacedName)
 		if tc.errorExpected {
 			assert.Error(t, err)
 		} else {
