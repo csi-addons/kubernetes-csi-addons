@@ -172,11 +172,25 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		logger.Info("Replication handle", "ReplicationHandleName", replicationHandle)
 	}
 
-	err = r.getReplicationClient(vrcObj.Spec.Provisioner)
+	replicationClient, err := r.getReplicationClient(vrcObj.Spec.Provisioner)
 	if err != nil {
 		logger.Error(err, "Failed to get ReplicationClient")
 
 		return ctrl.Result{}, err
+	}
+
+	vr := &volumeReplicationInstance{
+		logger:   logger,
+		instance: instance,
+		commonRequestParameters: replication.CommonRequestParameters{
+			VolumeID:        volumeHandle,
+			ReplicationID:   replicationHandle,
+			Parameters:      parameters,
+			SecretName:      secretName,
+			SecretNamespace: secretNamespace,
+			Replication:     replicationClient,
+		},
+		force: false,
 	}
 
 	// check if the object is being deleted
@@ -193,7 +207,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	} else {
 		if util.ContainsInSlice(instance.GetFinalizers(), volumeReplicationFinalizer) {
-			err = r.disableVolumeReplication(logger, volumeHandle, replicationHandle, parameters, secretName, secretNamespace)
+			err = r.disableVolumeReplication(vr)
 			if err != nil {
 				logger.Error(err, "failed to disable replication")
 
@@ -226,7 +240,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// enable replication on every reconcile
-	if err = r.enableReplication(logger, volumeHandle, replicationHandle, parameters, secretName, secretNamespace); err != nil {
+	if err = r.enableReplication(vr); err != nil {
 		logger.Error(err, "failed to enable replication")
 		setFailureCondition(instance)
 		msg := replication.GetMessageFromError(err)
@@ -243,14 +257,14 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	switch instance.Spec.ReplicationState {
 	case replicationv1alpha1.Primary:
-		replicationErr = r.markVolumeAsPrimary(instance, logger, volumeHandle, replicationHandle, parameters, secretName, secretNamespace)
+		replicationErr = r.markVolumeAsPrimary(vr)
 
 	case replicationv1alpha1.Secondary:
 		// For the first time, mark the volume as secondary and requeue the
 		// request. For some storage providers it takes some time to determine
 		// whether the volume need correction example:- correcting split brain.
 		if instance.Status.State != replicationv1alpha1.SecondaryState {
-			replicationErr = r.markVolumeAsSecondary(instance, logger, volumeHandle, replicationHandle, parameters, secretName, secretNamespace)
+			replicationErr = r.markVolumeAsSecondary(vr)
 			if replicationErr == nil {
 				logger.Info("volume is not ready to use")
 				// set the status.State to secondary as the
@@ -267,15 +281,17 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				}, nil
 			}
 		} else {
-			replicationErr = r.markVolumeAsSecondary(instance, logger, volumeHandle, replicationHandle, parameters, secretName, secretNamespace)
+			replicationErr = r.markVolumeAsSecondary(vr)
 			// resync volume if successfully marked Secondary
 			if replicationErr == nil {
-				requeueForResync, replicationErr = r.resyncVolume(instance, logger, volumeHandle, replicationHandle, instance.Spec.AutoResync, parameters, secretName, secretNamespace)
+				vr.force = vr.instance.Spec.AutoResync
+				requeueForResync, replicationErr = r.resyncVolume(vr)
 			}
 		}
 
 	case replicationv1alpha1.Resync:
-		requeueForResync, replicationErr = r.resyncVolume(instance, logger, volumeHandle, replicationHandle, true, parameters, secretName, secretNamespace)
+		vr.force = true
+		requeueForResync, replicationErr = r.resyncVolume(vr)
 
 	default:
 		replicationErr = fmt.Errorf("unsupported volume state")
@@ -343,7 +359,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return ctrl.Result{}, nil
 }
 
-func (r *VolumeReplicationReconciler) getReplicationClient(driverName string) error {
+func (r *VolumeReplicationReconciler) getReplicationClient(driverName string) (grpcClient.VolumeReplication, error) {
 	conns := r.Connpool.GetByNodeID(driverName, "")
 
 	// Iterate through the connections and find the one that matches the driver name
@@ -358,13 +374,12 @@ func (r *VolumeReplicationReconciler) getReplicationClient(driverName string) er
 
 			// validate of VOLUME_REPLICATION capability is enabled by the storage driver.
 			if cap.GetVolumeReplication().GetType() == identity.Capability_VolumeReplication_VOLUME_REPLICATION {
-				r.Replication = grpcClient.NewReplicationClient(v.Client, r.Timeout)
-				return nil
+				return grpcClient.NewReplicationClient(v.Client, r.Timeout), nil
 			}
 		}
 	}
 
-	return fmt.Errorf("no connections for driver: %s", driverName)
+	return nil, fmt.Errorf("no connections for driver: %s", driverName)
 
 }
 
@@ -445,22 +460,20 @@ func (r *VolumeReplicationReconciler) waitForVolumeReplicationResource(logger lo
 	}
 }
 
-// markVolumeAsPrimary defines and runs a set of tasks required to mark a volume as primary.
-func (r *VolumeReplicationReconciler) markVolumeAsPrimary(volumeReplicationObject *replicationv1alpha1.VolumeReplication,
-	logger logr.Logger, volumeID, replicationID string,
-	parameters map[string]string,
-	secretName, secretNamespace string) error {
-	c := replication.CommonRequestParameters{
-		VolumeID:        volumeID,
-		ReplicationID:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
-		Replication:     r.Replication,
-	}
+// volumeReplicationInstance contains the attributes
+// that can be useful in reconciling a particular
+// instance of the VolumeReplication resource.
+type volumeReplicationInstance struct {
+	logger                  logr.Logger
+	instance                *replicationv1alpha1.VolumeReplication
+	commonRequestParameters replication.CommonRequestParameters
+	force                   bool
+}
 
+// markVolumeAsPrimary defines and runs a set of tasks required to mark a volume as primary.
+func (r *VolumeReplicationReconciler) markVolumeAsPrimary(vr *volumeReplicationInstance) error {
 	volumeReplication := replication.Replication{
-		Params: c,
+		Params: vr.commonRequestParameters,
 	}
 
 	resp := volumeReplication.Promote()
@@ -468,136 +481,101 @@ func (r *VolumeReplicationReconciler) markVolumeAsPrimary(volumeReplicationObjec
 		isKnownError := resp.HasKnownGRPCError(volumePromotionKnownErrors)
 		if !isKnownError {
 			if resp.Error != nil {
-				logger.Error(resp.Error, "failed to promote volume")
-				setFailedPromotionCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+				vr.logger.Error(resp.Error, "failed to promote volume")
+				setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 				return resp.Error
 			}
 		} else {
 			// force promotion
-			logger.Info("force promoting volume due to known grpc error", "error", resp.Error)
+			vr.logger.Info("force promoting volume due to known grpc error", "error", resp.Error)
 			volumeReplication.Force = true
 			resp := volumeReplication.Promote()
 			if resp.Error != nil {
-				logger.Error(resp.Error, "failed to force promote volume")
-				setFailedPromotionCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+				vr.logger.Error(resp.Error, "failed to force promote volume")
+				setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 				return resp.Error
 			}
 		}
 	}
 
-	setPromotedCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+	setPromotedCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 	return nil
 }
 
 // markVolumeAsSecondary defines and runs a set of tasks required to mark a volume as secondary.
-func (r *VolumeReplicationReconciler) markVolumeAsSecondary(volumeReplicationObject *replicationv1alpha1.VolumeReplication,
-	logger logr.Logger, volumeID, replicationID string,
-	parameters map[string]string,
-	secretName, secretNamespace string) error {
-	c := replication.CommonRequestParameters{
-		VolumeID:        volumeID,
-		ReplicationID:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
-		Replication:     r.Replication,
-	}
-
+func (r *VolumeReplicationReconciler) markVolumeAsSecondary(vr *volumeReplicationInstance) error {
 	volumeReplication := replication.Replication{
-		Params: c,
+		Params: vr.commonRequestParameters,
 	}
 
 	resp := volumeReplication.Demote()
 
 	if resp.Error != nil {
-		logger.Error(resp.Error, "failed to demote volume")
-		setFailedDemotionCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+		vr.logger.Error(resp.Error, "failed to demote volume")
+		setFailedDemotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 		return resp.Error
 	}
 
-	setDemotedCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+	setDemotedCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 	return nil
 }
 
 // resyncVolume defines and runs a set of tasks required to resync the volume.
-func (r *VolumeReplicationReconciler) resyncVolume(volumeReplicationObject *replicationv1alpha1.VolumeReplication,
-	logger logr.Logger, volumeID, replicationID string, force bool,
-	parameters map[string]string,
-	secretName, secretNamespace string) (bool, error) {
-	c := replication.CommonRequestParameters{
-		VolumeID:        volumeID,
-		ReplicationID:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
-		Replication:     r.Replication,
-	}
-
+func (r *VolumeReplicationReconciler) resyncVolume(vr *volumeReplicationInstance) (bool, error) {
 	volumeReplication := replication.Replication{
-		Params: c,
-		Force:  force,
+		Params: vr.commonRequestParameters,
+		Force:  vr.force,
 	}
 
 	resp := volumeReplication.Resync()
 
 	if resp.Error != nil {
-		logger.Error(resp.Error, "failed to resync volume")
-		setFailedResyncCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+		vr.logger.Error(resp.Error, "failed to resync volume")
+		setFailedResyncCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 		return false, resp.Error
 	}
 	resyncResponse, ok := resp.Response.(*proto.ResyncVolumeResponse)
 	if !ok {
 		err := fmt.Errorf("received response of unexpected type")
-		logger.Error(err, "unable to parse response")
-		setFailedResyncCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+		vr.logger.Error(err, "unable to parse response")
+		setFailedResyncCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 		return false, err
 	}
 
-	setResyncCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+	setResyncCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 	if !resyncResponse.GetReady() {
 		return true, nil
 	}
 
 	// No longer degraded, as volume is fully synced
-	setNotDegradedCondition(&volumeReplicationObject.Status.Conditions, volumeReplicationObject.Generation)
+	setNotDegradedCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
 
 	return false, nil
 }
 
 // disableVolumeReplication defines and runs a set of tasks required to disable volume replication.
-func (r *VolumeReplicationReconciler) disableVolumeReplication(logger logr.Logger, volumeID, replicationID string,
-	parameters map[string]string,
-	secretName, secretNamespace string) error {
-	c := replication.CommonRequestParameters{
-		VolumeID:        volumeID,
-		ReplicationID:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
-		Replication:     r.Replication,
-	}
-
+func (r *VolumeReplicationReconciler) disableVolumeReplication(vr *volumeReplicationInstance) error {
 	volumeReplication := replication.Replication{
-		Params: c,
+		Params: vr.commonRequestParameters,
 	}
 
 	resp := volumeReplication.Disable()
 
 	if resp.Error != nil {
 		if isKnownError := resp.HasKnownGRPCError(disableReplicationKnownErrors); isKnownError {
-			logger.Info("volume not found", "volumeID", volumeID)
+			vr.logger.Info("volume not found", "volumeID", vr.commonRequestParameters.VolumeID)
 
 			return nil
 		}
-		logger.Error(resp.Error, "failed to disable volume replication")
+		vr.logger.Error(resp.Error, "failed to disable volume replication")
 
 		return resp.Error
 	}
@@ -606,26 +584,15 @@ func (r *VolumeReplicationReconciler) disableVolumeReplication(logger logr.Logge
 }
 
 // enableReplication enable volume replication on the first reconcile.
-func (r *VolumeReplicationReconciler) enableReplication(logger logr.Logger, volumeID, replicationID string,
-	parameters map[string]string,
-	secretName, secretNamespace string) error {
-	c := replication.CommonRequestParameters{
-		VolumeID:        volumeID,
-		ReplicationID:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
-		Replication:     r.Replication,
-	}
-
+func (r *VolumeReplicationReconciler) enableReplication(vr *volumeReplicationInstance) error {
 	volumeReplication := replication.Replication{
-		Params: c,
+		Params: vr.commonRequestParameters,
 	}
 
 	resp := volumeReplication.Enable()
 
 	if resp.Error != nil {
-		logger.Error(resp.Error, "failed to enable volume replication")
+		vr.logger.Error(resp.Error, "failed to enable volume replication")
 
 		return resp.Error
 	}
