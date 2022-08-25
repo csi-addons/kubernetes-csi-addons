@@ -219,6 +219,13 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 				return ctrl.Result{}, err
 			}
+
+			if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
+				logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
+
+				return reconcile.Result{}, err
+			}
+
 			if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
 				logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
 
