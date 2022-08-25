@@ -224,17 +224,24 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 		testPVC := &corev1.PersistentVolumeClaim{}
 		tc.pvc.DeepCopyInto(testPVC)
 
-		namespacedName := types.NamespacedName{
-			Name:      vrName,
-			Namespace: mockNamespace,
-		}
-
+		ctx := context.TODO()
 		reconciler := createFakeVolumeReplicationReconciler(t, testPVC, volumeReplication)
-		err := reconciler.annotatePVCWithOwner(context.TODO(), log.FromContext(context.TODO()), namespacedName, testPVC)
+		err := reconciler.annotatePVCWithOwner(ctx, log.FromContext(context.TODO()), vrName, testPVC)
 		if tc.errorExpected {
 			assert.Error(t, err)
 		} else {
 			assert.NoError(t, err)
+
+			pvcNamespacedName := types.NamespacedName{
+				Name:      testPVC.Name,
+				Namespace: testPVC.Namespace,
+			}
+
+			// check annotation is added
+			err = reconciler.Get(ctx, pvcNamespacedName, testPVC)
+			assert.NoError(t, err)
+
+			assert.Equal(t, testPVC.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], vrName)
 		}
 
 		err = reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), testPVC)

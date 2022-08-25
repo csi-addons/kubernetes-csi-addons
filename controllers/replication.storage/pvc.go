@@ -60,14 +60,15 @@ func (r VolumeReplicationReconciler) getPVCDataSource(logger logr.Logger, req ty
 }
 
 // annotatePVCWithOwner will add the VolumeReplication details to the PVC annotations.
-func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, logger logr.Logger, req types.NamespacedName, pvc *corev1.PersistentVolumeClaim) error {
+func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, logger logr.Logger, reqOwnerName string, pvc *corev1.PersistentVolumeClaim) error {
 	if pvc.ObjectMeta.Annotations == nil {
 		pvc.ObjectMeta.Annotations = map[string]string{}
 	}
 
-	ownerName := pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
-	if ownerName == "" {
-		pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = req.Name
+	currentOwnerName := pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
+	if currentOwnerName == "" {
+		logger.Info("setting owner on PVC annotation", "Name", pvc.Name, "owner", reqOwnerName)
+		pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = reqOwnerName
 		err := r.Update(ctx, pvc)
 		if err != nil {
 			logger.Error(err, "Failed to update PVC annotation", "Name", pvc.Name)
@@ -79,14 +80,14 @@ func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, 
 		return nil
 	}
 
-	if ownerName != req.Name {
+	if currentOwnerName != reqOwnerName {
 		logger.Info("cannot change the owner of PVC",
 			"PVC name", pvc.Name,
-			"current owner", ownerName,
-			"requested owner", req.Name)
+			"current owner", currentOwnerName,
+			"requested owner", reqOwnerName)
 
 		return fmt.Errorf("PVC %q not owned by VolumeReplication %q",
-			pvc.Name, req.Name)
+			pvc.Name, reqOwnerName)
 	}
 
 	return nil
