@@ -236,5 +236,25 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 		} else {
 			assert.NoError(t, err)
 		}
+
+		err = reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), testPVC)
+		assert.NoError(t, err)
+
+		// try calling delete again, it should not fail
+		err = reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), testPVC)
+		assert.NoError(t, err)
+
 	}
+
+	// try removeOwnerFromPVCAnnotation for empty map
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-name",
+			Namespace: mockNamespace,
+		},
+	}
+	volumeReplication := &replicationv1alpha1.VolumeReplication{}
+	reconciler := createFakeVolumeReplicationReconciler(t, pvc, volumeReplication)
+	err := reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), pvc)
+	assert.NoError(t, err)
 }

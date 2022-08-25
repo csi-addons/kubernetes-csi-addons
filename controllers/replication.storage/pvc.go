@@ -91,3 +91,18 @@ func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, 
 
 	return nil
 }
+
+// removeOwnerFromPVCAnnotation removes the VolumeReplication owner from the PVC annotations.
+func (r *VolumeReplicationReconciler) removeOwnerFromPVCAnnotation(ctx context.Context, logger logr.Logger, pvc *corev1.PersistentVolumeClaim) error {
+	if _, ok := pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]; ok {
+		logger.Info("removing owner annotation from PersistentVolumeClaim object", "Annotation", replicationv1alpha1.VolumeReplicationNameAnnotation)
+		delete(pvc.ObjectMeta.Annotations, replicationv1alpha1.VolumeReplicationNameAnnotation)
+		if err := r.Client.Update(ctx, pvc); err != nil {
+			return fmt.Errorf("failed to remove annotation %q from PersistentVolumeClaim "+
+				"%q %w",
+				replicationv1alpha1.VolumeReplicationNameAnnotation, pvc.Name, err)
+		}
+	}
+
+	return nil
+}
