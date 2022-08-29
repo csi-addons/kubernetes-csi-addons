@@ -648,7 +648,7 @@ github.com/opencontainers/go-digest
 ## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
-# github.com/operator-framework/api v0.15.0
+# github.com/operator-framework/api v0.15.1-0.20220624132056-decf74800a17
 ## explicit; go 1.17
 github.com/operator-framework/api/pkg/apis/scorecard/v1alpha3
 github.com/operator-framework/api/pkg/constraints
@@ -705,7 +705,7 @@ github.com/operator-framework/operator-registry/pkg/lib/validation
 github.com/operator-framework/operator-registry/pkg/registry
 github.com/operator-framework/operator-registry/pkg/sqlite
 github.com/operator-framework/operator-registry/pkg/sqlite/migrations
-# github.com/operator-framework/operator-sdk v1.22.2
+# github.com/operator-framework/operator-sdk v1.23.0
 ## explicit; go 1.18
 github.com/operator-framework/operator-sdk/cmd/operator-sdk
 github.com/operator-framework/operator-sdk/internal/annotations/metrics
@@ -1434,7 +1434,7 @@ k8s.io/apiserver/pkg/server/egressselector/metrics
 k8s.io/apiserver/pkg/util/feature
 k8s.io/apiserver/pkg/util/webhook
 k8s.io/apiserver/pkg/util/x509metrics
-# k8s.io/cli-runtime v0.24.0
+# k8s.io/cli-runtime v0.24.1
 ## explicit; go 1.16
 k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/printers
@@ -1621,7 +1621,7 @@ k8s.io/kube-openapi/pkg/validation/spec
 k8s.io/kube-openapi/pkg/validation/strfmt
 k8s.io/kube-openapi/pkg/validation/strfmt/bson
 k8s.io/kube-openapi/pkg/validation/validate
-# k8s.io/kubectl v0.24.0
+# k8s.io/kubectl v0.24.1
 ## explicit; go 1.16
 k8s.io/kubectl/pkg/cmd/util
 k8s.io/kubectl/pkg/scheme
@@ -1749,7 +1749,7 @@ sigs.k8s.io/controller-tools/pkg/webhook
 ## explicit; go 1.17
 sigs.k8s.io/json
 sigs.k8s.io/json/internal/golang/encoding/json
-# sigs.k8s.io/kubebuilder/v3 v3.3.0
+# sigs.k8s.io/kubebuilder/v3 v3.6.0
 ## explicit; go 1.17
 sigs.k8s.io/kubebuilder/v3/pkg/cli
 sigs.k8s.io/kubebuilder/v3/pkg/cli/alpha/config-gen
@@ -1763,6 +1763,7 @@ sigs.k8s.io/kubebuilder/v3/pkg/machinery
 sigs.k8s.io/kubebuilder/v3/pkg/model/resource
 sigs.k8s.io/kubebuilder/v3/pkg/model/stage
 sigs.k8s.io/kubebuilder/v3/pkg/plugin
+sigs.k8s.io/kubebuilder/v3/pkg/plugin/external
 sigs.k8s.io/kubebuilder/v3/pkg/plugin/util
 sigs.k8s.io/kubebuilder/v3/pkg/plugins
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1
@@ -1776,9 +1777,27 @@ sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1/scaffolds/internal/te
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1/scaffolds/internal/templates/config/rbac
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1/scaffolds/internal/templates/config/samples
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1/scaffolds/internal/templates/config/webhook
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/certmanager
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/crd
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/crd/patches
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/kdefault
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/manager
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/prometheus
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/rbac
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/samples
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds/internal/templates/config/webhook
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/external
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/declarative/v1
-sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/declarative/v1/internal/templates
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/declarative/v1/scaffolds
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/declarative/v1/scaffolds/internal/templates
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds/internal/templates/api
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds/internal/templates/config/samples
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds/internal/templates/controllers
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v2
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v2/scaffolds
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v2/scaffolds/internal/templates
@@ -1800,6 +1819,9 @@ sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds/internal/templates
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds/internal/templates/api
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds/internal/templates/controllers
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds/internal/templates/hack
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/optional/grafana/v1alpha
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/optional/grafana/v1alpha/scaffolds
+sigs.k8s.io/kubebuilder/v3/pkg/plugins/optional/grafana/v1alpha/scaffolds/internal/templates
 # sigs.k8s.io/kustomize/api v0.12.1
 ## explicit; go 1.18
 sigs.k8s.io/kustomize/api/filters/annotations

@@ -10,7 +10,7 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.11.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.0
-	github.com/operator-framework/operator-sdk v1.22.2
+	github.com/operator-framework/operator-sdk v1.23.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.19.1
@@ -157,7 +157,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
-	github.com/operator-framework/api v0.15.0 // indirect
+	github.com/operator-framework/api v0.15.1-0.20220624132056-decf74800a17 // indirect
 	github.com/operator-framework/helm-operator-plugins v0.0.12-0.20220616200420-1a695cb9f6a1 // indirect
 	github.com/operator-framework/java-operator-plugins v0.5.1 // indirect
 	github.com/operator-framework/operator-manifest-tools v0.2.1 // indirect
@@ -230,16 +230,16 @@ require (
 	helm.sh/helm/v3 v3.9.0 // indirect
 	k8s.io/apiextensions-apiserver v0.24.2 // indirect
 	k8s.io/apiserver v0.24.2 // indirect
-	k8s.io/cli-runtime v0.24.0 // indirect
+	k8s.io/cli-runtime v0.24.1 // indirect
 	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20220401212409-b28bf2818661 // indirect
-	k8s.io/kubectl v0.24.0 // indirect
+	k8s.io/kubectl v0.24.1 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	oras.land/oras-go v1.1.0 // indirect
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.30 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
-	sigs.k8s.io/kubebuilder/v3 v3.3.0 // indirect
+	sigs.k8s.io/kubebuilder/v3 v3.6.0 // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/kustomize/cmd/config v0.10.9 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
