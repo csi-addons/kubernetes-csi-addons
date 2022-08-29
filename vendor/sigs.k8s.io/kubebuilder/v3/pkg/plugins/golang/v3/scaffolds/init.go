@@ -19,27 +19,31 @@ package scaffolds
 import (
 	"fmt"
 
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
+
 	"github.com/spf13/afero"
 
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
+	kustomizecommonv1 "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1"
+	kustomizecommonv2alpha "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds/internal/templates"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds/internal/templates/hack"
 )
 
 const (
 	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.11.0"
+	ControllerRuntimeVersion = "v0.12.2"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
-	ControllerToolsVersion = "v0.8.0"
-	// KustomizeVersion is the kubernetes-sigs/kustomize version to be used in the project
-	KustomizeVersion = "v3.8.7"
+	ControllerToolsVersion = "v0.9.2"
 
 	imageName = "controller:latest"
 )
 
 var _ plugins.Scaffolder = &initScaffolder{}
+
+var kustomizeVersion string
 
 type initScaffolder struct {
 	config          config.Config
@@ -97,6 +101,21 @@ func (s *initScaffolder) Scaffold() error {
 		machinery.WithBoilerplate(string(boilerplate)),
 	)
 
+	// If the KustomizeV2 was used to do the scaffold then
+	// we need to ensure that we use its supported Kustomize Version
+	// in order to support it
+	kustomizeVersion = kustomizecommonv1.KustomizeVersion
+	kustomizev2 := kustomizecommonv2alpha.Plugin{}
+	gov4alpha := "go.kubebuilder.io/v4-alpha"
+	pluginKeyForKustomizeV2 := plugin.KeyFor(kustomizev2)
+
+	for _, pluginKey := range s.config.GetPluginChain() {
+		if pluginKey == pluginKeyForKustomizeV2 || pluginKey == gov4alpha {
+			kustomizeVersion = kustomizecommonv2alpha.KustomizeVersion
+			break
+		}
+	}
+
 	return scaffold.Execute(
 		&templates.Main{},
 		&templates.GoMod{
@@ -107,10 +126,11 @@ func (s *initScaffolder) Scaffold() error {
 			Image:                    imageName,
 			BoilerplatePath:          s.boilerplatePath,
 			ControllerToolsVersion:   ControllerToolsVersion,
-			KustomizeVersion:         KustomizeVersion,
+			KustomizeVersion:         kustomizeVersion,
 			ControllerRuntimeVersion: ControllerRuntimeVersion,
 		},
 		&templates.Dockerfile{},
 		&templates.DockerIgnore{},
+		&templates.Readme{},
 	)
 }
