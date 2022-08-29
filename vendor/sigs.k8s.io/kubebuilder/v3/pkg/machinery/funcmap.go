@@ -21,13 +21,16 @@ import (
 	"hash/fnv"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
 )
 
 // DefaultFuncMap returns the default template.FuncMap for rendering the template.
 func DefaultFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"title":      strings.Title,
+		"title":      cases.Title,
 		"lower":      strings.ToLower,
+		"upper":      strings.ToUpper,
 		"isEmptyStr": isEmptyString,
 		"hashFNV":    hashFNV,
 	}
