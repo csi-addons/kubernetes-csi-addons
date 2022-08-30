@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.17 as builder
+FROM golang:1.18 as builder
 
 # Copy the contents of the repository
 ADD . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
