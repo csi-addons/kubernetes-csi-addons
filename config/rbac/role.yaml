@@ -12,6 +12,7 @@ rules:
   verbs:
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - ""
@@ -36,6 +37,14 @@ rules:
   - persistentvolumeclaims/finalizers
   verbs:
   - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - csiaddons.openshift.io
   resources:
@@ -139,6 +148,35 @@ rules:
   verbs:
   - get
   - patch
+  - update
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications/status
+  verbs:
   - update
 - apiGroups:
   - storage.k8s.io

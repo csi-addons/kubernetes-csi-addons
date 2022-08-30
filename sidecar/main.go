@@ -53,7 +53,7 @@ func main() {
 	}
 	flag.Parse()
 
-	controllerEndpoint, err := util.ValidateControllerEndpoint(*controllerIP, *controllerPort)
+	controllerEndpoint, err := util.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
 		klog.Fatalf("Failed to validate controller endpoint: %w", err)
 	}
@@ -92,10 +92,11 @@ func main() {
 		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
 	}
 
-	sidecarServer := server.NewSidecarServer(controllerEndpoint)
+	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.GetGRPCClient(), kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))
+	sidecarServer.RegisterService(service.NewReplicationServer(csiClient.GetGRPCClient(), kubeClient))
 
 	sidecarServer.Start()
 }

@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package api
 
 import (
@@ -41,6 +57,7 @@ func (f *WebhookSuite) SetTemplateDefaults() error {
 
 	f.TemplateBody = fmt.Sprintf(webhookTestSuiteTemplate,
 		machinery.NewMarkerFor(f.Path, importMarker),
+		admissionImportAlias,
 		machinery.NewMarkerFor(f.Path, addSchemeMarker),
 		machinery.NewMarkerFor(f.Path, addWebhookManagerMarker),
 		"%s",
@@ -77,10 +94,7 @@ func (f *WebhookSuite) GetMarkers() []machinery.Marker {
 const (
 	apiImportCodeFragment = `%s "%s"
 `
-	addschemeCodeFragment = `err = %s.AddToScheme(scheme	)
-Expect(err).NotTo(HaveOccurred())
 
-`
 	addWebhookManagerCodeFragment = `err = (&%s{}).SetupWebhookWithManager(mgr)
 Expect(err).NotTo(HaveOccurred())
 
@@ -97,7 +111,6 @@ func (f *WebhookSuite) GetCodeFragments() machinery.CodeFragmentsMap {
 
 	// Generate add scheme code fragments
 	addScheme := make([]string, 0)
-	addScheme = append(addScheme, fmt.Sprintf(addschemeCodeFragment, admissionImportAlias))
 
 	// Generate add webhookManager code fragments
 	addWebhookManager := make([]string, 0)
@@ -172,12 +185,17 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
-	cfg, err := testEnv.Start()
+	var err error
+	// cfg is defined in this file globally.
+	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
 	scheme := runtime.NewScheme()
 	err = AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = %s.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	%s

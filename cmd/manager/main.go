@@ -25,15 +25,19 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/v1alpha1"
-	"github.com/csi-addons/kubernetes-csi-addons/controllers"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
+	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
+	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	//+kubebuilder:scaffold:imports
 )
@@ -51,6 +55,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(csiaddonsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(replicationstoragev1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -59,14 +64,17 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var reclaimSpaceTimeout time.Duration
+	var maxConcurrentReconciles int
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.DurationVar(&reclaimSpaceTimeout, "reclaim-space-timeout", defaultTimeout, "Timeout for reclaimspace operation")
+	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 100, "Maximum number of concurrent reconciles")
 	opts := zap.Options{
 		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -88,11 +96,14 @@ func main() {
 
 	connPool := connection.NewConnectionPool()
 
+	ctrlOptions := controller.Options{
+		MaxConcurrentReconciles: maxConcurrentReconciles,
+	}
 	if err = (&controllers.CSIAddonsNodeReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		ConnPool: connPool,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CSIAddonsNode")
 		os.Exit(1)
 	}
@@ -102,7 +113,7 @@ func main() {
 		Scheme:   mgr.GetScheme(),
 		ConnPool: connPool,
 		Timeout:  reclaimSpaceTimeout,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReclaimSpaceJob")
 		os.Exit(1)
 	}
@@ -111,22 +122,31 @@ func main() {
 		Scheme:   mgr.GetScheme(),
 		Connpool: connPool,
 		Timeout:  time.Minute * 3,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NetworkFence")
 		os.Exit(1)
 	}
 	if err = (&controllers.ReclaimSpaceCronJobReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReclaimSpaceCronJob")
 		os.Exit(1)
 	}
 	if err = (&controllers.PersistentVolumeClaimReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
+		os.Exit(1)
+	}
+	if err = (&replicationController.VolumeReplicationReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Connpool: connPool,
+		Timeout:  defaultTimeout,
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
