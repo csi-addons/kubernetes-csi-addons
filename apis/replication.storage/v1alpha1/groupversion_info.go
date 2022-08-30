@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the replication.storage v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=replication.storage.openshift.io
+// +kubebuilder:object:generate=true
+// +groupName=replication.storage.openshift.io
 package v1alpha1
 
 import (

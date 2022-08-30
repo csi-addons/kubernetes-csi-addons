@@ -49,9 +49,9 @@ func ValidateControllerEndpoint(rawIP, rawPort string) (string, error) {
 // sidecar running.
 // The format of the URL depends on the arguments passed to this function, it
 // will return either
-//  - a ValidateControllerEndpoint() if rawIP is set
-//  - pod://<pod>:<port> if pod is set, and rawIP and namespace are not set
-//  - pod://<pod>.<namespace>:<port> if pod, namespace are set, and rawIP not
+//   - a ValidateControllerEndpoint() if rawIP is set
+//   - pod://<pod>:<port> if pod is set, and rawIP and namespace are not set
+//   - pod://<pod>.<namespace>:<port> if pod, namespace are set, and rawIP not
 func BuildEndpointURL(rawIP, rawPort, pod, namespace string) (string, error) {
 	if rawIP != "" {
 		return ValidateControllerEndpoint(rawIP, rawPort)
