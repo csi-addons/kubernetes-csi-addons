@@ -166,7 +166,7 @@ github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/containerd/ttrpc v1.1.0
 ## explicit; go 1.13
 github.com/containerd/ttrpc
-# github.com/csi-addons/spec v0.1.2-0.20220829042231-b27a0d84b50b
+# github.com/csi-addons/spec v0.1.2-0.20220906123848-52ce69f90900
 ## explicit
 github.com/csi-addons/spec/lib/go/fence
 github.com/csi-addons/spec/lib/go/identity
