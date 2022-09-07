@@ -107,6 +107,17 @@ func (r *Replication) Resync() *Response {
 	return &Response{Response: resp, Error: err}
 }
 
+func (r *Replication) GetInfo() *Response {
+	resp, err := r.Params.Replication.GetVolumeReplicationInfo(
+		r.Params.VolumeID,
+		r.Params.ReplicationID,
+		r.Params.SecretName,
+		r.Params.SecretNamespace,
+	)
+
+	return &Response{Response: resp, Error: err}
+}
+
 func (r *Response) HasKnownGRPCError(knownErrors []codes.Code) bool {
 	if r.Error == nil {
 		return false
