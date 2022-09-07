@@ -179,6 +179,9 @@ spec:
               lastStartTime:
                 format: date-time
                 type: string
+              lastSyncTime:
+                format: date-time
+                type: string
               message:
                 type: string
               observedGeneration:

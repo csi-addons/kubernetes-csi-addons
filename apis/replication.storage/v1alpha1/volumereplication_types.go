@@ -89,6 +89,7 @@ type VolumeReplicationStatus struct {
 	ObservedGeneration int64        `json:"observedGeneration,omitempty"`
 	LastStartTime      *metav1.Time `json:"lastStartTime,omitempty"`
 	LastCompletionTime *metav1.Time `json:"lastCompletionTime,omitempty"`
+	LastSyncTime       *metav1.Time `json:"lastSyncTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
