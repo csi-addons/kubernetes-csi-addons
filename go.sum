@@ -231,8 +231,6 @@ github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.11 h1:07n33Z8lZxZ2qwegKbObQohDhXDQxiMMz1NOUGYlesw=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/csi-addons/spec v0.1.2-0.20220829042231-b27a0d84b50b h1:C5KgryC4RwQVSF8L/pgcKftgn7Z1zHFZlACJukPlCxs=
-github.com/csi-addons/spec v0.1.2-0.20220829042231-b27a0d84b50b/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
 github.com/csi-addons/spec v0.1.2-0.20220906123848-52ce69f90900 h1:zX0138DipZsZqxK1UwAmaRZmL89OuQMkwh7FtvTDgFw=
 github.com/csi-addons/spec v0.1.2-0.20220906123848-52ce69f90900/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
 github.com/cyphar/filepath-securejoin v0.2.2/go.mod h1:FpkQEhXnPnOthhzymB7CGsFk2G9VLXONKD9G7QGMM+4=

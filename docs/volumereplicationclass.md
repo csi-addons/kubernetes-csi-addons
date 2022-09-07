@@ -21,4 +21,5 @@ spec:
   parameters:
     replication.storage.openshift.io/replication-secret-name: secret-name
     replication.storage.openshift.io/replication-secret-namespace: secret-namespace
+    schedulingInterval: 1m
 ```

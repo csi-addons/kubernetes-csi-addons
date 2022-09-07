@@ -191,3 +191,36 @@ func (rs *ReplicationServer) ResyncVolume(
 		Ready: resp.Ready,
 	}, nil
 }
+
+// GetVolumeReplicationInfo fetches required information from kubernetes cluster and calls
+// CSI-Addons GetVolumeReplicationInfo service.
+func (rs *ReplicationServer) GetVolumeReplicationInfo(
+	ctx context.Context,
+	req *proto.GetVolumeReplicationInfoRequest) (*proto.GetVolumeReplicationInfoResponse, error) {
+	// Get the secrets from the k8s cluster
+	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
+	if err != nil {
+		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	resp, err := rs.controllerClient.GetVolumeReplicationInfo(ctx,
+		&csiReplication.GetVolumeReplicationInfoRequest{
+			VolumeId:      req.VolumeId,
+			Secrets:       data,
+			ReplicationId: req.ReplicationId,
+		})
+	if err != nil {
+		klog.Errorf("Failed to get volume replication info: %v", err)
+		return nil, err
+	}
+
+	lastsynctime := resp.GetLastSyncTime()
+	if lastsynctime == nil {
+		klog.Errorf("Failed to get last sync time: %v", lastsynctime)
+	}
+
+	return &proto.GetVolumeReplicationInfoResponse{
+		LastSyncTime: lastsynctime,
+	}, nil
+}
