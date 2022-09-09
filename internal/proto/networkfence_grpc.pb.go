@@ -137,5 +137,5 @@ var NetworkFence_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/proto/networkfence.proto",
+	Metadata: "networkfence.proto",
 }

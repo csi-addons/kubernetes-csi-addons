@@ -141,5 +141,5 @@ var ReclaimSpace_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/proto/reclaimspace.proto",
+	Metadata: "reclaimspace.proto",
 }
