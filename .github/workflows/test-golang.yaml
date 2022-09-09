@@ -19,11 +19,20 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+        with:
+          version: '3.19.4'
+
       - name: Run "make test"
         run: make test
 
       - name: Check for uncommitted changes
         run: make check-all-committed
+
+      - name: Show the uncommitted "git diff"
+        if: ${{ failure() }}
+        run: git diff ; false
 
   go_mod_verify:
     name: go_mod_verify
