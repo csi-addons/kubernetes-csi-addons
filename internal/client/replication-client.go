@@ -45,6 +45,8 @@ type VolumeReplication interface {
 	// ResyncVolume RPC call to resync the volume.
 	ResyncVolume(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		ResyncVolumeResponse, error)
+	// GetVolumeReplicationInfo RPC call to get volume replication info.
+	GetVolumeReplicationInfo(volumeID, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
 }
 
 // NewReplicationClient returns VolumeReplication interface which has the RPC
@@ -140,6 +142,23 @@ func (rc *replicationClient) ResyncVolume(volumeID, replicationID string, force 
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
 	defer cancel()
 	resp, err := rc.client.ResyncVolume(createCtx, req)
+
+	return resp, err
+}
+
+// GetVolumeReplicationInfo RPC call to get volume replication info.
+func (rc *replicationClient) GetVolumeReplicationInfo(volumeID, replicationID,
+	secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error) {
+	req := &proto.GetVolumeReplicationInfoRequest{
+		VolumeId:        volumeID,
+		ReplicationId:   replicationID,
+		SecretName:      secretName,
+		SecretNamespace: secretNamespace,
+	}
+
+	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
+	defer cancel()
+	resp, err := rc.client.GetVolumeReplicationInfo(createCtx, req)
 
 	return resp, err
 }
