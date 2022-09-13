@@ -51,6 +51,7 @@ const (
 	pvcDataSource          = "PersistentVolumeClaim"
 	volumeReplicationClass = "VolumeReplicationClass"
 	volumeReplication      = "VolumeReplication"
+	defaultScheduleTime    = time.Hour
 )
 
 var (
@@ -363,6 +364,24 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	instance.Status.LastCompletionTime = getCurrentTime()
+
+	var requeueForInfo bool
+
+	if instance.Spec.ReplicationState == replicationv1alpha1.Primary {
+		info, err := r.getVolumeReplicationInfo(vr)
+		if err != nil {
+			logger.Error(err, "Failed to get volume replication info")
+			return ctrl.Result{}, err
+		}
+		ts := info.GetLastSyncTime()
+
+		lastSyncTime := metav1.NewTime(ts.AsTime())
+		instance.Status.LastSyncTime = &lastSyncTime
+		requeueForInfo = true
+	}
+	if instance.Spec.ReplicationState == replicationv1alpha1.Secondary {
+		instance.Status.LastSyncTime = nil
+	}
 	err = r.updateReplicationStatus(instance, logger, getReplicationState(instance), msg)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -370,7 +389,37 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	logger.Info(msg)
 
+	if requeueForInfo {
+		scheduleTime := getScheduleTime(parameters, logger)
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: scheduleTime,
+		}, nil
+	}
+
 	return ctrl.Result{}, nil
+}
+
+// getScheduleTime takes parameters and returns the scheduling interval
+// after converting it to time.Duration. If the schedulingInterval is empty
+// or there is error parsing, it is set to the default value.
+func getScheduleTime(parameters map[string]string, logger logr.Logger) time.Duration {
+	// the schedulingInterval looks like below, which is the part of volumereplicationclass
+	// and is an optional parameter.
+	// ```parameters:
+	// 		replication.storage.openshift.io/replication-secret-name: rook-csi-rbd-provisioner
+	//		replication.storage.openshift.io/replication-secret-namespace: rook-ceph
+	//		schedulingInterval: 1m```
+	rawScheduleTime := parameters["schedulingInterval"]
+	if rawScheduleTime == "" {
+		return defaultScheduleTime
+	}
+	scheduleTime, err := time.ParseDuration(rawScheduleTime)
+	if err != nil {
+		logger.Error(err, "failed to parse time: %v", rawScheduleTime)
+		return defaultScheduleTime
+	}
+	return scheduleTime
 }
 
 func (r *VolumeReplicationReconciler) getReplicationClient(driverName string) (grpcClient.VolumeReplication, error) {
@@ -612,6 +661,30 @@ func (r *VolumeReplicationReconciler) enableReplication(vr *volumeReplicationIns
 	}
 
 	return nil
+}
+
+// getVolumeReplicationInfo gets volume replication info.
+func (r *VolumeReplicationReconciler) getVolumeReplicationInfo(vr *volumeReplicationInstance) (*proto.GetVolumeReplicationInfoResponse, error) {
+	volumeReplication := replication.Replication{
+		Params: vr.commonRequestParameters,
+	}
+
+	resp := volumeReplication.GetInfo()
+	if resp.Error != nil {
+		vr.logger.Error(resp.Error, "failed to get volume replication info")
+
+		return nil, resp.Error
+	}
+
+	infoResponse, ok := resp.Response.(*proto.GetVolumeReplicationInfoResponse)
+	if !ok {
+		err := fmt.Errorf("received response of unexpected type")
+		vr.logger.Error(err, "unable to parse response")
+
+		return nil, err
+	}
+
+	return infoResponse, nil
 }
 
 func getReplicationState(instance *replicationv1alpha1.VolumeReplication) replicationv1alpha1.State {

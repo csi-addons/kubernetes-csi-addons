@@ -15,10 +15,10 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
 
-      - name: Install Go 1.18
+      - name: Install Go 1.19
         uses: actions/setup-go@v3
         with:
-          go-version: '1.18'
+          go-version: 1.19
 
       - name: Generate the bundle contents
         run: make bundle
