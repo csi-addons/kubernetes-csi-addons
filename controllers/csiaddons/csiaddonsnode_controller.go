@@ -93,14 +93,8 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	nodeID := csiAddonsNode.Spec.Driver.NodeID
 	driverName := csiAddonsNode.Spec.Driver.Name
 
-	endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
-	if err != nil {
-		logger.Error(err, "Failed to resolve endpoint")
-		return ctrl.Result{}, fmt.Errorf("Failed to resolve endpoint %q: %w", csiAddonsNode.Spec.Driver.EndPoint, err)
-	}
-
 	key := csiAddonsNode.Namespace + "/" + csiAddonsNode.Name
-	logger = logger.WithValues("NodeID", nodeID, "EndPoint", endPoint, "DriverName", driverName)
+	logger = logger.WithValues("NodeID", nodeID, "DriverName", driverName)
 
 	if !csiAddonsNode.DeletionTimestamp.IsZero() {
 		// if deletion timestamp is set, the CSIAddonsNode is getting deleted,
@@ -110,6 +104,14 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		err = r.removeFinalizer(ctx, &logger, csiAddonsNode)
 		return ctrl.Result{}, err
 	}
+
+	endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
+	if err != nil {
+		logger.Error(err, "Failed to resolve endpoint")
+		return ctrl.Result{}, fmt.Errorf("failed to resolve endpoint %q: %w", csiAddonsNode.Spec.Driver.EndPoint, err)
+	}
+
+	logger = logger.WithValues("EndPoint", endPoint)
 
 	if err := r.addFinalizer(ctx, &logger, csiAddonsNode); err != nil {
 		return ctrl.Result{}, err
