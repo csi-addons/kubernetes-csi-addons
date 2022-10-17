@@ -9,7 +9,7 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.11.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.21.1
-	github.com/operator-framework/operator-sdk v1.23.0
+	github.com/operator-framework/operator-sdk v1.24.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.23.0
@@ -159,7 +159,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
 	github.com/operator-framework/api v0.15.1-0.20220624132056-decf74800a17 // indirect
 	github.com/operator-framework/helm-operator-plugins v0.0.12-0.20220616200420-1a695cb9f6a1 // indirect
-	github.com/operator-framework/java-operator-plugins v0.5.1 // indirect
+	github.com/operator-framework/java-operator-plugins v0.6.0 // indirect
 	github.com/operator-framework/operator-manifest-tools v0.2.1 // indirect
 	github.com/operator-framework/operator-registry v1.23.0 // indirect
 	github.com/otiai10/copy v1.2.0 // indirect
