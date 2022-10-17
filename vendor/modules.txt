@@ -671,7 +671,7 @@ github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha/s
 github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha/scaffolds/internal/templates/hack
 github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha/scaffolds/internal/templates/rbac
 github.com/operator-framework/helm-operator-plugins/pkg/plugins/util
-# github.com/operator-framework/java-operator-plugins v0.5.1
+# github.com/operator-framework/java-operator-plugins v0.6.0
 ## explicit; go 1.17
 github.com/operator-framework/java-operator-plugins/pkg/quarkus/v1alpha
 github.com/operator-framework/java-operator-plugins/pkg/quarkus/v1alpha/scaffolds
@@ -704,7 +704,7 @@ github.com/operator-framework/operator-registry/pkg/lib/validation
 github.com/operator-framework/operator-registry/pkg/registry
 github.com/operator-framework/operator-registry/pkg/sqlite
 github.com/operator-framework/operator-registry/pkg/sqlite/migrations
-# github.com/operator-framework/operator-sdk v1.23.0
+# github.com/operator-framework/operator-sdk v1.24.0
 ## explicit; go 1.18
 github.com/operator-framework/operator-sdk/cmd/operator-sdk
 github.com/operator-framework/operator-sdk/internal/annotations/metrics
