@@ -11,7 +11,7 @@ require (
 	github.com/onsi/gomega v1.22.1
 	github.com/operator-framework/operator-sdk v1.24.0
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	go.uber.org/zap v1.23.0
 	google.golang.org/grpc v1.50.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
