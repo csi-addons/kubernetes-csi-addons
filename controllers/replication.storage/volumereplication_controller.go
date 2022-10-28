@@ -374,9 +374,10 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return ctrl.Result{}, err
 		}
 		ts := info.GetLastSyncTime()
-
-		lastSyncTime := metav1.NewTime(ts.AsTime())
-		instance.Status.LastSyncTime = &lastSyncTime
+		if ts != nil {
+			lastSyncTime := metav1.NewTime(ts.AsTime())
+			instance.Status.LastSyncTime = &lastSyncTime
+		}
 		requeueForInfo = true
 	}
 	if instance.Spec.ReplicationState == replicationv1alpha1.Secondary {
