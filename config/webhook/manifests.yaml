@@ -1,0 +1,26 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-replication-storage-openshift-io-v1alpha1-volumereplicationclass
+  failurePolicy: Fail
+  name: vvolumereplicationclass.kb.io
+  rules:
+  - apiGroups:
+    - replication.storage.openshift.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - UPDATE
+    resources:
+    - volumereplicationclasses
+  sideEffects: None
