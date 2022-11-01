@@ -17,48 +17,67 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
+	"reflect"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // log is for logging in this package.
-var volumereplicationclasslog = logf.Log.WithName("volumereplicationclass-resource")
+var vrcLog = logf.Log.WithName("volumereplicationclass-webhook")
 
-func (r *VolumeReplicationClass) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func (v *VolumeReplicationClass) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+		For(v).
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-//+kubebuilder:webhook:path=/validate-replication-storage-openshift-io-v1alpha1-volumereplicationclass,mutating=false,failurePolicy=fail,sideEffects=None,groups=replication.storage.openshift.io,resources=volumereplicationclasses,verbs=create;update,versions=v1alpha1,name=vvolumereplicationclass.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-replication-storage-openshift-io-v1alpha1-volumereplicationclass,mutating=false,failurePolicy=fail,sideEffects=None,groups=replication.storage.openshift.io,resources=volumereplicationclasses,verbs=update,versions=v1alpha1,name=vvolumereplicationclass.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &VolumeReplicationClass{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *VolumeReplicationClass) ValidateCreate() error {
-	volumereplicationclasslog.Info("validate create", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object creation.
+func (v *VolumeReplicationClass) ValidateCreate() error {
 	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *VolumeReplicationClass) ValidateUpdate(old runtime.Object) error {
-	volumereplicationclasslog.Info("validate update", "name", r.Name)
+func (v *VolumeReplicationClass) ValidateUpdate(old runtime.Object) error {
+	vrcLog.Info("validate update", "name", v.Name)
 
-	// TODO(user): fill in your validation logic upon object update.
-	return nil
+	oldReplicationClass, ok := old.(*VolumeReplicationClass)
+	if !ok {
+		return errors.New("error casting old VolumeReplicationClass object")
+	}
+
+	var allErrs field.ErrorList
+	if oldReplicationClass.Spec.Provisioner != v.Spec.Provisioner {
+		vrcLog.Info("invalid request to change the provisioner", "exiting provisioner", oldReplicationClass.Spec.Provisioner, "new provisioner", v.Spec.Provisioner)
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("provisioner"), v.Spec.Provisioner, "provisioner cannot be changed"))
+	}
+
+	if !reflect.DeepEqual(oldReplicationClass.Spec.Parameters, v.Spec.Parameters) {
+		vrcLog.Info("invalid request to change the parameters", "exiting parameters", oldReplicationClass.Spec.Parameters, "new parameters", v.Spec.Parameters)
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("parameters"), v.Spec.Parameters, "parameters cannot be changed"))
+	}
+
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(
+		schema.GroupKind{Group: "replication.storage.openshift.io", Kind: "VolumeReplicationClass"},
+		v.Name, allErrs)
+
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *VolumeReplicationClass) ValidateDelete() error {
-	volumereplicationclasslog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
+func (v *VolumeReplicationClass) ValidateDelete() error {
 	return nil
 }
