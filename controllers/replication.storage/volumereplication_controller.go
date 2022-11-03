@@ -57,6 +57,7 @@ const (
 var (
 	volumePromotionKnownErrors    = []codes.Code{codes.FailedPrecondition}
 	disableReplicationKnownErrors = []codes.Code{codes.NotFound}
+	getReplicationInfoKnownErrors = []codes.Code{codes.NotFound}
 )
 
 // VolumeReplicationReconciler reconciles a VolumeReplication object.
@@ -374,9 +375,10 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return ctrl.Result{}, err
 		}
 		ts := info.GetLastSyncTime()
-
-		lastSyncTime := metav1.NewTime(ts.AsTime())
-		instance.Status.LastSyncTime = &lastSyncTime
+		if ts != nil {
+			lastSyncTime := metav1.NewTime(ts.AsTime())
+			instance.Status.LastSyncTime = &lastSyncTime
+		}
 		requeueForInfo = true
 	}
 	if instance.Spec.ReplicationState == replicationv1alpha1.Secondary {
@@ -672,7 +674,11 @@ func (r *VolumeReplicationReconciler) getVolumeReplicationInfo(vr *volumeReplica
 	resp := volumeReplication.GetInfo()
 	if resp.Error != nil {
 		vr.logger.Error(resp.Error, "failed to get volume replication info")
+		if isKnownError := resp.HasKnownGRPCError(getReplicationInfoKnownErrors); isKnownError {
+			vr.logger.Info("volume/replication info not found", "volumeID", vr.commonRequestParameters.VolumeID)
 
+			return nil, nil
+		}
 		return nil, resp.Error
 	}
 
