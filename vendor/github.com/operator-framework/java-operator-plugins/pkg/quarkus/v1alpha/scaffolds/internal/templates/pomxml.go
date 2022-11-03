@@ -57,8 +57,8 @@ const pomxmlTemplate = `<?xml version="1.0" encoding="UTF-8"?>
     <maven.compiler.target>11</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <quarkus-sdk.version>3.0.7</quarkus-sdk.version>
-    <quarkus.version>2.7.5.Final</quarkus.version>
+    <quarkus-sdk.version>4.0.0</quarkus-sdk.version>
+    <quarkus.version>2.11.2.Final</quarkus.version>
   </properties>
 
   <dependencyManagement>
@@ -77,9 +77,10 @@ const pomxmlTemplate = `<?xml version="1.0" encoding="UTF-8"?>
       <groupId>io.quarkiverse.operatorsdk</groupId>
       <artifactId>quarkus-operator-sdk</artifactId>
     </dependency>
+    <!-- Needed to generate OLM bundle. If you're not interested in this, you can remove this dependency -->
     <dependency>
       <groupId>io.quarkiverse.operatorsdk</groupId>
-      <artifactId>quarkus-operator-sdk-csv-generator</artifactId>
+      <artifactId>quarkus-operator-sdk-bundle-generator</artifactId>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>

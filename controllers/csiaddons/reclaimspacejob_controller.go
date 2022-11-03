@@ -252,7 +252,7 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 	}
 
 	if !controllerFound && !nodeFound {
-		err = errors.New("Controller and Node Client not found")
+		err = fmt.Errorf("Controller and Node Client not found for %q nodeID", target.nodeID)
 		setFailedCondition(
 			&rsJob.Status.Conditions,
 			err.Error(),
@@ -403,7 +403,7 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 		target.nodeID,
 		identity.Capability_ReclaimSpace_ONLINE)
 	if nodeClient == nil {
-		return nil, errors.New("node Client not found")
+		return nil, fmt.Errorf("node Client not found for %q nodeID", target.nodeID)
 	}
 	*logger = logger.WithValues("nodeClient", clientName)
 
