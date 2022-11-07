@@ -10,8 +10,8 @@
 
 + `replication.storage.openshift.io/replication-secret-name`
 + `replication.storage.openshift.io/replication-secret-namespace`
-  
-``` yaml  
+
+``` yaml
 apiVersion: replication.storage.openshift.io/v1alpha1
 kind: VolumeReplicationClass
 metadata:
@@ -21,5 +21,8 @@ spec:
   parameters:
     replication.storage.openshift.io/replication-secret-name: secret-name
     replication.storage.openshift.io/replication-secret-namespace: secret-namespace
+    # schedulingInterval is a vendor specific parameter. It is used to set the
+    # replication scheduling interval for storage volumes that are replication
+    # enabled using related VolumeReplication resource
     schedulingInterval: 1m
 ```

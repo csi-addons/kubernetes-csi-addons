@@ -25,7 +25,6 @@ import (
 
 func TestGetScheduledTime(t *testing.T) {
 	t.Parallel()
-	td, _ := time.ParseDuration("1m")
 	const defaultScheduleTime = time.Hour
 	logger := testr.New(t)
 	testcases := []struct {
@@ -37,7 +36,7 @@ func TestGetScheduledTime(t *testing.T) {
 				"replication.storage.openshift.io/replication-secret-name": "rook-csi-rbd-provisioner",
 				"schedulingInterval": "1m",
 			},
-			time: td,
+			time: time.Minute,
 		},
 		{
 			parameters: map[string]string{
@@ -61,12 +60,30 @@ func TestGetScheduledTime(t *testing.T) {
 			},
 			time: defaultScheduleTime,
 		},
+		{
+			parameters: map[string]string{
+				"schedulingInterval": "10s",
+			},
+			time: 10 * time.Second,
+		},
+		{
+			parameters: map[string]string{
+				"schedulingInterval": "4m",
+			},
+			time: 2 * time.Minute,
+		},
+		{
+			parameters: map[string]string{
+				"schedulingInterval": "1h",
+			},
+			time: 30 * time.Minute,
+		},
 	}
 	for _, tt := range testcases {
 		newtt := tt
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			if got := getScheduleTime(newtt.parameters, logger); got != newtt.time {
+			if got := getInfoReconcileInterval(newtt.parameters, logger); got != newtt.time {
 				t.Errorf("GetSchedluedTime() = %v, want %v", got, newtt.time)
 			}
 		})
