@@ -392,20 +392,22 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	logger.Info(msg)
 
 	if requeueForInfo {
-		scheduleTime := getScheduleTime(parameters, logger)
+		reconcileInternal := getInfoReconcileInterval(parameters, logger)
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: scheduleTime,
+			RequeueAfter: reconcileInternal,
 		}, nil
 	}
 
 	return ctrl.Result{}, nil
 }
 
-// getScheduleTime takes parameters and returns the scheduling interval
-// after converting it to time.Duration. If the schedulingInterval is empty
-// or there is error parsing, it is set to the default value.
-func getScheduleTime(parameters map[string]string, logger logr.Logger) time.Duration {
+// getInfoReconcileInterval takes parameters and returns the half of the scheduling
+// interval after converting it to time.Duration. The interval is converted
+// into half to keep the LastSyncTime and Storage LastSyncTime to be in sync.
+// If the schedulingInterval is empty or there is error parsing, it is set to
+// the default value.
+func getInfoReconcileInterval(parameters map[string]string, logger logr.Logger) time.Duration {
 	// the schedulingInterval looks like below, which is the part of volumereplicationclass
 	// and is an optional parameter.
 	// ```parameters:
@@ -421,7 +423,17 @@ func getScheduleTime(parameters map[string]string, logger logr.Logger) time.Dura
 		logger.Error(err, "failed to parse time: %v", rawScheduleTime)
 		return defaultScheduleTime
 	}
-	return scheduleTime
+	// Return schedule internal to avoid frequent reconcile if the
+	// schedulingInterval is less than 2 minutes.
+	if scheduleTime < 2*time.Minute {
+		logger.Info("scheduling interval is less than 2 minutes, not decreasing it to half")
+		return scheduleTime
+	}
+
+	// Reduce the schedule time by half to get the latest update and also to
+	// avoid the inconsistency between the last sync time in the VR and the
+	// Storage system.
+	return scheduleTime / 2
 }
 
 func (r *VolumeReplicationReconciler) getReplicationClient(driverName string) (grpcClient.VolumeReplication, error) {
