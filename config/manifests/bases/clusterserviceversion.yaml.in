@@ -52,7 +52,8 @@ spec:
       deployments: null
     strategy: ""
   installModes:
-  - supported: true
+  # CSVs featuring a conversion webhook can only support the AllNamespaces install mode
+  - supported: false
     type: OwnNamespace
   - supported: false
     type: SingleNamespace
