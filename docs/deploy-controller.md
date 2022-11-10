@@ -63,9 +63,9 @@ A CSI-Addons bundle can be used to install the CSI-Addons Controller with the
 following steps:
 
 ```console
-$ kubectl create namespace storage-csi-addons
-$ make operator-sdk
-$ ./bin/operator-sdk run bundle -n storage-csi-addons quay.io/csiaddons/k8s-bundle:latest
+kubectl create namespace storage-csi-addons
+make operator-sdk
+./bin/operator-sdk run bundle -n storage-csi-addons quay.io/csiaddons/k8s-bundle:latest
 ```
 
 In the future, the bundle is expected to become available in the
