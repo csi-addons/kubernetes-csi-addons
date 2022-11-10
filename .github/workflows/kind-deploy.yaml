@@ -5,6 +5,8 @@ on:
   pull_request:
     branches:
       - "*"
+env:
+  TAG: test
 
 jobs:
   kind_deploy:
@@ -17,13 +19,25 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
 
-      - name: Install Go 1.19
+      - name: Set up Golang
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
 
+      - name: Build container container image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile
+          platforms: ${{ secrets.BUILD_PLATFORMS }}
+          push: false
+          tags: quay.io/csiaddons/k8s-controller:${{ env.TAG }}
+
+      - name: push image to kind cluster
+        run: kind load docker-image quay.io/csiaddons/k8s-controller:${{ env.TAG }} --name=chart-testing
+
       - name: Deploy the controller and CRDs
-        run: make deploy
+        run: make deploy TAG=${{ env.TAG }}
 
       - name: Wait for running controller pod
         run: kubectl -n csi-addons-system wait pods -l app.kubernetes.io/name=csi-addons --for=condition=Ready=True
