@@ -65,6 +65,7 @@ func main() {
 	var probeAddr string
 	var reclaimSpaceTimeout time.Duration
 	var maxConcurrentReconciles int
+	var enableAdmissionWebhooks bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -72,6 +73,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.DurationVar(&reclaimSpaceTimeout, "reclaim-space-timeout", defaultTimeout, "Timeout for reclaimspace operation")
 	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 100, "Maximum number of concurrent reconciles")
+	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", true, "Enable the admission webhooks")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
@@ -149,9 +151,12 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
 		os.Exit(1)
 	}
-	if err = (&replicationstoragev1alpha1.VolumeReplicationClass{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "VolumeReplicationClass")
-		os.Exit(1)
+
+	if enableAdmissionWebhooks {
+		if err = (&replicationstoragev1alpha1.VolumeReplicationClass{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "VolumeReplicationClass")
+			os.Exit(1)
+		}
 	}
 	//+kubebuilder:scaffold:builder
 

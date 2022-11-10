@@ -13,6 +13,7 @@ The CSI-Addons Controller can be deployed by different ways:
 | `--leader-elect`              | `false`         | Enable leader election for controller manager.|
 | `--reclaim-space-timeout`     | `3m`            | Timeout for reclaimspace operation            |
 | `--max-concurrent-reconciles` | 100             | Maximum number of concurrent reconciles       |
+| `--enable-admission-webhooks` | `true`          | Enable the admission webhooks                 |
 
 ## Installation for versioned deployments
 
