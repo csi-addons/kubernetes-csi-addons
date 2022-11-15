@@ -29,7 +29,6 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          platforms: ${{ secrets.BUILD_PLATFORMS }}
           push: false
           tags: quay.io/csiaddons/k8s-controller:${{ env.TAG }}
 
