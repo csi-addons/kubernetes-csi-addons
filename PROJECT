@@ -35,6 +35,7 @@ resources:
   domain: openshift.io
   group: csiaddons
   kind: ReclaimSpaceCronJob
+  path: github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
   version: v1alpha1
 - controller: true
   group: core
