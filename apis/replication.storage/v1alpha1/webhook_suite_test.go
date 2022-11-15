@@ -105,6 +105,9 @@ var _ = BeforeSuite(func() {
 	err = (&VolumeReplicationClass{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&VolumeReplication{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {

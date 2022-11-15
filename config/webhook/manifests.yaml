@@ -11,6 +11,25 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-replication-storage-openshift-io-v1alpha1-volumereplication
+  failurePolicy: Fail
+  name: vvolumereplication.kb.io
+  rules:
+  - apiGroups:
+    - replication.storage.openshift.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - UPDATE
+    resources:
+    - volumereplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-replication-storage-openshift-io-v1alpha1-volumereplicationclass
   failurePolicy: Fail
   name: vvolumereplicationclass.kb.io
