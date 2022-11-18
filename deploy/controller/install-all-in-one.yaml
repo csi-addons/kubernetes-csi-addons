@@ -1423,6 +1423,25 @@ webhooks:
     service:
       name: csi-addons-webhook-service
       namespace: csi-addons-system
+      path: /validate-csiaddons-openshift-io-v1alpha1-reclaimspacecronjob
+  failurePolicy: Fail
+  name: vreclaimspacecronjob.kb.io
+  rules:
+  - apiGroups:
+    - csiaddons.openshift.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - UPDATE
+    resources:
+    - reclaimspacecronjobs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: csi-addons-webhook-service
+      namespace: csi-addons-system
       path: /validate-csiaddons-openshift-io-v1alpha1-reclaimspacejob
   failurePolicy: Fail
   name: vreclaimspacejob.kb.io

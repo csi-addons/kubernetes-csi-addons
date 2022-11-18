@@ -105,6 +105,9 @@ var _ = BeforeSuite(func() {
 	err = (&ReclaimSpaceJob{}).SetupWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&ReclaimSpaceCronJob{}).SetupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	//+kubebuilder:scaffold:webhook
 
 	go func() {
