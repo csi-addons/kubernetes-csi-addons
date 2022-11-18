@@ -1423,6 +1423,25 @@ webhooks:
     service:
       name: csi-addons-webhook-service
       namespace: csi-addons-system
+      path: /validate-csiaddons-openshift-io-v1alpha1-csiaddonsnode
+  failurePolicy: Fail
+  name: vcsiaddonsnode.kb.io
+  rules:
+  - apiGroups:
+    - csiaddons.openshift.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - UPDATE
+    resources:
+    - csiaddonsnodes
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: csi-addons-webhook-service
+      namespace: csi-addons-system
       path: /validate-csiaddons-openshift-io-v1alpha1-networkfence
   failurePolicy: Fail
   name: vnetworkfence.kb.io
