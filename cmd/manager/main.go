@@ -167,6 +167,11 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ReclaimSpaceJob")
 			os.Exit(1)
 		}
+
+		if err = (&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ReclaimSpaceCronJob")
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder
