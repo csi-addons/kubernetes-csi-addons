@@ -23,6 +23,9 @@ resources:
   kind: ReclaimSpaceJob
   path: github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
   version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
   controller: true

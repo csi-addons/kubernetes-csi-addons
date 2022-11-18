@@ -162,7 +162,13 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "VolumeReplication")
 			os.Exit(1)
 		}
+
+		if err = (&csiaddonsv1alpha1.ReclaimSpaceJob{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ReclaimSpaceJob")
+			os.Exit(1)
+		}
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
