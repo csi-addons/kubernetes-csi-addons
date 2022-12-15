@@ -255,25 +255,30 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return reconcile.Result{}, err
 	}
 
-	// enable replication on every reconcile
-	if err = r.enableReplication(vr); err != nil {
-		logger.Error(err, "failed to enable replication")
-		setFailureCondition(instance)
-		msg := replication.GetMessageFromError(err)
-		uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), msg)
-		if uErr != nil {
-			logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
-
-		return reconcile.Result{}, err
-	}
-
 	var replicationErr error
 	var requeueForResync bool
 
 	switch instance.Spec.ReplicationState {
 	case replicationv1alpha1.Primary:
-		replicationErr = r.markVolumeAsPrimary(vr)
+		// Avoid extra RPC calls as request will be requested again for
+		// updating the LastSyncTime in the status. The volume needs to be
+		// replication enabled and promoted only once, not always during
+		// each reconciliation.
+		if instance.Status.State != replicationv1alpha1.PrimaryState {
+			// enable replication only if its not primary
+			if err = r.enableReplication(vr); err != nil {
+				logger.Error(err, "failed to enable replication")
+				setFailureCondition(instance)
+				msg := replication.GetMessageFromError(err)
+				uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), msg)
+				if uErr != nil {
+					logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
+				}
+
+				return reconcile.Result{}, err
+			}
+			replicationErr = r.markVolumeAsPrimary(vr)
+		}
 
 	case replicationv1alpha1.Secondary:
 		// For the first time, mark the volume as secondary and requeue the
