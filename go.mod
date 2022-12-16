@@ -3,24 +3,24 @@ module github.com/csi-addons/kubernetes-csi-addons
 go 1.18
 
 require (
-	github.com/container-storage-interface/spec v1.6.0
+	github.com/container-storage-interface/spec v1.7.0
 	github.com/csi-addons/spec v0.1.2-0.20221101132540-98eff76b0ff8
 	github.com/go-logr/logr v1.2.3
 	github.com/kubernetes-csi/csi-lib-utils v0.11.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.24.0
+	github.com/onsi/gomega v1.24.1
 	github.com/operator-framework/operator-sdk v1.24.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.1
-	go.uber.org/zap v1.23.0
-	google.golang.org/grpc v1.50.1
+	go.uber.org/zap v1.24.0
+	google.golang.org/grpc v1.51.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.28.1
-	k8s.io/api v0.25.3
-	k8s.io/apimachinery v0.25.3
-	k8s.io/client-go v0.25.3
+	k8s.io/api v0.25.4
+	k8s.io/apimachinery v0.25.4
+	k8s.io/client-go v0.25.4
 	k8s.io/klog/v2 v2.80.1
-	sigs.k8s.io/controller-runtime v0.13.0
+	sigs.k8s.io/controller-runtime v0.13.1
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20220104140252-e52a8b1fba62
 	sigs.k8s.io/controller-tools v0.10.0
 	sigs.k8s.io/kustomize/kustomize/v4 v4.5.7
@@ -210,11 +210,11 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/net v0.1.0 // indirect
+	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.1.0 // indirect
-	golang.org/x/term v0.1.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/term v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	golang.org/x/tools v0.1.12 // indirect

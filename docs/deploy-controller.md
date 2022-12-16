@@ -13,6 +13,7 @@ The CSI-Addons Controller can be deployed by different ways:
 | `--leader-elect`              | `false`         | Enable leader election for controller manager.|
 | `--reclaim-space-timeout`     | `3m`            | Timeout for reclaimspace operation            |
 | `--max-concurrent-reconciles` | 100             | Maximum number of concurrent reconciles       |
+| `--enable-admission-webhooks` | `true`          | Enable the admission webhooks                 |
 
 ## Installation for versioned deployments
 
@@ -56,15 +57,57 @@ deployment.apps/csi-addons-controller-manager created
 
 * The "setup-controller.yaml" creates the csi-addons-controller-manager.
 
+Webhooks are disabled by default in the controller deployment. If you are
+looking to install controller with webhooks enabled, a single yaml file is
+available in `deploy/controller` which contains all the required RBAC, CRD,
+Deployment, Webhooks, Certificates etc. The versioned deployment is possible
+with the yaml files that get generated for the [latest
+release](https://github.com/csi-addons/kubernetes-csi-addons/releases/latest).
+You can download the yaml file from there, or use them directly with kubectl.
+This is the recommended and easiest way to deploy the controller with webhooks.
+
+**Note** The cert-manager need to be available/installed before installing the
+controller. Please refer [doc](https://cert-manager.io/docs/installation) for
+cert-manager installation.
+
+```console
+$ cd deploy/controller
+
+$ kubectl create -f install-all-in-one.yaml
+
+namespace/csi-addons-system created
+customresourcedefinition.apiextensions.k8s.io/csiaddonsnodes.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/networkfences.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/reclaimspacecronjobs.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/reclaimspacejobs.csiaddons.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/volumereplicationclasses.replication.storage.openshift.io created
+customresourcedefinition.apiextensions.k8s.io/volumereplications.replication.storage.openshift.io created
+serviceaccount/csi-addons-controller-manager created
+role.rbac.authorization.k8s.io/csi-addons-leader-election-role created
+clusterrole.rbac.authorization.k8s.io/csi-addons-manager-role created
+clusterrole.rbac.authorization.k8s.io/csi-addons-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/csi-addons-proxy-role created
+rolebinding.rbac.authorization.k8s.io/csi-addons-leader-election-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/csi-addons-manager-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/csi-addons-proxy-rolebinding created
+configmap/csi-addons-manager-config created
+service/csi-addons-controller-manager-metrics-service created
+service/csi-addons-webhook-service created
+deployment.apps/csi-addons-controller-manager created
+certificate.cert-manager.io/csi-addons-serving-cert created
+issuer.cert-manager.io/csi-addons-selfsigned-issuer created
+validatingwebhookconfiguration.admissionregistration.k8s.io/csi-addons-validating-webhook-configuration created
+```
+
 ## Installation by operator-sdk
 
 A CSI-Addons bundle can be used to install the CSI-Addons Controller with the
 following steps:
 
 ```console
-$ kubectl create namespace storage-csi-addons
-$ make operator-sdk
-$ ./bin/operator-sdk run bundle -n storage-csi-addons quay.io/csiaddons/k8s-bundle:latest
+kubectl create namespace storage-csi-addons
+make operator-sdk
+./bin/operator-sdk run bundle -n storage-csi-addons quay.io/csiaddons/k8s-bundle:latest
 ```
 
 In the future, the bundle is expected to become available in the
