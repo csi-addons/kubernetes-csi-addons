@@ -324,7 +324,7 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 		pvName:     pv.Name,
 	}
 	for _, v := range volumeAttachments.Items {
-		if *v.Spec.Source.PersistentVolumeName == pv.Name {
+		if v.DeletionTimestamp.IsZero() && v.Status.Attached && *v.Spec.Source.PersistentVolumeName == pv.Name {
 			*logger = logger.WithValues("NodeID", v.Spec.NodeName)
 			details.nodeID = v.Spec.NodeName
 			break
