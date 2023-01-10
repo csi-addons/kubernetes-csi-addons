@@ -85,7 +85,9 @@ type CSIAddonsNode struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CSIAddonsNodeSpec   `json:"spec,omitempty"`
+	// +kubebuilder:validation:Required
+	Spec CSIAddonsNodeSpec `json:"spec"`
+
 	Status CSIAddonsNodeStatus `json:"status,omitempty"`
 }
 
