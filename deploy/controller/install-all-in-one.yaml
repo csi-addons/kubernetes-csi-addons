@@ -101,6 +101,8 @@ spec:
                   CSI Driver.
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -279,6 +281,8 @@ spec:
                   operation.
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -483,6 +487,8 @@ spec:
                 format: date-time
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -671,6 +677,8 @@ spec:
                 format: date-time
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -748,6 +756,8 @@ spec:
             description: VolumeReplicationClassStatus defines the observed state of
               VolumeReplicationClass.
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
@@ -948,6 +958,8 @@ spec:
                 description: State captures the latest state of the replication operation.
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

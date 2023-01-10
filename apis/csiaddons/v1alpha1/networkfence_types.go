@@ -100,7 +100,9 @@ type NetworkFence struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   NetworkFenceSpec   `json:"spec,omitempty"`
+	// +kubebuilder:validation:Required
+	Spec NetworkFenceSpec `json:"spec"`
+
 	Status NetworkFenceStatus `json:"status,omitempty"`
 }
 

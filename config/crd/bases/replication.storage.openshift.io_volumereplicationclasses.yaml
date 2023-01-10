@@ -60,6 +60,8 @@ spec:
             description: VolumeReplicationClassStatus defines the observed state of
               VolumeReplicationClass.
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
