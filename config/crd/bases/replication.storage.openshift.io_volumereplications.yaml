@@ -193,6 +193,8 @@ spec:
                 description: State captures the latest state of the replication operation.
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

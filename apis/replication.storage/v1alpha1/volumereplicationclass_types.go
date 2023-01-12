@@ -46,7 +46,9 @@ type VolumeReplicationClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   VolumeReplicationClassSpec   `json:"spec,omitempty"`
+	// +kubebuilder:validation:Required
+	Spec VolumeReplicationClassSpec `json:"spec"`
+
 	Status VolumeReplicationClassStatus `json:"status,omitempty"`
 }
 
