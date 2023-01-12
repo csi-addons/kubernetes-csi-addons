@@ -99,7 +99,7 @@ func (rs *ReplicationServer) DisableVolumeReplication(
 			Secrets:       data,
 		})
 	if err != nil {
-		klog.Errorf("Failed to enable volume replication: %v", err)
+		klog.Errorf("Failed to disable volume replication: %v", err)
 		return nil, err
 	}
 
@@ -127,7 +127,7 @@ func (rs *ReplicationServer) PromoteVolume(
 			Secrets:       data,
 		})
 	if err != nil {
-		klog.Errorf("Failed to enable volume replication: %v", err)
+		klog.Errorf("Failed to promote volume: %v", err)
 		return nil, err
 	}
 
@@ -155,7 +155,7 @@ func (rs *ReplicationServer) DemoteVolume(
 			Secrets:       data,
 		})
 	if err != nil {
-		klog.Errorf("Failed to enable volume replication: %v", err)
+		klog.Errorf("Failed to demote volume: %v", err)
 		return nil, err
 	}
 
@@ -183,7 +183,7 @@ func (rs *ReplicationServer) ResyncVolume(
 			Secrets:       data,
 		})
 	if err != nil {
-		klog.Errorf("Failed to enable volume replication: %v", err)
+		klog.Errorf("Failed to resync volume: %v", err)
 		return nil, err
 	}
 
