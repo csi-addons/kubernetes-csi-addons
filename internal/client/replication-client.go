@@ -33,20 +33,20 @@ type replicationClient struct {
 // VolumeReplication holds the methods required for volume replication.
 type VolumeReplication interface {
 	// EnableVolumeReplication RPC call to enable the volume replication.
-	EnableVolumeReplication(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
+	EnableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
 	// DisableVolumeReplication RPC call to disable the volume replication.
-	DisableVolumeReplication(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
+	DisableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
 	// PromoteVolume RPC call to promote the volume.
-	PromoteVolume(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
+	PromoteVolume(replicationSource *proto.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		PromoteVolumeResponse, error)
 	// DemoteVolume RPC call to demote the volume.
-	DemoteVolume(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.
+	DemoteVolume(replicationSource *proto.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		DemoteVolumeResponse, error)
 	// ResyncVolume RPC call to resync the volume.
-	ResyncVolume(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
+	ResyncVolume(replicationSource *proto.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		ResyncVolumeResponse, error)
 	// GetVolumeReplicationInfo RPC call to get volume replication info.
-	GetVolumeReplicationInfo(volumeID, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
+	GetVolumeReplicationInfo(replicationSource *proto.ReplicationSource, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
 }
 
 // NewReplicationClient returns VolumeReplication interface which has the RPC
@@ -56,14 +56,14 @@ func NewReplicationClient(cc *grpc.ClientConn, timeout time.Duration) VolumeRepl
 }
 
 // EnableVolumeReplication RPC call to enable the volume replication.
-func (rc *replicationClient) EnableVolumeReplication(volumeID, replicationID string,
+func (rc *replicationClient) EnableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
 	req := &proto.EnableVolumeReplicationRequest{
-		VolumeId:        volumeID,
-		ReplicationId:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
+		ReplicationSource: replicationSource,
+		ReplicationId:     replicationID,
+		Parameters:        parameters,
+		SecretName:        secretName,
+		SecretNamespace:   secretNamespace,
 	}
 
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
@@ -74,14 +74,14 @@ func (rc *replicationClient) EnableVolumeReplication(volumeID, replicationID str
 }
 
 // DisableVolumeReplication RPC call to disable the volume replication.
-func (rc *replicationClient) DisableVolumeReplication(volumeID, replicationID string,
+func (rc *replicationClient) DisableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
 	req := &proto.DisableVolumeReplicationRequest{
-		VolumeId:        volumeID,
-		ReplicationId:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
+		ReplicationSource: replicationSource,
+		ReplicationId:     replicationID,
+		Parameters:        parameters,
+		SecretName:        secretName,
+		SecretNamespace:   secretNamespace,
 	}
 
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
@@ -92,15 +92,15 @@ func (rc *replicationClient) DisableVolumeReplication(volumeID, replicationID st
 }
 
 // PromoteVolume RPC call to promote the volume.
-func (rc *replicationClient) PromoteVolume(volumeID, replicationID string,
+func (rc *replicationClient) PromoteVolume(replicationSource *proto.ReplicationSource, replicationID string,
 	force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
 	req := &proto.PromoteVolumeRequest{
-		VolumeId:        volumeID,
-		ReplicationId:   replicationID,
-		Force:           force,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
+		ReplicationSource: replicationSource,
+		ReplicationId:     replicationID,
+		Force:             force,
+		Parameters:        parameters,
+		SecretName:        secretName,
+		SecretNamespace:   secretNamespace,
 	}
 
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
@@ -111,14 +111,14 @@ func (rc *replicationClient) PromoteVolume(volumeID, replicationID string,
 }
 
 // DemoteVolume RPC call to demote the volume.
-func (rc *replicationClient) DemoteVolume(volumeID, replicationID string,
+func (rc *replicationClient) DemoteVolume(replicationSource *proto.ReplicationSource, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
 	req := &proto.DemoteVolumeRequest{
-		VolumeId:        volumeID,
-		ReplicationId:   replicationID,
-		Parameters:      parameters,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
+		ReplicationSource: replicationSource,
+		ReplicationId:     replicationID,
+		Parameters:        parameters,
+		SecretName:        secretName,
+		SecretNamespace:   secretNamespace,
 	}
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
 	defer cancel()
@@ -128,15 +128,15 @@ func (rc *replicationClient) DemoteVolume(volumeID, replicationID string,
 }
 
 // ResyncVolume RPC call to resync the volume.
-func (rc *replicationClient) ResyncVolume(volumeID, replicationID string, force bool,
+func (rc *replicationClient) ResyncVolume(replicationSource *proto.ReplicationSource, replicationID string, force bool,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
 	req := &proto.ResyncVolumeRequest{
-		VolumeId:        volumeID,
-		ReplicationId:   replicationID,
-		Parameters:      parameters,
-		Force:           force,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
+		ReplicationSource: replicationSource,
+		ReplicationId:     replicationID,
+		Parameters:        parameters,
+		Force:             force,
+		SecretName:        secretName,
+		SecretNamespace:   secretNamespace,
 	}
 
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
@@ -147,13 +147,13 @@ func (rc *replicationClient) ResyncVolume(volumeID, replicationID string, force 
 }
 
 // GetVolumeReplicationInfo RPC call to get volume replication info.
-func (rc *replicationClient) GetVolumeReplicationInfo(volumeID, replicationID,
+func (rc *replicationClient) GetVolumeReplicationInfo(replicationSource *proto.ReplicationSource, replicationID,
 	secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error) {
 	req := &proto.GetVolumeReplicationInfoRequest{
-		VolumeId:        volumeID,
-		ReplicationId:   replicationID,
-		SecretName:      secretName,
-		SecretNamespace: secretNamespace,
+		ReplicationSource: replicationSource,
+		ReplicationId:     replicationID,
+		SecretName:        secretName,
+		SecretNamespace:   secretNamespace,
 	}
 
 	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)

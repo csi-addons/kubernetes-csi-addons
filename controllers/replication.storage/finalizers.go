@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	volumegroupv1 "github.com/IBM/csi-volume-group-operator/api/v1"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
@@ -30,6 +31,7 @@ import (
 const (
 	volumeReplicationFinalizer = "replication.storage.openshift.io"
 	pvcReplicationFinalizer    = "replication.storage.openshift.io/pvc-protection"
+	vgReplicationFinalizer     = "replication.storage.openshift.io/vg-protection"
 )
 
 // addFinalizerToVR adds the VR finalizer on the VolumeReplication instance.
@@ -88,6 +90,37 @@ func (r *VolumeReplicationReconciler) removeFinalizerFromPVC(logger logr.Logger,
 			return fmt.Errorf("failed to remove finalizer (%s) from PersistentVolumeClaim resource"+
 				" (%s/%s), %w",
 				pvcReplicationFinalizer, pvc.Namespace, pvc.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// addFinalizerToVG adds the VR finalizer on the VolumeGroup.
+func (r *VolumeReplicationReconciler) addFinalizerToVG(logger logr.Logger, vg *volumegroupv1.VolumeGroup) error {
+	if !util.ContainsInSlice(vg.ObjectMeta.Finalizers, vgReplicationFinalizer) {
+		logger.Info("adding finalizer to VolumeGroup object", "Finalizer", vgReplicationFinalizer)
+		vg.ObjectMeta.Finalizers = append(vg.ObjectMeta.Finalizers, vgReplicationFinalizer)
+		if err := r.Client.Update(context.TODO(), vg); err != nil {
+			return fmt.Errorf("failed to add finalizer (%s) to VolumeGroup resource"+
+				" (%s/%s) %w",
+				vgReplicationFinalizer, vg.Namespace, vg.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// removeFinalizerFromVG removes the VR finalizer on VolumeGroup.
+func (r *VolumeReplicationReconciler) removeFinalizerFromVG(logger logr.Logger, vg *volumegroupv1.VolumeGroup,
+) error {
+	if util.ContainsInSlice(vg.ObjectMeta.Finalizers, vgReplicationFinalizer) {
+		logger.Info("removing finalizer from VolumeGroup object", "Finalizer", vgReplicationFinalizer)
+		vg.ObjectMeta.Finalizers = util.RemoveFromSlice(vg.ObjectMeta.Finalizers, vgReplicationFinalizer)
+		if err := r.Client.Update(context.TODO(), vg); err != nil {
+			return fmt.Errorf("failed to remove finalizer (%s) from VolumeGroup resource"+
+				" (%s/%s), %w",
+				vgReplicationFinalizer, vg.Namespace, vg.Name, err)
 		}
 	}
 

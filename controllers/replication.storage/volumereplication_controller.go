@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	volumegroupv1 "github.com/IBM/csi-volume-group-operator/api/v1"
 	"time"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
@@ -49,6 +50,7 @@ import (
 
 const (
 	pvcDataSource          = "PersistentVolumeClaim"
+	volumeGroupDataSource  = "VolumeGroup"
 	volumeReplicationClass = "VolumeReplicationClass"
 	volumeReplication      = "VolumeReplication"
 	defaultScheduleTime    = time.Hour
@@ -136,7 +138,10 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		volumeHandle string
 		pvc          *corev1.PersistentVolumeClaim
 		pv           *corev1.PersistentVolume
+		vg           *volumegroupv1.VolumeGroup
+		vgc          *volumegroupv1.VolumeGroupContent
 		pvErr        error
+		vgErr        error
 	)
 
 	replicationHandle := instance.Spec.ReplicationHandle
@@ -157,6 +162,19 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		volumeHandle = pv.Spec.CSI.VolumeHandle
+	case volumeGroupDataSource:
+		vg, vgc, vgErr = r.getVGDataSource(logger, nameSpacedName)
+		if vgErr != nil {
+			logger.Error(vgErr, "failed to get VG", "VGName", instance.Spec.DataSource.Name)
+			setFailureCondition(instance)
+			uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), vgErr.Error())
+			if uErr != nil {
+				logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
+			}
+
+			return ctrl.Result{}, vgErr
+		}
+		volumeHandle = vgc.Spec.Source.VolumeGroupHandle
 	default:
 		err = fmt.Errorf("unsupported datasource kind")
 		logger.Error(err, "given kind not supported", "Kind", instance.Spec.DataSource.Kind)
@@ -173,6 +191,11 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if replicationHandle != "" {
 		logger.Info("Replication handle", "ReplicationHandleName", replicationHandle)
 	}
+	replicationSource, err := r.getReplicationSource(logger, instance.Spec.DataSource.Kind, volumeHandle)
+	if err != nil {
+		logger.Error(err, "failed to update volumeReplication source", "VRName", instance.Name)
+		return ctrl.Result{}, nil
+	}
 
 	replicationClient, err := r.getReplicationClient(vrcObj.Spec.Provisioner)
 	if err != nil {
@@ -185,12 +208,12 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		logger:   logger,
 		instance: instance,
 		commonRequestParameters: replication.CommonRequestParameters{
-			VolumeID:        volumeHandle,
-			ReplicationID:   replicationHandle,
-			Parameters:      parameters,
-			SecretName:      secretName,
-			SecretNamespace: secretNamespace,
-			Replication:     replicationClient,
+			ReplicationSource: replicationSource,
+			ReplicationID:     replicationHandle,
+			Parameters:        parameters,
+			SecretName:        secretName,
+			SecretNamespace:   secretNamespace,
+			Replication:       replicationClient,
 		},
 		force: false,
 	}
@@ -203,16 +226,31 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return reconcile.Result{}, err
 		}
 
-		err = r.annotatePVCWithOwner(ctx, logger, req.Name, pvc)
-		if err != nil {
-			logger.Error(err, "Failed to annotate PVC owner")
-			return ctrl.Result{}, err
+		if pvc != nil {
+			err = r.annotatePVCWithOwner(ctx, logger, req.Name, pvc)
+			if err != nil {
+				logger.Error(err, "Failed to annotate PVC owner")
+				return ctrl.Result{}, err
+			}
+
+			if err = r.addFinalizerToPVC(logger, pvc); err != nil {
+				logger.Error(err, "Failed to add PersistentVolumeClaim finalizer")
+
+				return reconcile.Result{}, err
+			}
 		}
+		if vg != nil {
+			err = r.annotateVGWithOwner(ctx, logger, req.Name, vg)
+			if err != nil {
+				logger.Error(err, "Failed to annotate VG owner")
+				return ctrl.Result{}, err
+			}
 
-		if err = r.addFinalizerToPVC(logger, pvc); err != nil {
-			logger.Error(err, "Failed to add PersistentVolumeClaim finalizer")
+			if err = r.addFinalizerToVG(logger, vg); err != nil {
+				logger.Error(err, "Failed to add VolumeGroup finalizer")
 
-			return reconcile.Result{}, err
+				return reconcile.Result{}, err
+			}
 		}
 	} else {
 		if util.ContainsInSlice(instance.GetFinalizers(), volumeReplicationFinalizer) {
@@ -223,18 +261,31 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				return ctrl.Result{}, err
 			}
 
-			if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
-				logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
+			if pvc != nil {
+				if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
+					logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
 
-				return reconcile.Result{}, err
+					return reconcile.Result{}, err
+				}
+				if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
+					logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
+
+					return reconcile.Result{}, err
+				}
 			}
 
-			if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
-				logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
+			if vg != nil {
+				if err = r.removeOwnerFromVGAnnotation(ctx, logger, vg); err != nil {
+					logger.Error(err, "Failed to remove VolumeReplication annotation from VolumeGroup")
 
-				return reconcile.Result{}, err
+					return reconcile.Result{}, err
+				}
+				if err = r.removeFinalizerFromVG(logger, vg); err != nil {
+					logger.Error(err, "Failed to remove VolumeGroup finalizer")
+
+					return reconcile.Result{}, err
+				}
 			}
-
 			// once all finalizers have been removed, the object will be
 			// deleted
 			if err = r.removeFinalizerFromVR(logger, instance); err != nil {
@@ -489,6 +540,13 @@ func (r *VolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt
 
 		return err
 	}
+	r.Scheme.AddKnownTypes(volumegroupv1.GroupVersion,
+		&volumegroupv1.VolumeGroup{},
+		&volumegroupv1.VolumeGroupContent{},
+		&volumegroupv1.VolumeGroupList{},
+		&volumegroupv1.VolumeGroupContentList{},
+	)
+	metav1.AddToGroupVersion(r.Scheme, volumegroupv1.GroupVersion)
 
 	pred := predicate.GenerationChangedPredicate{}
 
@@ -653,7 +711,7 @@ func (r *VolumeReplicationReconciler) disableVolumeReplication(vr *volumeReplica
 
 	if resp.Error != nil {
 		if isKnownError := resp.HasKnownGRPCError(disableReplicationKnownErrors); isKnownError {
-			vr.logger.Info("volume not found", "volumeID", vr.commonRequestParameters.VolumeID)
+			vr.logger.Info("volume not found", "replicationSource", vr.commonRequestParameters.ReplicationSource)
 
 			return nil
 		}
@@ -682,6 +740,36 @@ func (r *VolumeReplicationReconciler) enableReplication(vr *volumeReplicationIns
 	return nil
 }
 
+// getReplicationSource gets volume replication source.
+func (r *VolumeReplicationReconciler) getReplicationSource(logger logr.Logger, kind string, volumeHandle string) (*proto.ReplicationSource, error) {
+	switch kind {
+	case pvcDataSource:
+		volumeSource := proto.ReplicationSource_Volume{
+			Volume: &proto.ReplicationSource_VolumeSource{
+				VolumeId: volumeHandle,
+			},
+		}
+		replicationSource := &proto.ReplicationSource{
+			Type: &volumeSource,
+		}
+		return replicationSource, nil
+
+	case volumeGroupDataSource:
+		volumeGroupSource := proto.ReplicationSource_Volumegroup{
+			Volumegroup: &proto.ReplicationSource_VolumeGroupSource{
+				VolumeGroupId: volumeHandle,
+			},
+		}
+		replicationSource := &proto.ReplicationSource{
+			Type: &volumeGroupSource,
+		}
+		return replicationSource, nil
+	default:
+		// For now we shouldn't pass other things to this function, but treat it as a noop and extend as needed
+		return nil, nil
+	}
+}
+
 // getVolumeReplicationInfo gets volume replication info.
 func (r *VolumeReplicationReconciler) getVolumeReplicationInfo(vr *volumeReplicationInstance) (*proto.GetVolumeReplicationInfoResponse, error) {
 	volumeReplication := replication.Replication{
@@ -692,7 +780,7 @@ func (r *VolumeReplicationReconciler) getVolumeReplicationInfo(vr *volumeReplica
 	if resp.Error != nil {
 		vr.logger.Error(resp.Error, "failed to get volume replication info")
 		if isKnownError := resp.HasKnownGRPCError(getReplicationInfoKnownErrors); isKnownError {
-			vr.logger.Info("volume/replication info not found", "volumeID", vr.commonRequestParameters.VolumeID)
+			vr.logger.Info("volume/replication info not found", "replicationSource", vr.commonRequestParameters.ReplicationSource)
 
 			return nil, nil
 		}

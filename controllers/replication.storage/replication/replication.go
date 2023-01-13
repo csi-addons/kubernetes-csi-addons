@@ -18,7 +18,7 @@ package replication
 
 import (
 	"github.com/csi-addons/kubernetes-csi-addons/internal/client"
-
+	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -37,17 +37,17 @@ type Response struct {
 
 // CommonRequestParameters holds the common parameters across replication operations.
 type CommonRequestParameters struct {
-	VolumeID        string
-	ReplicationID   string
-	Parameters      map[string]string
-	SecretName      string
-	SecretNamespace string
-	Replication     client.VolumeReplication
+	ReplicationSource *proto.ReplicationSource
+	ReplicationID     string
+	Parameters        map[string]string
+	SecretName        string
+	SecretNamespace   string
+	Replication       client.VolumeReplication
 }
 
 func (r *Replication) Enable() *Response {
 	resp, err := r.Params.Replication.EnableVolumeReplication(
-		r.Params.VolumeID,
+		r.Params.ReplicationSource,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
@@ -59,7 +59,7 @@ func (r *Replication) Enable() *Response {
 
 func (r *Replication) Disable() *Response {
 	resp, err := r.Params.Replication.DisableVolumeReplication(
-		r.Params.VolumeID,
+		r.Params.ReplicationSource,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
@@ -71,7 +71,7 @@ func (r *Replication) Disable() *Response {
 
 func (r *Replication) Promote() *Response {
 	resp, err := r.Params.Replication.PromoteVolume(
-		r.Params.VolumeID,
+		r.Params.ReplicationSource,
 		r.Params.ReplicationID,
 		r.Force,
 		r.Params.SecretName,
@@ -84,7 +84,7 @@ func (r *Replication) Promote() *Response {
 
 func (r *Replication) Demote() *Response {
 	resp, err := r.Params.Replication.DemoteVolume(
-		r.Params.VolumeID,
+		r.Params.ReplicationSource,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
@@ -96,7 +96,7 @@ func (r *Replication) Demote() *Response {
 
 func (r *Replication) Resync() *Response {
 	resp, err := r.Params.Replication.ResyncVolume(
-		r.Params.VolumeID,
+		r.Params.ReplicationSource,
 		r.Params.ReplicationID,
 		r.Force,
 		r.Params.SecretName,
@@ -109,7 +109,7 @@ func (r *Replication) Resync() *Response {
 
 func (r *Replication) GetInfo() *Response {
 	resp, err := r.Params.Replication.GetVolumeReplicationInfo(
-		r.Params.VolumeID,
+		r.Params.ReplicationSource,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
