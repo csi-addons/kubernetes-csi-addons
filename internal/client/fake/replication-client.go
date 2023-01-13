@@ -16,86 +16,89 @@ limitations under the License.
 
 package fake
 
-import "github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+import (
+	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	csiReplication "github.com/csi-addons/spec/lib/go/replication"
+)
 
 // ReplicationClient to fake replication operations.
 type ReplicationClient struct {
 	// EnableVolumeReplicationMock mocks EnableVolumeReplication RPC call.
-	EnableVolumeReplicationMock func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
+	EnableVolumeReplicationMock func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
 	// DisableVolumeReplicationMock mocks DisableVolumeReplication RPC call.
-	DisableVolumeReplicationMock func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
+	DisableVolumeReplicationMock func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
 	// PromoteVolumeMock mocks PromoteVolume RPC call.
-	PromoteVolumeMock func(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error)
+	PromoteVolumeMock func(replicationSource *csiReplication.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error)
 	// DemoteVolumeMock mocks DemoteVolume RPC call.
-	DemoteVolumeMock func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error)
+	DemoteVolumeMock func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error)
 	// ResyncVolumeMock mocks ResyncVolume RPC call.
-	ResyncVolumeMock func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error)
+	ResyncVolumeMock func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error)
 	// GetVolumeReplicationInfo mocks GetVolumeReplicationInfo RPC call.
-	GetVolumeReplicationInfoMock func(volumeID, replicationID string, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
+	GetVolumeReplicationInfoMock func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
 }
 
 // EnableVolumeReplication calls EnableVolumeReplicationMock mock function.
 func (rc *ReplicationClient) EnableVolumeReplication(
-	volumeID,
+	replicationSource *csiReplication.ReplicationSource,
 	replicationID string,
 	secretName, secretNamespace string,
 	parameters map[string]string) (
 	*proto.EnableVolumeReplicationResponse,
 	error) {
-	return rc.EnableVolumeReplicationMock(volumeID, replicationID, secretName, secretNamespace, parameters)
+	return rc.EnableVolumeReplicationMock(replicationSource, replicationID, secretName, secretNamespace, parameters)
 }
 
 // DisableVolumeReplication calls DisableVolumeReplicationMock mock function.
 func (rc *ReplicationClient) DisableVolumeReplication(
-	volumeID,
+	replicationSource *csiReplication.ReplicationSource,
 	replicationID string,
 	secretName, secretNamespace string,
 	parameters map[string]string) (
 	*proto.DisableVolumeReplicationResponse,
 	error) {
-	return rc.DisableVolumeReplicationMock(volumeID, replicationID, secretName, secretNamespace, parameters)
+	return rc.DisableVolumeReplicationMock(replicationSource, replicationID, secretName, secretNamespace, parameters)
 }
 
 // PromoteVolume calls PromoteVolumeMock mock function.
 func (rc *ReplicationClient) PromoteVolume(
-	volumeID,
+	replicationSource *csiReplication.ReplicationSource,
 	replicationID string,
 	force bool,
 	secretName, secretNamespace string,
 	parameters map[string]string) (
 	*proto.PromoteVolumeResponse,
 	error) {
-	return rc.PromoteVolumeMock(volumeID, replicationID, force, secretName, secretNamespace, parameters)
+	return rc.PromoteVolumeMock(replicationSource, replicationID, force, secretName, secretNamespace, parameters)
 }
 
 // DemoteVolume calls DemoteVolumeMock mock function.
 func (rc *ReplicationClient) DemoteVolume(
-	volumeID,
+	replicationSource *csiReplication.ReplicationSource,
 	replicationID string,
 	secretName, secretNamespace string,
 	parameters map[string]string) (
 	*proto.DemoteVolumeResponse,
 	error) {
-	return rc.DemoteVolumeMock(volumeID, replicationID, secretName, secretNamespace, parameters)
+	return rc.DemoteVolumeMock(replicationSource, replicationID, secretName, secretNamespace, parameters)
 }
 
 // ResyncVolume calls ResyncVolumeMock function.
 func (rc *ReplicationClient) ResyncVolume(
-	volumeID,
+	replicationSource *csiReplication.ReplicationSource,
 	replicationID string,
 	secretName, secretNamespace string,
 	parameters map[string]string) (
 	*proto.ResyncVolumeResponse,
 	error) {
-	return rc.ResyncVolumeMock(volumeID, replicationID, secretName, secretNamespace, parameters)
+	return rc.ResyncVolumeMock(replicationSource, replicationID, secretName, secretNamespace, parameters)
 }
 
 // GetVolumeReplicationInfo calls GetVolumeReplicationInfoMock function.
 func (rc *ReplicationClient) GetVolumeReplicationInfo(
-	volumeID,
+	replicationSource *csiReplication.ReplicationSource,
 	replicationID string,
 	secretName, secretNamespace string) (
 	*proto.GetVolumeReplicationInfoResponse,
 	error) {
-	return rc.GetVolumeReplicationInfoMock(volumeID, replicationID, secretName, secretNamespace)
+	return rc.GetVolumeReplicationInfoMock(replicationSource, replicationID, secretName, secretNamespace)
 }

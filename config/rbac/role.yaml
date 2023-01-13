@@ -46,6 +46,23 @@ rules:
   - list
   - watch
 - apiGroups:
+  - csi.ibm.com
+  resources:
+  - volumegroupcontents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csi.ibm.com
+  resources:
+  - volumegroups
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - csiaddons.openshift.io
   resources:
   - csiaddonsnodes

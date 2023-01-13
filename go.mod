@@ -3,6 +3,7 @@ module github.com/csi-addons/kubernetes-csi-addons
 go 1.19
 
 require (
+	github.com/IBM/csi-volume-group-operator v0.0.0-20230102134955-09c72341a557
 	github.com/container-storage-interface/spec v1.7.0
 	github.com/csi-addons/spec v0.2.0
 	github.com/go-logr/logr v1.2.3

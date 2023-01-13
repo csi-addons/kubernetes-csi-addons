@@ -6,6 +6,9 @@ github.com/Azure/go-ansiterm/winterm
 ## explicit; go 1.16
 github.com/BurntSushi/toml
 github.com/BurntSushi/toml/internal
+# github.com/IBM/csi-volume-group-operator v0.0.0-20230102134955-09c72341a557
+## explicit; go 1.19
+github.com/IBM/csi-volume-group-operator/api/v1
 # github.com/MakeNowJust/heredoc v1.0.0
 ## explicit; go 1.12
 github.com/MakeNowJust/heredoc
