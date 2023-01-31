@@ -25,21 +25,18 @@ import (
 	"github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha/scaffolds/internal/templates"
 	"github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha/scaffolds/internal/templates/hack"
 	"github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha/scaffolds/internal/templates/rbac"
+	utils "github.com/operator-framework/helm-operator-plugins/pkg/plugins/util"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
+
+	kustomizev2alpha "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha"
+	golangv3 "sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v3/scaffolds"
 )
 
 const (
-	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.12.1"
-	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
-	ControllerToolsVersion = "v0.9.0"
-	// KustomizeVersion is the kubernetes-sigs/kustomize version to be used in the project
-	KustomizeVersion = "v3.8.7"
-
 	imageName = "controller:latest"
 
 	// TODO: This is a placeholder for now. This would probably be the operator-sdk version
@@ -80,6 +77,10 @@ func (s *initScaffolder) InjectFS(fs machinery.Filesystem) {
 func (s *initScaffolder) Scaffold() error {
 	fmt.Println("Writing scaffolds for you to edit...")
 
+	if err := utils.UpdateKustomizationsInit(); err != nil {
+		return fmt.Errorf("error updating kustomization.yaml files: %v", err)
+	}
+
 	// Initialize the machinery.Scaffold that will write the files to disk
 	scaffold := machinery.NewScaffold(s.fs,
 		machinery.WithDirectoryPermissions(0755),
@@ -118,16 +119,16 @@ func (s *initScaffolder) Scaffold() error {
 
 	err = scaffold.Execute(
 		&templates.Main{},
-		&templates.GoMod{ControllerRuntimeVersion: ControllerRuntimeVersion},
+		&templates.GoMod{ControllerRuntimeVersion: golangv3.ControllerRuntimeVersion},
 		&templates.GitIgnore{},
 		&templates.Watches{},
 		&rbac.ManagerRole{},
 		&templates.Makefile{
 			Image:                    imageName,
-			KustomizeVersion:         KustomizeVersion,
+			KustomizeVersion:         kustomizev2alpha.KustomizeVersion,
 			HybridOperatorVersion:    hybridOperatorVersion,
-			ControllerToolsVersion:   ControllerToolsVersion,
-			ControllerRuntimeVersion: ControllerRuntimeVersion,
+			ControllerToolsVersion:   golangv3.ControllerToolsVersion,
+			ControllerRuntimeVersion: golangv3.ControllerRuntimeVersion,
 		},
 		&templates.Dockerfile{},
 		&templates.DockerIgnore{},
