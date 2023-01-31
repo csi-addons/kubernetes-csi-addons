@@ -28,7 +28,11 @@ func (custom *Script) ResolveImageReference(imageReference string) (string, erro
 		return "", err
 	}
 
-	imageName := getName(imageReference)
+	imageName, err := getName(imageReference)
+	if err != nil {
+		return "", err
+	}
+
 	digest := strings.TrimSpace(string(output))
 	return fmt.Sprintf("%s@sha256:%s", imageName, digest), nil
 }

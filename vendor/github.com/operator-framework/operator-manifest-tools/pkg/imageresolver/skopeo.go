@@ -70,7 +70,11 @@ func (skopeo *Skopeo) getSkopeoResults(args ...string) ([]byte, map[string]inter
 // ResolveImageReference will use the image resolver to map an image reference
 // to the image's SHA256 value from the registry.
 func (skopeo *Skopeo) ResolveImageReference(imageReference string) (string, error) {
-	imageName := getName(imageReference)
+	imageName, err := getName(imageReference)
+	if err != nil {
+		return "", err
+	}
+
 	imageReference = fmt.Sprintf("docker://%s", imageReference)
 	args := []string{imageReference}
 
@@ -80,7 +84,6 @@ func (skopeo *Skopeo) ResolveImageReference(imageReference string) (string, erro
 
 	retryAttempts := 3
 
-	var err error
 	var skopeoRaw []byte
 	var skopeoJSON map[string]interface{}
 
