@@ -371,20 +371,22 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	instance.Status.LastCompletionTime = getCurrentTime()
 
-	var requeueForInfo bool
+	requeueForInfo := false
 
 	if instance.Spec.ReplicationState == replicationv1alpha1.Primary {
 		info, err := r.getVolumeReplicationInfo(vr)
-		if err != nil {
+		if err == nil {
+			ts := info.GetLastSyncTime()
+			if ts != nil {
+				lastSyncTime := metav1.NewTime(ts.AsTime())
+				instance.Status.LastSyncTime = &lastSyncTime
+			}
+			requeueForInfo = true
+		}
+		if !util.IsUnimplementedError(err) {
 			logger.Error(err, "Failed to get volume replication info")
 			return ctrl.Result{}, err
 		}
-		ts := info.GetLastSyncTime()
-		if ts != nil {
-			lastSyncTime := metav1.NewTime(ts.AsTime())
-			instance.Status.LastSyncTime = &lastSyncTime
-		}
-		requeueForInfo = true
 	}
 	if instance.Spec.ReplicationState == replicationv1alpha1.Secondary {
 		instance.Status.LastSyncTime = nil
