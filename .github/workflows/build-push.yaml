@@ -31,7 +31,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push bundle container image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: bundle.Dockerfile
@@ -60,7 +60,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push controller container image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile
@@ -90,7 +90,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push sidecar container image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: build/Containerfile.sidecar
