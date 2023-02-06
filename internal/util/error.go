@@ -16,7 +16,10 @@ limitations under the License.
 
 package util
 
-import "google.golang.org/grpc/status"
+import (
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
 
 // GetErrorMessage returns the message from the error if it is a grpc error,
 // else returns err.Error().
@@ -27,4 +30,14 @@ func GetErrorMessage(err error) string {
 	}
 
 	return s.Message()
+}
+
+// IsUnimplementedError returns true if the error is Unimplemented error.
+func IsUnimplementedError(err error) bool {
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	return s.Code() == codes.Unimplemented
 }

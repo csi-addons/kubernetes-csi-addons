@@ -63,3 +63,48 @@ func TestGetErrorMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestIsUmplementedError(t *testing.T) {
+	type input struct {
+		err error
+	}
+	tests := []struct {
+		name string
+		args input
+		want bool
+	}{
+		{
+			name: "nil error",
+			args: input{
+				err: nil,
+			},
+			want: false,
+		},
+		{
+			name: "Unimplmented error",
+			args: input{
+				err: status.Error(codes.Unimplemented, "unimplemented"),
+			},
+			want: true,
+		},
+		{
+			name: "Non unimplmented error",
+			args: input{
+				err: status.Error(codes.NotFound, "not found"),
+			},
+			want: false,
+		},
+		{
+			name: "Non grpc status error",
+			args: input{
+				err: errors.New("new error"),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsUnimplementedError(tt.args.err))
+		})
+	}
+}
