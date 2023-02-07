@@ -3,6 +3,8 @@ package imageresolver
 import (
 	"fmt"
 	"strings"
+
+	"github.com/operator-framework/operator-manifest-tools/pkg/imagename"
 )
 
 // ImageResolve implements a method of identifying an image reference.
@@ -35,7 +37,7 @@ const (
 )
 
 var (
-	validResolvers ResolverOptions = ResolverOptions{ResolverScript, ResolverSkopeo}
+	validResolvers ResolverOptions = ResolverOptions{ResolverScript, ResolverSkopeo, ResolverCrane}
 )
 
 type ResolverOptions []ResolverOption
@@ -86,10 +88,7 @@ func GetResolver(resolver ResolverOption, args map[string]string) (ImageResolver
 	}
 }
 
-func getName(imageReference string) string {
-	if strings.Contains(imageReference, "@") {
-		return strings.Split(imageReference, "@")[0]
-	}
-
-	return strings.Split(imageReference, ":")[0]
+func getName(imageReference string) (string, error) {
+	name := imagename.Parse(imageReference)
+	return name.ToString(imagename.Registry)
 }

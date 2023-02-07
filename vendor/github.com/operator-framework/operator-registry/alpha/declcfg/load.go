@@ -118,7 +118,9 @@ func extractCSV(objs []string) string {
 	return ""
 }
 
-func readYAMLOrJSON(r io.Reader) (*DeclarativeConfig, error) {
+// LoadReader reads yaml or json from the passed in io.Reader and unmarshals it into a DeclarativeConfig struct.
+// Path references will not be de-referenced so callers are responsible for de-referencing if necessary.
+func LoadReader(r io.Reader) (*DeclarativeConfig, error) {
 	cfg := &DeclarativeConfig{}
 	dec := yaml.NewYAMLOrJSONDecoder(r, 4096)
 	for {
@@ -137,19 +139,19 @@ func readYAMLOrJSON(r io.Reader) (*DeclarativeConfig, error) {
 		}
 
 		switch in.Schema {
-		case schemaPackage:
+		case SchemaPackage:
 			var p Package
 			if err := json.Unmarshal(doc, &p); err != nil {
 				return nil, fmt.Errorf("parse package: %v", err)
 			}
 			cfg.Packages = append(cfg.Packages, p)
-		case schemaChannel:
+		case SchemaChannel:
 			var c Channel
 			if err := json.Unmarshal(doc, &c); err != nil {
 				return nil, fmt.Errorf("parse channel: %v", err)
 			}
 			cfg.Channels = append(cfg.Channels, c)
-		case schemaBundle:
+		case SchemaBundle:
 			var b Bundle
 			if err := json.Unmarshal(doc, &b); err != nil {
 				return nil, fmt.Errorf("parse bundle: %v", err)
@@ -173,7 +175,7 @@ func LoadFile(root fs.FS, path string) (*DeclarativeConfig, error) {
 	}
 	defer file.Close()
 
-	cfg, err := readYAMLOrJSON(file)
+	cfg, err := LoadReader(file)
 	if err != nil {
 		return nil, err
 	}

@@ -38,5 +38,10 @@ func (res CraneResolver) ResolveImageReference(imageReference string) (string, e
 		return "", err
 	}
 
-	return getName(imageReference) + "@" + digest, nil
+	name, err := getName(imageReference)
+	if err != nil {
+		return "", err
+	}
+
+	return name + "@" + digest, nil
 }
