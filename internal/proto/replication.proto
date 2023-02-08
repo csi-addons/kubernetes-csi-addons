@@ -2,6 +2,7 @@ syntax = "proto3";
 package proto;
 
 import "google/protobuf/timestamp.proto";
+import "replication_source.proto";
 
 option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
 
@@ -50,7 +51,7 @@ message EnableVolumeReplicationRequest {
   // Secrets required by the driver to complete the request.
   string secret_name = 4;
   string secret_namespace = 5;
-  ReplicationSource replication_source = 6;
+  replication.ReplicationSource replication_source = 6;
 }
 
 // EnableVolumeReplicationResponse holds the information to send when
@@ -79,7 +80,7 @@ message DisableVolumeReplicationRequest {
   // Secrets required by the driver to complete the request.
   string secret_name = 4;
   string secret_namespace = 5;
-  ReplicationSource replication_source = 6;
+  replication.ReplicationSource replication_source = 6;
 }
 
 // DisableVolumeReplicationResponse holds the information to send when
@@ -111,7 +112,7 @@ message PromoteVolumeRequest {
   // Secrets required by the driver to complete the request.
   string secret_name = 5;
   string secret_namespace = 6;
-  ReplicationSource replication_source = 7;
+  replication.ReplicationSource replication_source = 7;
 }
 
 // PromoteVolumeResponse holds the information to send when
@@ -143,7 +144,7 @@ message DemoteVolumeRequest {
   // Secrets required by the driver to complete the request.
   string secret_name = 5;
   string secret_namespace = 6;
-  ReplicationSource replication_source = 7;
+  replication.ReplicationSource replication_source = 7;
 }
 
 // DemoteVolumeResponse holds the information to send when
@@ -174,7 +175,7 @@ message ResyncVolumeRequest {
   // Secrets required by the driver to complete the request.
   string secret_name = 5;
   string secret_namespace = 6;
-  ReplicationSource replication_source = 7;
+  replication.ReplicationSource replication_source = 7;
 }
 
 // ResyncVolumeResponse holds the information to send when
@@ -205,7 +206,7 @@ message GetVolumeReplicationInfoRequest {
   // Secrets required by the plugin to complete the request.
   string secret_name = 3;
   string secret_namespace = 4;
-  ReplicationSource replication_source = 5;
+  replication.ReplicationSource replication_source = 5;
 }
 // GetVolumeReplicationInfoResponse holds the information to send the
 // volume replication information.
@@ -213,28 +214,4 @@ message GetVolumeReplicationInfoResponse {
   // Holds the last sync time.
   // This field is REQUIRED.
   .google.protobuf.Timestamp last_sync_time = 1;
-}
-// Specifies what source the replication will be created from. One of the
-// type fields MUST be specified.
-message ReplicationSource {
-  // VolumeSource contains the details about the volume to be replication
-  message VolumeSource {
-    // Contains identity information for the existing volume.
-    // This field is REQUIRED.
-    string volume_id = 1;
-  }
-  // VolumeGroupSource contains the details about
-  // the volume group to be replication
-  message VolumeGroupSource {
-    // Contains identity information for the existing volume group.
-    // This field is REQUIRED.
-    string volume_group_id = 1;
-  }
-
-  oneof type {
-    // Volume source type
-    VolumeSource volume = 1;
-    // Volume group source type
-    VolumeGroupSource volumegroup = 2;
-  }
 }

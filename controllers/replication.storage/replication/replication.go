@@ -18,7 +18,7 @@ package replication
 
 import (
 	"github.com/csi-addons/kubernetes-csi-addons/internal/client"
-	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	csiReplication "github.com/csi-addons/spec/lib/go/replication"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -37,7 +37,7 @@ type Response struct {
 
 // CommonRequestParameters holds the common parameters across replication operations.
 type CommonRequestParameters struct {
-	ReplicationSource *proto.ReplicationSource
+	ReplicationSource *csiReplication.ReplicationSource
 	ReplicationID     string
 	Parameters        map[string]string
 	SecretName        string

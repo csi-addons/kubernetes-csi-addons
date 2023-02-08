@@ -29,6 +29,7 @@ import (
 	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
+	csiReplication "github.com/csi-addons/spec/lib/go/replication"
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"github.com/go-logr/logr"
@@ -744,26 +745,26 @@ func (r *VolumeReplicationReconciler) enableReplication(vr *volumeReplicationIns
 }
 
 // getReplicationSource gets volume replication source.
-func (r *VolumeReplicationReconciler) getReplicationSource(logger logr.Logger, kind string, volumeHandle string) (*proto.ReplicationSource, error) {
+func (r *VolumeReplicationReconciler) getReplicationSource(logger logr.Logger, kind string, volumeHandle string) (*csiReplication.ReplicationSource, error) {
 	switch kind {
 	case pvcDataSource:
-		volumeSource := proto.ReplicationSource_Volume{
-			Volume: &proto.ReplicationSource_VolumeSource{
+		volumeSource := csiReplication.ReplicationSource_Volume{
+			Volume: &csiReplication.ReplicationSource_VolumeSource{
 				VolumeId: volumeHandle,
 			},
 		}
-		replicationSource := &proto.ReplicationSource{
+		replicationSource := &csiReplication.ReplicationSource{
 			Type: &volumeSource,
 		}
 		return replicationSource, nil
 
 	case volumeGroupDataSource:
-		volumeGroupSource := proto.ReplicationSource_Volumegroup{
-			Volumegroup: &proto.ReplicationSource_VolumeGroupSource{
+		volumeGroupSource := csiReplication.ReplicationSource_Volumegroup{
+			Volumegroup: &csiReplication.ReplicationSource_VolumeGroupSource{
 				VolumeGroupId: volumeHandle,
 			},
 		}
-		replicationSource := &proto.ReplicationSource{
+		replicationSource := &csiReplication.ReplicationSource{
 			Type: &volumeGroupSource,
 		}
 		return replicationSource, nil

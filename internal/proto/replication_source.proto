@@ -1,0 +1,20 @@
+syntax = "proto3";
+package replication;
+
+option go_package = "github.com/csi-addons/spec/lib/go/replication";
+
+// Specifies what source the replication will be created from. One of the
+// type fields MUST be specified.
+message ReplicationSource {
+  message VolumeSource {
+    string volume_id = 1;
+  }
+  message VolumeGroupSource {
+    string volume_group_id = 1;
+  }
+
+  oneof type {
+    VolumeSource volume = 1;
+    VolumeGroupSource volumegroup = 2;
+  }
+}
