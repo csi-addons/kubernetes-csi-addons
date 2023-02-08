@@ -19,8 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-	volumegroupv1 "github.com/IBM/csi-volume-group-operator/api/v1"
 	"time"
+
+	volumegroupv1 "github.com/IBM/csi-volume-group-operator/api/v1"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage/replication"
@@ -79,6 +80,8 @@ type VolumeReplicationReconciler struct {
 // +kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumereplicationclasses,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch
+//+kubebuilder:rbac:groups=csi.ibm.com,resources=volumegroups,verbs=get;list;watch;update
+//+kubebuilder:rbac:groups=csi.ibm.com,resources=volumegroupcontents,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
