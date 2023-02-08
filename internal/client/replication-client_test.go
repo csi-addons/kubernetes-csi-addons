@@ -22,6 +22,7 @@ import (
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/client/fake"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	csiReplication "github.com/csi-addons/spec/lib/go/replication"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,23 +30,23 @@ import (
 func TestEnableVolumeReplication(t *testing.T) {
 	t.Parallel()
 	mockedEnableReplication := &fake.ReplicationClient{
-		EnableVolumeReplicationMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
+		EnableVolumeReplicationMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
 			return &proto.EnableVolumeReplicationResponse{}, nil
 		},
 	}
 	client := mockedEnableReplication
-	resp, err := client.EnableVolumeReplication("", "", "", "", nil)
+	resp, err := client.EnableVolumeReplication(nil, "", "", "", nil)
 	assert.Equal(t, &proto.EnableVolumeReplicationResponse{}, resp)
 	assert.Nil(t, err)
 
 	// return error
 	mockedEnableReplication = &fake.ReplicationClient{
-		EnableVolumeReplicationMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
+		EnableVolumeReplicationMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
 			return nil, errors.New("failed to enable mirroring")
 		},
 	}
 	client = mockedEnableReplication
-	resp, err = client.EnableVolumeReplication("", "", "", "", nil)
+	resp, err = client.EnableVolumeReplication(nil, "", "", "", nil)
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 }
@@ -53,23 +54,23 @@ func TestEnableVolumeReplication(t *testing.T) {
 func TestDisableVolumeReplication(t *testing.T) {
 	t.Parallel()
 	mockedDisableReplication := &fake.ReplicationClient{
-		DisableVolumeReplicationMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
+		DisableVolumeReplicationMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
 			return &proto.DisableVolumeReplicationResponse{}, nil
 		},
 	}
 	client := mockedDisableReplication
-	resp, err := client.DisableVolumeReplication("", "", "", "", nil)
+	resp, err := client.DisableVolumeReplication(nil, "", "", "", nil)
 	assert.Equal(t, &proto.DisableVolumeReplicationResponse{}, resp)
 	assert.Nil(t, err)
 
 	// return error
 	mockedDisableReplication = &fake.ReplicationClient{
-		DisableVolumeReplicationMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
+		DisableVolumeReplicationMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
 			return nil, errors.New("failed to disable mirroring")
 		},
 	}
 	client = mockedDisableReplication
-	resp, err = client.DisableVolumeReplication("", "", "", "", nil)
+	resp, err = client.DisableVolumeReplication(nil, "", "", "", nil)
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 }
@@ -78,24 +79,24 @@ func TestPromoteVolume(t *testing.T) {
 	t.Parallel()
 	// return success response
 	mockedPromoteVolume := &fake.ReplicationClient{
-		PromoteVolumeMock: func(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
+		PromoteVolumeMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
 			return &proto.PromoteVolumeResponse{}, nil
 		},
 	}
 	force := false
 	client := mockedPromoteVolume
-	resp, err := client.PromoteVolume("", "", force, "", "", nil)
+	resp, err := client.PromoteVolume(nil, "", force, "", "", nil)
 	assert.Equal(t, &proto.PromoteVolumeResponse{}, resp)
 	assert.Nil(t, err)
 
 	// return error
 	mockedPromoteVolume = &fake.ReplicationClient{
-		PromoteVolumeMock: func(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
+		PromoteVolumeMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
 			return nil, errors.New("failed to promote volume")
 		},
 	}
 	client = mockedPromoteVolume
-	resp, err = client.PromoteVolume("", "", force, "", "", nil)
+	resp, err = client.PromoteVolume(nil, "", force, "", "", nil)
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 }
@@ -104,23 +105,23 @@ func TestDemoteVolume(t *testing.T) {
 	t.Parallel()
 	// return success response
 	mockedDemoteVolume := &fake.ReplicationClient{
-		DemoteVolumeMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
+		DemoteVolumeMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
 			return &proto.DemoteVolumeResponse{}, nil
 		},
 	}
 	client := mockedDemoteVolume
-	resp, err := client.DemoteVolume("", "", "", "", nil)
+	resp, err := client.DemoteVolume(nil, "", "", "", nil)
 	assert.Equal(t, &proto.DemoteVolumeResponse{}, resp)
 	assert.Nil(t, err)
 
 	// return error
 	mockedDemoteVolume = &fake.ReplicationClient{
-		DemoteVolumeMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
+		DemoteVolumeMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
 			return nil, errors.New("failed to demote volume")
 		},
 	}
 	client = mockedDemoteVolume
-	resp, err = client.DemoteVolume("", "", "", "", nil)
+	resp, err = client.DemoteVolume(nil, "", "", "", nil)
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 }
@@ -129,23 +130,23 @@ func TestResyncVolume(t *testing.T) {
 	t.Parallel()
 	// return success response
 	mockedResyncVolume := &fake.ReplicationClient{
-		ResyncVolumeMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
+		ResyncVolumeMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
 			return &proto.ResyncVolumeResponse{}, nil
 		},
 	}
 	client := mockedResyncVolume
-	resp, err := client.ResyncVolume("", "", "", "", nil)
+	resp, err := client.ResyncVolume(nil, "", "", "", nil)
 	assert.Equal(t, &proto.ResyncVolumeResponse{}, resp)
 	assert.Nil(t, err)
 
 	// return error
 	mockedResyncVolume = &fake.ReplicationClient{
-		ResyncVolumeMock: func(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
+		ResyncVolumeMock: func(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
 			return nil, errors.New("failed to resync volume")
 		},
 	}
 	client = mockedResyncVolume
-	resp, err = client.ResyncVolume("", "", "", "", nil)
+	resp, err = client.ResyncVolume(nil, "", "", "", nil)
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 }
