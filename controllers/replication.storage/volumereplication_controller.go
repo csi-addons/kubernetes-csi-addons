@@ -382,8 +382,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				instance.Status.LastSyncTime = &lastSyncTime
 			}
 			requeueForInfo = true
-		}
-		if !util.IsUnimplementedError(err) {
+		} else if !util.IsUnimplementedError(err) {
 			logger.Error(err, "Failed to get volume replication info")
 			return ctrl.Result{}, err
 		}
