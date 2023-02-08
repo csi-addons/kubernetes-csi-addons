@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	csiReplication "github.com/csi-addons/spec/lib/go/replication"
 
 	"google.golang.org/grpc"
 )
@@ -33,20 +34,20 @@ type replicationClient struct {
 // VolumeReplication holds the methods required for volume replication.
 type VolumeReplication interface {
 	// EnableVolumeReplication RPC call to enable the volume replication.
-	EnableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
+	EnableVolumeReplication(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
 	// DisableVolumeReplication RPC call to disable the volume replication.
-	DisableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
+	DisableVolumeReplication(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
 	// PromoteVolume RPC call to promote the volume.
-	PromoteVolume(replicationSource *proto.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
+	PromoteVolume(replicationSource *csiReplication.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		PromoteVolumeResponse, error)
 	// DemoteVolume RPC call to demote the volume.
-	DemoteVolume(replicationSource *proto.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.
+	DemoteVolume(replicationSource *csiReplication.ReplicationSource, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		DemoteVolumeResponse, error)
 	// ResyncVolume RPC call to resync the volume.
-	ResyncVolume(replicationSource *proto.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
+	ResyncVolume(replicationSource *csiReplication.ReplicationSource, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
 		ResyncVolumeResponse, error)
 	// GetVolumeReplicationInfo RPC call to get volume replication info.
-	GetVolumeReplicationInfo(replicationSource *proto.ReplicationSource, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
+	GetVolumeReplicationInfo(replicationSource *csiReplication.ReplicationSource, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
 }
 
 // NewReplicationClient returns VolumeReplication interface which has the RPC
@@ -56,7 +57,7 @@ func NewReplicationClient(cc *grpc.ClientConn, timeout time.Duration) VolumeRepl
 }
 
 // EnableVolumeReplication RPC call to enable the volume replication.
-func (rc *replicationClient) EnableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string,
+func (rc *replicationClient) EnableVolumeReplication(replicationSource *csiReplication.ReplicationSource, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
 	req := &proto.EnableVolumeReplicationRequest{
 		ReplicationSource: replicationSource,
@@ -74,7 +75,7 @@ func (rc *replicationClient) EnableVolumeReplication(replicationSource *proto.Re
 }
 
 // DisableVolumeReplication RPC call to disable the volume replication.
-func (rc *replicationClient) DisableVolumeReplication(replicationSource *proto.ReplicationSource, replicationID string,
+func (rc *replicationClient) DisableVolumeReplication(replicationSource *csiReplication.ReplicationSource, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
 	req := &proto.DisableVolumeReplicationRequest{
 		ReplicationSource: replicationSource,
@@ -92,7 +93,7 @@ func (rc *replicationClient) DisableVolumeReplication(replicationSource *proto.R
 }
 
 // PromoteVolume RPC call to promote the volume.
-func (rc *replicationClient) PromoteVolume(replicationSource *proto.ReplicationSource, replicationID string,
+func (rc *replicationClient) PromoteVolume(replicationSource *csiReplication.ReplicationSource, replicationID string,
 	force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
 	req := &proto.PromoteVolumeRequest{
 		ReplicationSource: replicationSource,
@@ -111,7 +112,7 @@ func (rc *replicationClient) PromoteVolume(replicationSource *proto.ReplicationS
 }
 
 // DemoteVolume RPC call to demote the volume.
-func (rc *replicationClient) DemoteVolume(replicationSource *proto.ReplicationSource, replicationID string,
+func (rc *replicationClient) DemoteVolume(replicationSource *csiReplication.ReplicationSource, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
 	req := &proto.DemoteVolumeRequest{
 		ReplicationSource: replicationSource,
@@ -128,7 +129,7 @@ func (rc *replicationClient) DemoteVolume(replicationSource *proto.ReplicationSo
 }
 
 // ResyncVolume RPC call to resync the volume.
-func (rc *replicationClient) ResyncVolume(replicationSource *proto.ReplicationSource, replicationID string, force bool,
+func (rc *replicationClient) ResyncVolume(replicationSource *csiReplication.ReplicationSource, replicationID string, force bool,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
 	req := &proto.ResyncVolumeRequest{
 		ReplicationSource: replicationSource,
@@ -147,7 +148,7 @@ func (rc *replicationClient) ResyncVolume(replicationSource *proto.ReplicationSo
 }
 
 // GetVolumeReplicationInfo RPC call to get volume replication info.
-func (rc *replicationClient) GetVolumeReplicationInfo(replicationSource *proto.ReplicationSource, replicationID,
+func (rc *replicationClient) GetVolumeReplicationInfo(replicationSource *csiReplication.ReplicationSource, replicationID,
 	secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error) {
 	req := &proto.GetVolumeReplicationInfoRequest{
 		ReplicationSource: replicationSource,

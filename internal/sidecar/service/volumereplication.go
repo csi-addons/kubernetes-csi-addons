@@ -66,10 +66,10 @@ func (rs *ReplicationServer) EnableVolumeReplication(
 
 	_, err = rs.controllerClient.EnableVolumeReplication(ctx,
 		&csiReplication.EnableVolumeReplicationRequest{
-			VolumeId:      req.VolumeId,
-			ReplicationId: req.ReplicationId,
-			Parameters:    req.Parameters,
-			Secrets:       data,
+			ReplicationSource: req.ReplicationSource,
+			ReplicationId:     req.ReplicationId,
+			Parameters:        req.Parameters,
+			Secrets:           data,
 		})
 	if err != nil {
 		klog.Errorf("Failed to enable volume replication: %v", err)
@@ -93,10 +93,10 @@ func (rs *ReplicationServer) DisableVolumeReplication(
 
 	_, err = rs.controllerClient.DisableVolumeReplication(ctx,
 		&csiReplication.DisableVolumeReplicationRequest{
-			VolumeId:      req.VolumeId,
-			ReplicationId: req.ReplicationId,
-			Parameters:    req.Parameters,
-			Secrets:       data,
+			ReplicationSource: req.ReplicationSource,
+			ReplicationId:     req.ReplicationId,
+			Parameters:        req.Parameters,
+			Secrets:           data,
 		})
 	if err != nil {
 		klog.Errorf("Failed to disable volume replication: %v", err)
@@ -120,11 +120,11 @@ func (rs *ReplicationServer) PromoteVolume(
 
 	_, err = rs.controllerClient.PromoteVolume(ctx,
 		&csiReplication.PromoteVolumeRequest{
-			VolumeId:      req.VolumeId,
-			ReplicationId: req.ReplicationId,
-			Force:         req.Force,
-			Parameters:    req.Parameters,
-			Secrets:       data,
+			ReplicationSource: req.ReplicationSource,
+			ReplicationId:     req.ReplicationId,
+			Force:             req.Force,
+			Parameters:        req.Parameters,
+			Secrets:           data,
 		})
 	if err != nil {
 		klog.Errorf("Failed to promote volume: %v", err)
@@ -148,11 +148,11 @@ func (rs *ReplicationServer) DemoteVolume(
 
 	_, err = rs.controllerClient.DemoteVolume(ctx,
 		&csiReplication.DemoteVolumeRequest{
-			VolumeId:      req.VolumeId,
-			ReplicationId: req.ReplicationId,
-			Force:         req.Force,
-			Parameters:    req.Parameters,
-			Secrets:       data,
+			ReplicationSource: req.ReplicationSource,
+			ReplicationId:     req.ReplicationId,
+			Force:             req.Force,
+			Parameters:        req.Parameters,
+			Secrets:           data,
 		})
 	if err != nil {
 		klog.Errorf("Failed to demote volume: %v", err)
@@ -176,11 +176,11 @@ func (rs *ReplicationServer) ResyncVolume(
 
 	resp, err := rs.controllerClient.ResyncVolume(ctx,
 		&csiReplication.ResyncVolumeRequest{
-			VolumeId:      req.VolumeId,
-			ReplicationId: req.ReplicationId,
-			Force:         req.Force,
-			Parameters:    req.Parameters,
-			Secrets:       data,
+			ReplicationSource: req.ReplicationSource,
+			ReplicationId:     req.ReplicationId,
+			Force:             req.Force,
+			Parameters:        req.Parameters,
+			Secrets:           data,
 		})
 	if err != nil {
 		klog.Errorf("Failed to resync volume: %v", err)
@@ -206,9 +206,9 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 
 	resp, err := rs.controllerClient.GetVolumeReplicationInfo(ctx,
 		&csiReplication.GetVolumeReplicationInfoRequest{
-			VolumeId:      req.VolumeId,
-			Secrets:       data,
-			ReplicationId: req.ReplicationId,
+			ReplicationSource: req.ReplicationSource,
+			Secrets:           data,
+			ReplicationId:     req.ReplicationId,
 		})
 	if err != nil {
 		klog.Errorf("Failed to get volume replication info: %v", err)
