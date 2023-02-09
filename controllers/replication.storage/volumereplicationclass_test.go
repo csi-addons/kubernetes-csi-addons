@@ -53,7 +53,7 @@ func TestGetVolumeReplicaClass(t *testing.T) {
 		var objects []runtime.Object
 
 		volumeReplication := &replicationv1alpha1.VolumeReplication{}
-		mockVolumeReplicationObj.DeepCopyInto(volumeReplication)
+		mockPVCVolumeReplicationObj.DeepCopyInto(volumeReplication)
 		objects = append(objects, volumeReplication)
 
 		if tc.createVrc {

@@ -193,3 +193,20 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroupcontents
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroups
+  verbs:
+  - get
+  - list
+  - update
+  - watch
