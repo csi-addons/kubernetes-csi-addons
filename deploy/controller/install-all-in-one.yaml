@@ -809,6 +809,7 @@ spec:
             description: VolumeReplicationSpec defines the desired state of VolumeReplication.
             properties:
               autoResync:
+                default: false
                 description: AutoResync represents the volume to be auto resynced
                   when ReplicationState is "secondary"
                 type: boolean
