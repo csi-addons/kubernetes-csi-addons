@@ -153,3 +153,21 @@ deployment.apps/csi-addons-controller-manager   1/1     1            1          
 NAME                                                       DESIRED   CURRENT   READY   AGE
 replicaset.apps/csi-addons-controller-manager-687d47b8c7   1         1         1       49s
 ```
+
+## Resource Requirements
+
+The resource requirements for the CSI-Addons Controller depends on the number of
+PersistentVolumeClaims, Pods, Nodes and CSI-Addons CRs that are deployed in the
+cluster. The resource requirements can be adjusted by the user depending on the
+requirements of the cluster after observation. The default resource requirements
+for the CSI-Addons Controller are as follows:
+
+```yaml
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+```
