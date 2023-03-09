@@ -71,6 +71,7 @@ type VolumeReplicationSpec struct {
 
 	// AutoResync represents the volume to be auto resynced when
 	// ReplicationState is "secondary"
+	// +kubebuilder:default:=false
 	AutoResync bool `json:"autoResync"`
 
 	// replicationHandle represents an existing (but new) replication id
