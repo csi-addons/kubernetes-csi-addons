@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/kubernetes-csi/csi-lib-utils v0.13.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.27.2
+	github.com/onsi/gomega v1.27.3
 	github.com/operator-framework/operator-sdk v1.27.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.2
@@ -83,7 +83,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-migrate/migrate/v4 v4.6.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/cel-go v0.12.6 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
