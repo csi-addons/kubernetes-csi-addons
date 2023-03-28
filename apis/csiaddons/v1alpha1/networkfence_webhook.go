@@ -61,7 +61,7 @@ func (n *NetworkFence) ValidateUpdate(old runtime.Object) error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("driver"), n.Spec.Driver, "driver cannot be changed"))
 	}
 
-	if reflect.DeepEqual(n.Spec.Parameters, oldNetworkFence.Spec.Parameters) {
+	if !reflect.DeepEqual(n.Spec.Parameters, oldNetworkFence.Spec.Parameters) {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("parameters"), n.Spec.Parameters, "parameters cannot be changed"))
 	}
 

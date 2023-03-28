@@ -116,7 +116,7 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: generate-protobuf
 generate-protobuf: protoc-gen-go protoc-gen-go-grpc
-	PATH=$(PATH):$(shell pwd)/bin go generate ./internal/proto
+	PATH=$(shell pwd)/bin:$(PATH) go generate ./internal/proto
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
