@@ -80,6 +80,11 @@ func GetResolver(resolver ResolverOption, args map[string]string) (ImageResolver
 		username, ok := args["username"]
 		if ok {
 			opts = append(opts, WithUserPassAuth(username, args["password"]))
+		} else {
+			usedefault := args["usedefault"]
+			if usedefault == "true" {
+				opts = append(opts, WithDefaultKeychain())
+			}
 		}
 
 		return NewCraneResolver(opts...), nil

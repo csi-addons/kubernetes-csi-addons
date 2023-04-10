@@ -81,6 +81,13 @@ func (s *apiScaffolder) Scaffold() error {
 		); err != nil {
 			return fmt.Errorf("error scaffolding kustomize API manifests: %v", err)
 		}
+
+		// If the gvk is non-empty
+		if s.resource.Group != "" || s.resource.Version != "" || s.resource.Kind != "" {
+			if err := scaffold.Execute(&samples.Kustomization{}); err != nil {
+				return fmt.Errorf("error scaffolding manifests: %v", err)
+			}
+		}
 	}
 
 	return nil
