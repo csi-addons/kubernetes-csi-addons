@@ -10,6 +10,7 @@ var _ ImageResolver = CraneResolver{}
 // DefaultResolver uses the containers series of libraries to resolve image digests
 type CraneResolver struct {
 	authenticator authn.Authenticator
+	useDefault    bool
 }
 
 // CraneOption is a function that configures the `CraneResolver`
@@ -19,6 +20,13 @@ type CraneOption func(*CraneResolver)
 func WithUserPassAuth(username, password string) CraneOption {
 	return func(res *CraneResolver) {
 		res.authenticator = &authn.Basic{Username: username, Password: password}
+	}
+}
+
+// WithDefaultAuth returns a CraneOption that sets the auth to the default keychain
+func WithDefaultKeychain() CraneOption {
+	return func(res *CraneResolver) {
+		res.useDefault = true
 	}
 }
 
@@ -33,7 +41,13 @@ func NewCraneResolver(opts ...CraneOption) CraneResolver {
 }
 
 func (res CraneResolver) ResolveImageReference(imageReference string) (string, error) {
-	digest, err := crane.Digest(imageReference, crane.WithAuth(res.authenticator))
+	var digest string
+	var err error
+	if res.useDefault {
+		digest, err = crane.Digest(imageReference)
+	} else {
+		digest, err = crane.Digest(imageReference, crane.WithAuth(res.authenticator))
+	}
 	if err != nil {
 		return "", err
 	}
