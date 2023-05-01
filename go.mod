@@ -9,7 +9,7 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.13.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.27.6
-	github.com/operator-framework/operator-sdk v1.28.0
+	github.com/operator-framework/operator-sdk v1.28.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.24.0
