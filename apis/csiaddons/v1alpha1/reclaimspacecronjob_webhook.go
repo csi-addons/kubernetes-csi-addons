@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -39,20 +39,20 @@ func (r *ReclaimSpaceCronJob) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/validate-csiaddons-openshift-io-v1alpha1-reclaimspacecronjob,mutating=false,failurePolicy=fail,sideEffects=None,groups=csiaddons.openshift.io,resources=reclaimspacecronjobs,verbs=update,versions=v1alpha1,name=vreclaimspacecronjob.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &ReclaimSpaceCronJob{}
+var _ admission.Validator = &ReclaimSpaceCronJob{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceCronJob) ValidateCreate() error {
-	return nil
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type
+func (r *ReclaimSpaceCronJob) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) error {
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type
+func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	rsjLog.Info("validate update", "name", r.Name)
 
 	oldReclaimSpaceCronJob, ok := old.(*ReclaimSpaceCronJob)
 	if !ok {
-		return errors.New("error casting ReclaimSpaceCronJob object")
+		return nil, errors.New("error casting ReclaimSpaceCronJob object")
 	}
 
 	var allErrs field.ErrorList
@@ -62,14 +62,14 @@ func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "csiaddons.openshift.io", Kind: "ReclaimSpaceCronJob"},
 			r.Name, allErrs)
 	}
-	return nil
+	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceCronJob) ValidateDelete() error {
-	return nil
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type
+func (r *ReclaimSpaceCronJob) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }

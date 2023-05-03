@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -39,20 +39,20 @@ func (r *ReclaimSpaceJob) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/validate-csiaddons-openshift-io-v1alpha1-reclaimspacejob,mutating=false,failurePolicy=fail,sideEffects=None,groups=csiaddons.openshift.io,resources=reclaimspacejobs,verbs=update,versions=v1alpha1,name=vreclaimspacejob.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &ReclaimSpaceJob{}
+var _ admission.Validator = &ReclaimSpaceJob{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceJob) ValidateCreate() error {
-	return nil
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type
+func (r *ReclaimSpaceJob) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceJob) ValidateUpdate(old runtime.Object) error {
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type
+func (r *ReclaimSpaceJob) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	rsjLog.Info("validate update", "name", r.Name)
 
 	oldReclaimSpaceJob, ok := old.(*ReclaimSpaceJob)
 	if !ok {
-		return errors.New("error casting ReclaimSpaceJob object")
+		return nil, errors.New("error casting ReclaimSpaceJob object")
 	}
 
 	var allErrs field.ErrorList
@@ -62,15 +62,15 @@ func (r *ReclaimSpaceJob) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "csiaddons.openshift.io", Kind: "ReclaimSpaceJob"},
 			r.Name, allErrs)
 	}
 
-	return nil
+	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceJob) ValidateDelete() error {
-	return nil
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type
+func (r *ReclaimSpaceJob) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }

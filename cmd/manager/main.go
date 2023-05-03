@@ -98,9 +98,9 @@ func main() {
 
 	connPool := connection.NewConnectionPool()
 
-	ctrlOptions := controller.Options{
-		MaxConcurrentReconciles: maxConcurrentReconciles,
-	}
+	ctrlOptions := controller.Options{}
+	ctrlOptions.MaxConcurrentReconciles = maxConcurrentReconciles
+
 	if err = (&controllers.CSIAddonsNodeReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),

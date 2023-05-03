@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -40,20 +40,20 @@ func (v *VolumeReplication) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/validate-replication-storage-openshift-io-v1alpha1-volumereplication,mutating=false,failurePolicy=fail,sideEffects=None,groups=replication.storage.openshift.io,resources=volumereplications,verbs=update,versions=v1alpha1,name=vvolumereplication.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &VolumeReplication{}
+var _ admission.Validator = &VolumeReplication{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (v *VolumeReplication) ValidateCreate() error {
-	return nil
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type
+func (v *VolumeReplication) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (v *VolumeReplication) ValidateUpdate(old runtime.Object) error {
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type
+func (v *VolumeReplication) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	vrLog.Info("validate update", "name", v.Name)
 
 	oldReplication, ok := old.(*VolumeReplication)
 	if !ok {
-		return errors.New("error casting old VolumeReplication object")
+		return nil, errors.New("error casting old VolumeReplication object")
 	}
 
 	var allErrs field.ErrorList
@@ -69,15 +69,15 @@ func (v *VolumeReplication) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "replication.storage.openshift.io", Kind: "VolumeReplication"},
 			v.Name, allErrs)
 	}
 
-	return nil
+	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (v *VolumeReplication) ValidateDelete() error {
-	return nil
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type
+func (v *VolumeReplication) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }

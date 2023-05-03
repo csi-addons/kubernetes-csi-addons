@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -40,20 +40,20 @@ func (n *NetworkFence) SetupWebhookWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:webhook:path=/validate-csiaddons-openshift-io-v1alpha1-networkfence,mutating=false,failurePolicy=fail,sideEffects=None,groups=csiaddons.openshift.io,resources=networkfences,verbs=update,versions=v1alpha1,name=vnetworkfence.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &NetworkFence{}
+var _ admission.Validator = &NetworkFence{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (n *NetworkFence) ValidateCreate() error {
-	return nil
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type
+func (n *NetworkFence) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (n *NetworkFence) ValidateUpdate(old runtime.Object) error {
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type
+func (n *NetworkFence) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	nfLog.Info("validate update", "name", n.Name)
 
 	oldNetworkFence, ok := old.(*NetworkFence)
 	if !ok {
-		return errors.New("error casting NetworkFence object")
+		return nil, errors.New("error casting NetworkFence object")
 	}
 
 	var allErrs field.ErrorList
@@ -74,15 +74,15 @@ func (n *NetworkFence) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "csiaddons.openshift.io", Kind: "NetworkFence"},
 			n.Name, allErrs)
 	}
 
-	return nil
+	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (n *NetworkFence) ValidateDelete() error {
-	return nil
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type
+func (n *NetworkFence) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
