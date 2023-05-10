@@ -180,15 +180,6 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 	}
 
 	pred := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			if e.Object == nil {
-				return false
-			}
-			// reconcile only if schedule annotation is found.
-			_, ok := e.Object.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-
-			return ok
-		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.ObjectNew == nil || e.ObjectOld == nil {
 				return false
