@@ -22,66 +22,12 @@ import (
 	"testing"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
-
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-func TestGetScheduleFromAnnotation(t *testing.T) {
-	type args struct {
-		logger      *logr.Logger
-		annotations map[string]string
-	}
-	logger := log.FromContext(context.TODO())
-	tests := []struct {
-		name  string
-		args  args
-		want  string
-		want1 bool
-	}{
-		{
-			name: "no scheduling annotation set",
-			args: args{
-				logger:      &logger,
-				annotations: map[string]string{},
-			},
-			want:  "",
-			want1: false,
-		},
-		{
-			name: "valid scheduling annotation set",
-			args: args{
-				logger: &logger,
-				annotations: map[string]string{
-					rsCronJobScheduleTimeAnnotation: "@weekly",
-				},
-			},
-			want:  "@weekly",
-			want1: true,
-		},
-		{
-			name: "invalid scheduling annotation set",
-			args: args{
-				logger: &logger,
-				annotations: map[string]string{
-					rsCronJobScheduleTimeAnnotation: "@daytime",
-				},
-			},
-			want:  defaultSchedule,
-			want1: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getScheduleFromAnnotation(tt.args.logger, tt.args.annotations)
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.want1, got1)
-		})
-	}
-}
 
 func TestConstructRSCronJob(t *testing.T) {
 	type args struct {
@@ -246,6 +192,59 @@ func TestGenerateCronJobName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := generateCronJobName(tt.args.parentName)
 			assert.True(t, strings.HasPrefix(got, tt.want))
+		})
+	}
+}
+
+func TestGetScheduleFromAnnotation(t *testing.T) {
+	type args struct {
+		logger      *logr.Logger
+		annotations map[string]string
+	}
+	logger := log.FromContext(context.TODO())
+	tests := []struct {
+		name  string
+		args  args
+		want  string
+		want1 bool
+	}{
+		{
+			name: "no scheduling annotation set",
+			args: args{
+				logger:      &logger,
+				annotations: map[string]string{},
+			},
+			want:  "",
+			want1: false,
+		},
+		{
+			name: "valid scheduling annotation set",
+			args: args{
+				logger: &logger,
+				annotations: map[string]string{
+					rsCronJobScheduleTimeAnnotation: "@weekly",
+				},
+			},
+			want:  "@weekly",
+			want1: true,
+		},
+		{
+			name: "invalid scheduling annotation set",
+			args: args{
+				logger: &logger,
+				annotations: map[string]string{
+					rsCronJobScheduleTimeAnnotation: "@daytime",
+				},
+			},
+			want:  defaultSchedule,
+			want1: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := getScheduleFromAnnotation(tt.args.logger, tt.args.annotations)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.want1, got1)
 		})
 	}
 }
