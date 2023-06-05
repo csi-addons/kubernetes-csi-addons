@@ -175,6 +175,7 @@ type targetDetails struct {
 	driverName string
 	pvName     string
 	nodeID     string
+	timeout    time.Duration
 }
 
 // canNodeReclaimSpace returns true if nodeID is not empty,
@@ -211,7 +212,7 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 		return nil
 	}
 
-	target, err := r.getTargetDetails(ctx, logger, rsJob.Spec.Target, namespace)
+	target, err := r.getTargetDetails(ctx, logger, rsJob.Spec, namespace)
 	if err != nil {
 		logger.Error(err, "Failed to get target details")
 		setFailedCondition(
@@ -284,10 +285,10 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	ctx context.Context,
 	logger *logr.Logger,
-	target csiaddonsv1alpha1.TargetSpec,
+	spec csiaddonsv1alpha1.ReclaimSpaceJobSpec,
 	namespace string) (*targetDetails, error) {
-	*logger = logger.WithValues("PVCName", target.PersistentVolumeClaim, "PVCNamespace", namespace)
-	req := types.NamespacedName{Name: target.PersistentVolumeClaim, Namespace: namespace}
+	*logger = logger.WithValues("PVCName", spec.Target.PersistentVolumeClaim, "PVCNamespace", namespace)
+	req := types.NamespacedName{Name: spec.Target.PersistentVolumeClaim, Namespace: namespace}
 	pvc := &corev1.PersistentVolumeClaim{}
 
 	err := r.Client.Get(ctx, req, pvc)
@@ -322,6 +323,8 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	details := targetDetails{
 		driverName: pv.Spec.CSI.Driver,
 		pvName:     pv.Name,
+		// Set global default timeout.
+		timeout: r.Timeout,
 	}
 	for _, v := range volumeAttachments.Items {
 		if v.DeletionTimestamp.IsZero() && v.Status.Attached && *v.Spec.Source.PersistentVolumeName == pv.Name {
@@ -330,6 +333,12 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 			break
 		}
 	}
+	// Override global default timeout if timeout is specified
+	// in spec.
+	if spec.Timeout != nil {
+		details.timeout = time.Second * time.Duration(*spec.Timeout)
+	}
+	*logger = logger.WithValues("Timeout", details.timeout)
 
 	return &details, nil
 }
@@ -374,7 +383,7 @@ func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	req := &proto.ReclaimSpaceRequest{
 		PvName: target.pvName,
 	}
-	newCtx, cancel := context.WithTimeout(ctx, r.Timeout)
+	newCtx, cancel := context.WithTimeout(ctx, target.timeout)
 	defer cancel()
 	resp, err := controllerClient.ControllerReclaimSpace(newCtx, req)
 	if err != nil {
@@ -411,7 +420,7 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	req := &proto.ReclaimSpaceRequest{
 		PvName: target.pvName,
 	}
-	newCtx, cancel := context.WithTimeout(ctx, r.Timeout)
+	newCtx, cancel := context.WithTimeout(ctx, target.timeout)
 	defer cancel()
 	resp, err := nodeClient.NodeReclaimSpace(newCtx, req)
 	if err != nil {

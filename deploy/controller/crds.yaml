@@ -395,6 +395,14 @@ spec:
                               PersistentVolumeClaim name.
                             type: string
                         type: object
+                      timeout:
+                        description: Timeout specifies the timeout in seconds for
+                          the grpc request sent to the CSI driver. If not specified,
+                          defaults to global reclaimspace timeout. Minimum allowed
+                          value is 60.
+                        format: int64
+                        minimum: 60
+                        type: integer
                     required:
                     - target
                     type: object
@@ -566,6 +574,13 @@ spec:
                       name.
                     type: string
                 type: object
+              timeout:
+                description: Timeout specifies the timeout in seconds for the grpc
+                  request sent to the CSI driver. If not specified, defaults to global
+                  reclaimspace timeout. Minimum allowed value is 60.
+                format: int64
+                minimum: 60
+                type: integer
             required:
             - target
             type: object

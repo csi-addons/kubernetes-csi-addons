@@ -64,6 +64,13 @@ type ReclaimSpaceJobSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default:=600
 	RetryDeadlineSeconds int64 `json:"retryDeadlineSeconds"`
+
+	// Timeout specifies the timeout in seconds for the grpc request sent to the
+	// CSI driver. If not specified, defaults to global reclaimspace timeout.
+	// Minimum allowed value is 60.
+	// +optional
+	// +kubebuilder:validation:Minimum=60
+	Timeout *int64 `json:"timeout,omitempty"`
 }
 
 // ReclaimSpaceJobStatus defines the observed state of ReclaimSpaceJob
