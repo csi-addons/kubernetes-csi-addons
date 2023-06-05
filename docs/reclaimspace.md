@@ -12,12 +12,14 @@ spec:
     persistentVolumeClaim: pvc-1
   backOffLimit: 10
   retryDeadlineSeconds: 900
+  timeout: 600
 ```
 
 + `target` represents volume target on which the operation will be performed.
   + `persistentVolumeClaim` contains a string indicating the name of `PersistentVolumeClaim`.
 + `backOfflimit` specifies the number of retries before marking reclaim space operation as failed. If not specified, defaults to 6. Maximum allowed value is 60 and minimum allowed value is 0.
 + `retryDeadlineSeconds` specifies the duration in seconds relative to the start time that the operation may be retried; value must be positive integer. If not specified, defaults to 600 seconds. Maximum allowed value is 1800.
++ `timeout` specifies the timeout in seconds for the grpc request sent to the CSI driver. If not specified, defaults to global reclaimspace timeout. Minimum allowed value is 60.
 
 ## ReclaimSpaceCronJob
 
