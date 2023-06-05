@@ -15,6 +15,8 @@ The CSI-Addons Controller can be deployed by different ways:
 | `--max-concurrent-reconciles` | 100             | Maximum number of concurrent reconciles       |
 | `--enable-admission-webhooks` | `true`          | Enable the admission webhooks                 |
 
+> Note: Some of the above configuration options can also be configured using [`"csi-addons-config"` configmap](./csi-addons-config.md).
+
 ## Installation for versioned deployments
 
 The CSI-Addons Controller can also be installed  using the yaml files in `deploy/controller`.
