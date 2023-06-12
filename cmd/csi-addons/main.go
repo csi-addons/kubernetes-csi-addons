@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -133,7 +134,9 @@ type grpcClient struct {
 
 // Connect to the endpoint, or panic in case it fails.
 func (g *grpcClient) Connect(endpoint string) {
-	conn, err := grpc.Dial(endpoint, grpc.WithInsecure())
+	conn, err := grpc.Dial(
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect to %q: %v", endpoint, err))
 	}
