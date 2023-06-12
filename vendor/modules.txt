@@ -617,7 +617,7 @@ github.com/operator-framework/api/pkg/validation
 github.com/operator-framework/api/pkg/validation/errors
 github.com/operator-framework/api/pkg/validation/interfaces
 github.com/operator-framework/api/pkg/validation/internal
-# github.com/operator-framework/helm-operator-plugins v0.0.12-0.20230307164205-6e30bde28688
+# github.com/operator-framework/helm-operator-plugins v0.0.12-0.20230413193425-4632388adc61
 ## explicit; go 1.19
 github.com/operator-framework/helm-operator-plugins/pkg/plugins/helm/v1/chartutil
 github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha
@@ -659,7 +659,7 @@ github.com/operator-framework/operator-registry/pkg/lib/validation
 github.com/operator-framework/operator-registry/pkg/registry
 github.com/operator-framework/operator-registry/pkg/sqlite
 github.com/operator-framework/operator-registry/pkg/sqlite/migrations
-# github.com/operator-framework/operator-sdk v1.28.1
+# github.com/operator-framework/operator-sdk v1.29.0
 ## explicit; go 1.19
 github.com/operator-framework/operator-sdk/cmd/operator-sdk
 github.com/operator-framework/operator-sdk/internal/annotations/metrics
