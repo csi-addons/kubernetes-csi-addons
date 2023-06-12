@@ -138,7 +138,7 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	//	We'll prep our eventual request to requeue until the next job, and then figure
 	//	out if we actually need to run.
-	scheduledResult := ctrl.Result{RequeueAfter: nextRun.Sub(time.Now())} // save this so we can re-use it elsewhere
+	scheduledResult := ctrl.Result{RequeueAfter: time.Until(nextRun)} // save this so we can re-use it elsewhere
 	logger = logger.WithValues("now", time.Now(), "nextRun", nextRun)
 
 	// If we've missed a run, and we're still within the deadline to start it, we'll need to run a job.
