@@ -129,6 +129,10 @@ github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/containerd/ttrpc v1.1.0
 ## explicit; go 1.13
 github.com/containerd/ttrpc
+# github.com/csi-addons/kubernetes-csi-addons/apis v0.0.0-00010101000000-000000000000 => ./apis
+## explicit
+github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
+github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
 # github.com/csi-addons/spec v0.2.1-0.20230606140122-d20966d2e444
 ## explicit
 github.com/csi-addons/spec/lib/go/fence
@@ -1904,3 +1908,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/csi-addons/kubernetes-csi-addons/apis => ./apis
