@@ -1,6 +1,7 @@
 syntax = "proto3";
 package proto;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
@@ -206,4 +207,16 @@ message GetVolumeReplicationInfoResponse{
   // Holds the last sync time.
   // This field is REQUIRED.
   .google.protobuf.Timestamp last_sync_time = 1;
+  // Holds the last sync duration.
+  // last_sync_duration represents the time taken
+  // to execute the last sync operation.
+  // This field is OPTIONAL.
+  .google.protobuf.Duration last_sync_duration = 2;
+  // Holds the last sync bytes.
+  // Represents number of bytes transferred
+  // with the last synchronization.
+  // A value of 0 is equal to an unspecified field value.
+  // The value of this field MUST NOT be negative.
+  // This field is OPTIONAL.
+  int64 last_sync_bytes = 3;
 }
