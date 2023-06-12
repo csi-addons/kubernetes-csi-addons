@@ -144,6 +144,7 @@ bundle-validate: operator-sdk
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/manager/main.go
+	go build -o bin/sidecar sidecar/main.go
 	go build -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
