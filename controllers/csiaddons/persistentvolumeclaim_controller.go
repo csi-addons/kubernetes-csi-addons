@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -56,9 +55,6 @@ var (
 	rsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
 	rsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
 	csiAddonsDriverAnnotation       = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
-
-	// errDriverNotFound is returned when driver is not found in connection pool.
-	errDriverNotFound = errors.New("driver not found in connection pool")
 )
 
 const (
