@@ -48,7 +48,7 @@ func (r *ReclaimSpaceCronJob) ValidateCreate() error {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) error {
-	rsjLog.Info("validate update", "name", r.Name)
+	rscjLog.Info("validate update", "name", r.Name)
 
 	oldReclaimSpaceCronJob, ok := old.(*ReclaimSpaceCronJob)
 	if !ok {
