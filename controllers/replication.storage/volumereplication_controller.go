@@ -380,6 +380,17 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			if ts != nil {
 				lastSyncTime := metav1.NewTime(ts.AsTime())
 				instance.Status.LastSyncTime = &lastSyncTime
+				instance.Status.LastSyncDuration = nil
+				instance.Status.LastSyncBytes = nil
+				td := info.GetLastSyncDuration()
+				if td != nil {
+					lastSyncDuration := metav1.Duration{Duration: td.AsDuration()}
+					instance.Status.LastSyncDuration = &lastSyncDuration
+				}
+				tb := info.GetLastSyncBytes()
+				if tb != 0 {
+					instance.Status.LastSyncBytes = &tb
+				}
 			}
 			requeueForInfo = true
 		} else if !util.IsUnimplementedError(err) {
