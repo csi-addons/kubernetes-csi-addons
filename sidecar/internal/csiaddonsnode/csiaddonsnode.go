@@ -86,7 +86,7 @@ func (mgr *Manager) Deploy() error {
 	}
 
 	// loop until the CSIAddonsNode has been created
-	wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
+	return wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
 		err := mgr.newCSIAddonsNode(object)
 		if err != nil {
 			klog.Errorf("failed to create CSIAddonsNode %s/%s: %v",
@@ -99,8 +99,6 @@ func (mgr *Manager) Deploy() error {
 		// no error, so the CSIAddonsNode has been created
 		return true, nil
 	})
-
-	return nil
 }
 
 // newCSIAddonsNode initializes the CRD and creates the CSIAddonsNode object in
