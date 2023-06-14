@@ -1,13 +1,17 @@
 ---
 name: Build and release versioned container images
 
+# yamllint disable-line rule:truthy
 on:
   create
 
 jobs:
   tag_bundle:
     name: Build and release the bundle container-image
-    if: github.repository == 'csi-addons/kubernetes-csi-addons' && github.ref_type  == 'tag'
+    if: >
+      github.repository == 'csi-addons/kubernetes-csi-addons'
+      &&
+      github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -41,7 +45,10 @@ jobs:
 
   tag_controller:
     name: Build and release the controller container-image
-    if: github.repository == 'csi-addons/kubernetes-csi-addons' && github.ref_type  == 'tag'
+    if: >
+      github.repository == 'csi-addons/kubernetes-csi-addons'
+      &&
+      github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -71,7 +78,10 @@ jobs:
 
   tag_sidecar:
     name: Build and release the sidecar container-image
-    if: github.repository == 'csi-addons/kubernetes-csi-addons' && github.ref_type  == 'tag'
+    if: >
+      github.repository == 'csi-addons/kubernetes-csi-addons'
+      &&
+      github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -101,7 +111,10 @@ jobs:
 
   publish_release:
     name: Publish a release based on the tag
-    if: github.repository == 'csi-addons/kubernetes-csi-addons' && github.ref_type  == 'tag'
+    if: >
+      github.repository == 'csi-addons/kubernetes-csi-addons'
+      &&
+      github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
