@@ -1,6 +1,7 @@
 ---
 name: Run Golang tests
 
+# yamllint disable-line rule:truthy
 on:
   pull_request:
     branches:

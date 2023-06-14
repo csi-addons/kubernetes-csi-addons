@@ -1,6 +1,7 @@
 ---
 name: Test deploying controller
 
+# yamllint disable-line rule:truthy
 on:
   pull_request:
     branches:
@@ -33,14 +34,27 @@ jobs:
           tags: quay.io/csiaddons/k8s-controller:${{ env.TAG }}
 
       - name: push image to kind cluster
-        run: kind load docker-image quay.io/csiaddons/k8s-controller:${{ env.TAG }} --name=chart-testing
+        run: >
+          kind
+          load docker-image quay.io/csiaddons/k8s-controller:${{ env.TAG }}
+          --name=chart-testing
 
       - name: Deploy the controller and CRDs
         run: make deploy TAG=${{ env.TAG }}
 
       - name: Wait for running controller pod
-        run: kubectl -n csi-addons-system wait pods -l app.kubernetes.io/name=csi-addons --for=condition=Ready=True
+        run: >
+          kubectl
+          -n csi-addons-system
+          wait pods
+          -l app.kubernetes.io/name=csi-addons
+          --for=condition=Ready=True
 
       - name: Log the status of the failed controller pod
         if: ${{ failure() }}
-        run: kubectl -n csi-addons-system describe pods -l app.kubernetes.io/name=csi-addons ; false
+        run: >
+          kubectl
+          -n csi-addons-system
+          describe pods
+          -l app.kubernetes.io/name=csi-addons
+          ; false

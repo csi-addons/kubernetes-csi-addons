@@ -1,6 +1,7 @@
 ---
 name: Publish container images in quay.io
 
+# yamllint disable-line rule:truthy
 on:
   push:
     branches:

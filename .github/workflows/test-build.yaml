@@ -1,6 +1,7 @@
 ---
 name: Test building container images
 
+# yamllint disable-line rule:truthy
 on:
   pull_request:
     branches:
