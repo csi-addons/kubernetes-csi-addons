@@ -10,7 +10,7 @@ namespace: csi-addons-system
 namePrefix: csi-addons-
 
 resources:
-- certificate.yaml
+  - certificate.yaml
 
 configurations:
-- kustomizeconfig.yaml
+  - kustomizeconfig.yaml

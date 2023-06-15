@@ -5,17 +5,17 @@ kind: ClusterRole
 metadata:
   name: csiaddonsnode-viewer-role
 rules:
-- apiGroups:
-  - csiaddons.openshift.io
-  resources:
-  - csiaddonsnodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - csiaddons.openshift.io
-  resources:
-  - csiaddonsnodes/status
-  verbs:
-  - get
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - csiaddonsnodes/status
+    verbs:
+      - get

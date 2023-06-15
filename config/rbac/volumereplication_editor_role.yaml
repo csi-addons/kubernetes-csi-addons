@@ -5,21 +5,21 @@ kind: ClusterRole
 metadata:
   name: volumereplication-editor-role
 rules:
-- apiGroups:
-  - replication.storage.openshift.io
-  resources:
-  - volumereplications
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - replication.storage.openshift.io
-  resources:
-  - volumereplications/status
-  verbs:
-  - get
+  - apiGroups:
+      - replication.storage.openshift.io
+    resources:
+      - volumereplications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - replication.storage.openshift.io
+    resources:
+      - volumereplications/status
+    verbs:
+      - get
