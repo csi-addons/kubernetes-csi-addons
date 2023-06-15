@@ -1,3 +1,4 @@
+---
 # Adds namespace to all resources.
 namespace: csi-addons-system
 

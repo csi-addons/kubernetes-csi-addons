@@ -1,3 +1,4 @@
+---
 apiVersion: replication.storage.openshift.io/v1alpha1
 kind: VolumeReplication
 metadata:
