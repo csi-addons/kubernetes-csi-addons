@@ -5,17 +5,17 @@ kind: ClusterRole
 metadata:
   name: volumereplicationclass-viewer-role
 rules:
-- apiGroups:
-  - replication.storage.openshift.io
-  resources:
-  - volumereplicationclasses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - replication.storage.openshift.io
-  resources:
-  - volumereplicationclasses/status
-  verbs:
-  - get
+  - apiGroups:
+      - replication.storage.openshift.io
+    resources:
+      - volumereplicationclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - replication.storage.openshift.io
+    resources:
+      - volumereplicationclasses/status
+    verbs:
+      - get

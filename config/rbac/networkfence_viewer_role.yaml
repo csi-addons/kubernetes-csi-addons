@@ -5,17 +5,17 @@ kind: ClusterRole
 metadata:
   name: networkfence-viewer-role
 rules:
-- apiGroups:
-  - csiaddons.openshift.io
-  resources:
-  - networkfences
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - csiaddons.openshift.io
-  resources:
-  - networkfences/status
-  verbs:
-  - get
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - networkfences
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - networkfences/status
+    verbs:
+      - get

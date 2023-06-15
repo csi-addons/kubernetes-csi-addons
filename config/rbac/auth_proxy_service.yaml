@@ -8,9 +8,9 @@ metadata:
   namespace: system
 spec:
   ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: https
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: https
   selector:
     app.kubernetes.io/name: csi-addons

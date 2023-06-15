@@ -5,21 +5,21 @@ kind: ClusterRole
 metadata:
   name: networkfence-editor-role
 rules:
-- apiGroups:
-  - csiaddons.openshift.io
-  resources:
-  - networkfences
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - csiaddons.openshift.io
-  resources:
-  - networkfences/status
-  verbs:
-  - get
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - networkfences
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - csiaddons.openshift.io
+    resources:
+      - networkfences/status
+    verbs:
+      - get
