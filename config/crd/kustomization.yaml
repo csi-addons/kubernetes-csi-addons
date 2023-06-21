@@ -11,6 +11,9 @@ resources:
   - bases/csiaddons.openshift.io_networkfences.yaml
   - bases/replication.storage.openshift.io_volumereplications.yaml
   - bases/replication.storage.openshift.io_volumereplicationclasses.yaml
+  - bases/volumegroup.storage.openshift.io_volumegroupclasses.yaml
+  - bases/volumegroup.storage.openshift.io_volumegroupcontents.yaml
+  - bases/volumegroup.storage.openshift.io_volumegroups.yaml
 # yamllint disable-line rule:comments
 #+kubebuilder:scaffold:crdkustomizeresource
 

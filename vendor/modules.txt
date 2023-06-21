@@ -12,12 +12,13 @@ github.com/cespare/xxhash/v2
 # github.com/container-storage-interface/spec v1.8.0
 ## explicit; go 1.18
 github.com/container-storage-interface/spec/lib/go/csi
-# github.com/csi-addons/spec v0.2.1-0.20230606140122-d20966d2e444
+# github.com/csi-addons/spec v0.2.1-0.20230606140122-d20966d2e444 => github.com/matancarmeli7/spec v0.0.0-20230711062057-d8d78175c552
 ## explicit
 github.com/csi-addons/spec/lib/go/fence
 github.com/csi-addons/spec/lib/go/identity
 github.com/csi-addons/spec/lib/go/reclaimspace
 github.com/csi-addons/spec/lib/go/replication
+github.com/csi-addons/spec/lib/go/volumegroup
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
@@ -80,6 +81,7 @@ github.com/google/gnostic/openapiv3
 # github.com/google/go-cmp v0.5.9
 ## explicit; go 1.13
 github.com/google/go-cmp/cmp
+github.com/google/go-cmp/cmp/cmpopts
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
@@ -323,6 +325,8 @@ google.golang.org/grpc/internal/transport/networktype
 google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
 google.golang.org/grpc/peer
+google.golang.org/grpc/reflection
+google.golang.org/grpc/reflection/grpc_reflection_v1alpha
 google.golang.org/grpc/resolver
 google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
@@ -740,3 +744,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/csi-addons/spec => github.com/matancarmeli7/spec v0.0.0-20230711062057-d8d78175c552
