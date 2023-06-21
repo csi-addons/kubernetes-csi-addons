@@ -192,7 +192,7 @@ docker-push-bundle: container-cmd
 
 .PHONY: docker-build-tools
 docker-generate-protobuf: container-cmd ./build/Containerfile.tools
-	$(CONTAINER_CMD) build -f $^ -t ${TOOLS_IMG} .
+	$(CONTAINER_CMD) build -f ./build/Containerfile.tools -t ${TOOLS_IMG} .
 	$(CONTAINER_CMD) run --rm -ti --volume=${PWD}:/go/src/github.com/csi-addons/kubernetes-csi-addons:Z ${TOOLS_IMG} make generate-protobuf
 
 ##@ Deployment
