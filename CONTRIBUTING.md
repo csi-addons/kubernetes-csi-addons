@@ -33,4 +33,4 @@ someone in the @csi-addons/kubernetes-csi-addons-reviewers team is required.
 After a Pull-Request has been reviewed and approved, it will get merged
 automatically by the Mergify bot (@mergifyio).
 
-[github_pr]: https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request
+[github_pr]: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request
