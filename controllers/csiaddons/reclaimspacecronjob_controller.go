@@ -388,9 +388,13 @@ func getNextSchedule(
 		starts++
 		if starts > 100 {
 			// We can't get the most recent times so just return an empty slice
+			// This may occur due to low startingDeadlineSeconds, clock skew or
+			// when user has reduced the schedule which in turn
+			// leads to the new interval being less than 100 times of the old interval.
 			return time.Time{}, time.Time{},
 				fmt.Errorf("too many missed start times (> 100). Set or decrease" +
-					".spec.startingDeadlineSeconds or check clock skew.")
+					".spec.startingDeadlineSeconds, check clock skew or" +
+					" delete and recreate reclaimspacecronjob.")
 		}
 	}
 	return lastMissed, sched.Next(now), nil
