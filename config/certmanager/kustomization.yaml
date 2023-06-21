@@ -1,3 +1,4 @@
+---
 # Adds namespace to all resources.
 namespace: csi-addons-system
 
@@ -9,7 +10,7 @@ namespace: csi-addons-system
 namePrefix: csi-addons-
 
 resources:
-- certificate.yaml
+  - certificate.yaml
 
 configurations:
-- kustomizeconfig.yaml
+  - kustomizeconfig.yaml

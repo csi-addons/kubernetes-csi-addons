@@ -17,13 +17,12 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 
 	"google.golang.org/grpc"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -113,22 +112,6 @@ func getKubernetesClient() *kubernetes.Clientset {
 	return clientset
 }
 
-// getSecret get the secret details by name.
-func getSecret(c *kubernetes.Clientset, ns, name string) (map[string]string, error) {
-	secrets := make(map[string]string)
-
-	secret, err := c.CoreV1().Secrets(ns).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	for k, v := range secret.Data {
-		secrets[k] = string(v)
-	}
-
-	return secrets, nil
-}
-
 // operations contain a list of all available operations. Each operation should
 // be added by calling registerOperation().
 var operations = make(map[string]operation)
@@ -151,7 +134,9 @@ type grpcClient struct {
 
 // Connect to the endpoint, or panic in case it fails.
 func (g *grpcClient) Connect(endpoint string) {
-	conn, err := grpc.Dial(endpoint, grpc.WithInsecure())
+	conn, err := grpc.Dial(
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect to %q: %v", endpoint, err))
 	}

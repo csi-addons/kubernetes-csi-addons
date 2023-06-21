@@ -1,0 +1,16 @@
+FROM quay.io/fedora/fedora:latest
+
+ENV GOPATH=/go \
+ PATH="${GOPATH}/bin:${PATH}"
+
+RUN dnf -y install \
+	git \
+	make \
+	golang \
+	protobuf-compiler \
+    && dnf -y update \
+    && dnf clean all \
+    && rm -rf /var/cache/yum \
+    && true
+
+WORKDIR "/go/src/github.com/csi-addons/kubernetes-csi-addons"

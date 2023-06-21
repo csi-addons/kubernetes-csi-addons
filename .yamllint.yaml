@@ -1,0 +1,23 @@
+---
+extends: default
+
+ignore:
+  - .git/
+  # bundle/ contains generated contents
+  - bundle/
+  # vendor/ are maintained elsewhere
+  - vendor/
+
+rules:
+  document-start:
+    ignore:
+      - config/manager/
+      - deploy/
+  indentation:
+    ignore:
+      - config/
+      - deploy/
+  line-length:
+    ignore:
+      - config/
+      - deploy/

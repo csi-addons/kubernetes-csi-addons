@@ -138,7 +138,7 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	//	We'll prep our eventual request to requeue until the next job, and then figure
 	//	out if we actually need to run.
-	scheduledResult := ctrl.Result{RequeueAfter: nextRun.Sub(time.Now())} // save this so we can re-use it elsewhere
+	scheduledResult := ctrl.Result{RequeueAfter: time.Until(nextRun)} // save this so we can re-use it elsewhere
 	logger = logger.WithValues("now", time.Now(), "nextRun", nextRun)
 
 	// If we've missed a run, and we're still within the deadline to start it, we'll need to run a job.
@@ -388,9 +388,13 @@ func getNextSchedule(
 		starts++
 		if starts > 100 {
 			// We can't get the most recent times so just return an empty slice
+			// This may occur due to low startingDeadlineSeconds, clock skew or
+			// when user has reduced the schedule which in turn
+			// leads to the new interval being less than 100 times of the old interval.
 			return time.Time{}, time.Time{},
 				fmt.Errorf("too many missed start times (> 100). Set or decrease" +
-					".spec.startingDeadlineSeconds or check clock skew.")
+					".spec.startingDeadlineSeconds, check clock skew or" +
+					" delete and recreate reclaimspacecronjob.")
 		}
 	}
 	return lastMissed, sched.Next(now), nil

@@ -22,6 +22,7 @@ import (
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Connection struct consists of to NodeID, DriverName, Capabilities for the controller
@@ -37,7 +38,7 @@ type Connection struct {
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
 // filled with required information.
 func NewConnection(ctx context.Context, endpoint, nodeID, driverName string) (*Connection, error) {
-	opts := grpc.WithInsecure()
+	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	cc, err := grpc.Dial(endpoint, opts)
 	if err != nil {
 		return nil, err

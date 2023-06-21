@@ -20,9 +20,12 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -44,11 +47,14 @@ import (
 type PersistentVolumeClaimReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// ConnectionPool consists of map of Connection objects.
+	ConnPool *connection.ConnectionPool
 }
 
 var (
 	rsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
 	rsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
+	csiAddonsDriverAnnotation       = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
 )
 
 const (
@@ -58,12 +64,14 @@ const (
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;patch
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims/finalizers,verbs=update
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=reclaimspacecronjobs,verbs=get;list;watch;create;delete;update
+//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// This is triggered when `reclaimspace.csiaddons.openshift/schedule` annotation
-// is found on newly created PVC or if there is a change in value of the annotation.
-// It is also triggered by any changes to the child cronjob.
+// move the current state of the cluster closer to the desired state.  This is
+// triggered when `reclaimspace.csiaddons.openshift/schedule` annotation is
+// found on newly created PVC or its found on the namespace or if there is a
+// change in value of the annotation. It is also triggered by any changes to
+// the child cronjob.
 func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
@@ -81,6 +89,26 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
+	// Validate PVC in bound state
+	if pvc.Status.Phase != corev1.ClaimBound {
+		logger.Info("PVC is not in bound state", "PVCPhase", pvc.Status.Phase)
+		// requeue the request
+		return ctrl.Result{Requeue: true}, nil
+	}
+	// get the driver name from PV to check if it supports space reclamation.
+	pv := &corev1.PersistentVolume{}
+
+	err = r.Client.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, pv)
+	if err != nil {
+		logger.Error(err, "Failed to get PV", "PVName", pvc.Spec.VolumeName)
+		return ctrl.Result{}, err
+	}
+
+	if pv.Spec.CSI == nil {
+		logger.Info("PV is not a CSI volume", "PVName", pv.Name)
+		return ctrl.Result{}, nil
+	}
+
 	rsCronJob, err := r.findChildCronJob(ctx, &logger, &req)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -91,6 +119,35 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 	annotations := pvc.GetAnnotations()
 	schedule, scheduleFound := getScheduleFromAnnotation(&logger, annotations)
+	if !scheduleFound {
+		// check for namespace schedule annotation.
+		// We cannot have a generic solution for all CSI drivers to get the driver
+		// name from PV and check if driver supports space reclamation or not and
+		// requeue the request if the driver is not registered in the connection
+		// pool. This can put the controller in a requeue loop. Hence we are
+		// reading the driver name from the namespace annotation and checking if
+		// the driver is registered in the connection pool and if not we are not
+		// requeuing the request.
+		ns := &corev1.Namespace{}
+		err = r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
+		if err != nil {
+			logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
+			return ctrl.Result{}, err
+		}
+		schedule, scheduleFound = getScheduleFromAnnotation(&logger, ns.Annotations)
+		// If the schedule is not found, check whether driver supports the
+		// space reclamation using annotation on namespace and registered driver
+		// capability for decision on requeue.
+		if !scheduleFound {
+			requeue, supportReclaimspace := r.checkDriverSupportReclaimsSpace(&logger, ns.Annotations, pv.Spec.CSI.Driver)
+			if !supportReclaimspace {
+				return ctrl.Result{
+					Requeue: requeue,
+				}, nil
+			}
+		}
+	}
+
 	if !scheduleFound {
 		// if schedule is not found,
 		// delete cron job.
@@ -140,8 +197,16 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 	rsCronJobName := generateCronJobName(req.Name)
 	logger = logger.WithValues("ReclaimSpaceCronJobName", rsCronJobName)
-	// add cronjob name in annotations.
-	patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`, rsCronJobNameAnnotation, rsCronJobName))
+	// add cronjob name and schedule in annotations.
+	// adding annotation is required for the case when pvc does not have
+	// have schedule annotation but namespace has.
+	patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q:%q,%q:%q}}}`,
+		rsCronJobNameAnnotation,
+		rsCronJobName,
+		rsCronJobScheduleTimeAnnotation,
+		schedule,
+	))
+	logger.Info("Adding annotation", "Annotation", string(patch))
 	err = r.Client.Patch(ctx, pvc, client.RawPatch(types.StrategicMergePatchType, patch))
 	if err != nil {
 		logger.Error(err, "Failed to update annotation")
@@ -168,6 +233,32 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 	return ctrl.Result{}, nil
 }
 
+// checkDriverSupportReclaimsSpace checks if the driver supports space
+// reclamation or not. If the driver does not support space reclamation, it
+// returns false and if the driver supports space reclamation, it returns true.
+// If the driver name is not registered in the connection pool, it returns
+// false and requeues the request.
+func (r *PersistentVolumeClaimReconciler) checkDriverSupportReclaimsSpace(logger *logr.Logger, annotations map[string]string, driver string) (bool, bool) {
+	reclaimSpaceSupportedByDriver := false
+
+	if drivers, ok := annotations[csiAddonsDriverAnnotation]; ok && util.ContainsInSlice(strings.Split(drivers, ","), driver) {
+		reclaimSpaceSupportedByDriver = true
+	}
+
+	ok := r.supportsReclaimSpace(driver)
+	if reclaimSpaceSupportedByDriver && !ok {
+		logger.Info("Driver supports spacereclamation but driver is not registered in the connection pool, Reqeueing request", "DriverName", driver)
+		return true, false
+	}
+
+	if !ok {
+		logger.Info("Driver does not support spacereclamation, skip Requeue", "DriverName", driver)
+		return false, false
+	}
+
+	return false, true
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	err := mgr.GetFieldIndexer().IndexField(
@@ -180,15 +271,6 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 	}
 
 	pred := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			if e.Object == nil {
-				return false
-			}
-			// reconcile only if schedule annotation is found.
-			_, ok := e.Object.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-
-			return ok
-		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.ObjectNew == nil || e.ObjectOld == nil {
 				return false
@@ -331,4 +413,18 @@ func extractOwnerNameFromPVCObj(rawObj client.Object) []string {
 // with time hash.
 func generateCronJobName(parentName string) string {
 	return fmt.Sprintf("%s-%d", parentName, time.Now().Unix())
+}
+
+// supportsReclaimSpace checks if the CSI driver supports ReclaimSpace.
+func (r PersistentVolumeClaimReconciler) supportsReclaimSpace(driverName string) bool {
+	conns := r.ConnPool.GetByNodeID(driverName, "")
+	for _, v := range conns {
+		for _, cap := range v.Capabilities {
+			if cap.GetReclaimSpace() != nil {
+				return true
+			}
+		}
+	}
+
+	return false
 }

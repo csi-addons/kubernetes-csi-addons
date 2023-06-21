@@ -17,9 +17,17 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"time"
+
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
+	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
+	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -28,17 +36,12 @@ import (
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
-	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
-	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
-	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
-	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -60,19 +63,22 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var reclaimSpaceTimeout time.Duration
-	var maxConcurrentReconciles int
-	var enableAdmissionWebhooks bool
+	var (
+		metricsAddr             string
+		probeAddr               string
+		enableLeaderElection    bool
+		enableAdmissionWebhooks bool
+		ctx                     = context.Background()
+		cfg                     = util.NewConfig()
+	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.DurationVar(&reclaimSpaceTimeout, "reclaim-space-timeout", defaultTimeout, "Timeout for reclaimspace operation")
-	flag.IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 100, "Maximum number of concurrent reconciles")
+	flag.DurationVar(&cfg.ReclaimSpaceTimeout, "reclaim-space-timeout", cfg.ReclaimSpaceTimeout, "Timeout for reclaimspace operation")
+	flag.IntVar(&cfg.MaxConcurrentReconciles, "max-concurrent-reconciles", cfg.MaxConcurrentReconciles, "Maximum number of concurrent reconciles")
+	flag.StringVar(&cfg.Namespace, "namespace", cfg.Namespace, "Namespace where the CSIAddons pod is deployed")
 	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", true, "Enable the admission webhooks")
 	opts := zap.Options{
 		Development: true,
@@ -83,7 +89,20 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	kubeConfig := ctrl.GetConfigOrDie()
+	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to create client")
+		os.Exit(1)
+	}
+
+	err = cfg.ReadConfigMap(ctx, kubeClient)
+	if err != nil {
+		setupLog.Error(err, "unable to read configmap")
+		os.Exit(1)
+	}
+
+	mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
@@ -99,7 +118,7 @@ func main() {
 	connPool := connection.NewConnectionPool()
 
 	ctrlOptions := controller.Options{
-		MaxConcurrentReconciles: maxConcurrentReconciles,
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
 	if err = (&controllers.CSIAddonsNodeReconciler{
 		Client:   mgr.GetClient(),
@@ -114,7 +133,7 @@ func main() {
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		ConnPool: connPool,
-		Timeout:  reclaimSpaceTimeout,
+		Timeout:  cfg.ReclaimSpaceTimeout,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ReclaimSpaceJob")
 		os.Exit(1)
@@ -136,8 +155,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.PersistentVolumeClaimReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		ConnPool: connPool,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
 		os.Exit(1)

@@ -90,11 +90,15 @@ If the argument holds an image tag, it must be present remotely.`,
 		"Disable resource cleanup after tests are run")
 	scorecardCmd.Flags().DurationVarP(&c.waitTime, "wait-time", "w", 30*time.Second,
 		"seconds to wait for tests to complete. Example: 35s")
+	// Please note that for Operator-sdk + Preflight + DCI integration in disconnected environments,
+	// it is necessary to refer to storage-image and untar-image using their digests instead of tags.
+	// If you need to make changes to these images, please ensure that you always use the digests.
 	scorecardCmd.Flags().StringVarP(&c.storageImage, "storage-image", "b",
-		"docker.io/library/busybox@sha256:c71cb4f7e8ececaffb34037c2637dc86820e4185100e18b4d02d613a9bd772af",
+		"quay.io/operator-framework/scorecard-storage@sha256:a3bfda71281393c7794cabdd39c563fb050d3020fd0b642ea164646bdd39a0e2",
 		"Storage image to be used by the Scorecard pod")
+	// Use the digest of the latest scorecard-untar image
 	scorecardCmd.Flags().StringVarP(&c.untarImage, "untar-image", "u",
-		"registry.access.redhat.com/ubi8@sha256:910f6bc0b5ae9b555eb91b88d28d568099b060088616eba2867b07ab6ea457c7",
+		"quay.io/operator-framework/scorecard-untar@sha256:2e728c5e67a7f4dec0df157a322dd5671212e8ae60f69137463bd4fdfbff8747",
 		"Untar image to be used by the Scorecard pod")
 	scorecardCmd.Flags().StringVarP(&c.testOutput, "test-output", "t", "test-output",
 		"Test output directory.")

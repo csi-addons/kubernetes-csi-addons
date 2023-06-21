@@ -1,6 +1,7 @@
 ---
 name: Run Golang tests
 
+# yamllint disable-line rule:truthy
 on:
   pull_request:
     branches:
@@ -17,7 +18,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: "1.20"
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v1
@@ -44,7 +45,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: "1.20"
 
       - name: Verify Go modules
         run: go mod verify
@@ -59,7 +60,7 @@ jobs:
       - name: Set up Golang
         uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: "1.20"
 
       - name: Vendor all dependencies
         run: go mod vendor

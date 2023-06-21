@@ -3,6 +3,7 @@
 CONTROLLER_IMG ?= quay.io/csiaddons/k8s-controller
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
 BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
+TOOLS_IMG ?= quay.io/csiaddons/tools
 
 # set TAG to a release for consumption in the bundle
 TAG ?= latest
@@ -21,6 +22,10 @@ endif
 
 ifneq (findstring $(BUNDLE_IMG),:)
 BUNDLE_IMG := $(BUNDLE_IMG):$(TAG)
+endif
+
+ifneq (findstring $(TOOLS_IMG),:)
+TOOLS_IMG := $(TOOLS_IMG):$(TAG)
 endif
 
 # the PACKAGE_NAME is included in the bundle/CSV and is used in catalogsources
@@ -66,6 +71,17 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+# detect container tools, prefer Podman over Docker
+CONTAINER_CMD ?= $(shell podman version >/dev/null 2>&1 && echo podman)
+ifeq ($(CONTAINER_CMD),)
+CONTAINER_CMD = $(shell docker version >/dev/null 2>&1 && echo docker)
+endif
+
+# validation that CONTAINER_CMD is set, return an error if podman/docker is missing
+.PHONY: container-cmd
+container-cmd:
+	@[ -n "$(CONTAINER_CMD)" ] || { echo "podman or docker needs to be installed" ; exit 1; }
 
 .PHONY: all
 all: build
@@ -135,15 +151,15 @@ check-all-committed: ## Fail in case there are uncommitted changes
 	test -z "$(shell git status --short)" || (echo "files were modified: " ; git status --short ; false)
 
 .PHONY: bundle-validate
-bundle-validate: IMAGE_BUILDER ?= $(shell which podman docker | head -n1 | xargs basename)
-bundle-validate: operator-sdk
-	$(OPERATOR_SDK) bundle validate --image-builder=$(IMAGE_BUILDER) ./bundle
+bundle-validate: container-cmd operator-sdk
+	$(OPERATOR_SDK) bundle validate --image-builder=$(CONTAINER_CMD) ./bundle
 
 ##@ Build
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/manager/main.go
+	go build -o bin/sidecar sidecar/main.go
 	go build -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
@@ -151,28 +167,33 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/manager/main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${CONTROLLER_IMG} .
+docker-build: container-cmd test ## Build docker image with the manager.
+	$(CONTAINER_CMD) build -t ${CONTROLLER_IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${CONTROLLER_IMG}
+docker-push: container-cmd ## Push docker image with the manager.
+	$(CONTAINER_CMD) push ${CONTROLLER_IMG}
 
 .PHONY: docker-build-sidecar
-docker-build-sidecar:
-	docker build -f ./build/Containerfile.sidecar -t ${SIDECAR_IMG} .
+docker-build-sidecar: container-cmd
+	$(CONTAINER_CMD) build -f ./build/Containerfile.sidecar -t ${SIDECAR_IMG} .
 
 .PHONY: docker-push-sidecar
-docker-push-sidecar:
-	docker push ${SIDECAR_IMG}
+docker-push-sidecar: container-cmd
+	$(CONTAINER_CMD) push ${SIDECAR_IMG}
 
 .PHONY: docker-build-bundle
-docker-build-bundle: bundle
-	docker build -f ./bundle.Dockerfile -t ${BUNDLE_IMG} .
+docker-build-bundle: container-cmd bundle
+	$(CONTAINER_CMD) build -f ./bundle.Dockerfile -t ${BUNDLE_IMG} .
 
 .PHONY: docker-push-bundle
-docker-push-bundle:
-	docker push ${BUNDLE_IMG}
+docker-push-bundle: container-cmd
+	$(CONTAINER_CMD) push ${BUNDLE_IMG}
+
+.PHONY: docker-build-tools
+docker-generate-protobuf: container-cmd ./build/Containerfile.tools
+	$(CONTAINER_CMD) build -f $^ -t ${TOOLS_IMG} .
+	$(CONTAINER_CMD) run --rm -ti --volume=${PWD}:/go/src/github.com/csi-addons/kubernetes-csi-addons:Z ${TOOLS_IMG} make generate-protobuf
 
 ##@ Deployment
 
