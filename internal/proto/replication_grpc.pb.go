@@ -41,7 +41,8 @@ type ReplicationClient interface {
 	DemoteVolume(ctx context.Context, in *DemoteVolumeRequest, opts ...grpc.CallOption) (*DemoteVolumeResponse, error)
 	// ResyncVolume RPC call to resync the volume.
 	ResyncVolume(ctx context.Context, in *ResyncVolumeRequest, opts ...grpc.CallOption) (*ResyncVolumeResponse, error)
-	// GetVolumeReplicationInfo RPC call to get the volume replication info.
+	// GetVolumeReplicationInfo RPC call to get the volume replication
+	// information.
 	GetVolumeReplicationInfo(ctx context.Context, in *GetVolumeReplicationInfoRequest, opts ...grpc.CallOption) (*GetVolumeReplicationInfoResponse, error)
 }
 
@@ -121,7 +122,8 @@ type ReplicationServer interface {
 	DemoteVolume(context.Context, *DemoteVolumeRequest) (*DemoteVolumeResponse, error)
 	// ResyncVolume RPC call to resync the volume.
 	ResyncVolume(context.Context, *ResyncVolumeRequest) (*ResyncVolumeResponse, error)
-	// GetVolumeReplicationInfo RPC call to get the volume replication info.
+	// GetVolumeReplicationInfo RPC call to get the volume replication
+	// information.
 	GetVolumeReplicationInfo(context.Context, *GetVolumeReplicationInfoRequest) (*GetVolumeReplicationInfoResponse, error)
 	mustEmbedUnimplementedReplicationServer()
 }

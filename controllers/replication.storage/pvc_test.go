@@ -24,31 +24,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
-	mockPVName       = "test-pv"
-	mockPVCName      = "test-pvc"
-	mockNamespace    = "test-ns"
-	mockVolumeHandle = "test-volume-handle"
+	mockPVName  = "test-pv"
+	mockPVCName = "test-pvc"
 )
 
-var mockVolumeReplicationObj = &replicationv1alpha1.VolumeReplication{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "volume-replication",
-		Namespace: mockNamespace,
-	},
-	Spec: replicationv1alpha1.VolumeReplicationSpec{
-		VolumeReplicationClass: "volume-replication-class",
-		DataSource: corev1.TypedLocalObjectReference{
-			Name: mockPVCName,
-		},
-	},
-}
+var mockPVCVolumeReplicationObj = getMockVolumeReplicationObject(mockPVCName)
 
 var mockPersistentVolume = &corev1.PersistentVolume{
 	ObjectMeta: metav1.ObjectMeta{
@@ -76,36 +61,7 @@ var mockPersistentVolumeClaim = &corev1.PersistentVolumeClaim{
 	},
 }
 
-func createFakeScheme(t *testing.T) *runtime.Scheme {
-	t.Helper()
-	scheme, err := replicationv1alpha1.SchemeBuilder.Build()
-	if err != nil {
-		assert.Fail(t, "unable to build scheme")
-	}
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add corev1 scheme")
-	}
-	err = replicationv1alpha1.AddToScheme(scheme)
-	if err != nil {
-		assert.Fail(t, "failed to add replicationv1alpha1 scheme")
-	}
-
-	return scheme
-}
-
-func createFakeVolumeReplicationReconciler(t *testing.T, obj ...runtime.Object) VolumeReplicationReconciler {
-	t.Helper()
-	scheme := createFakeScheme(t)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
-
-	return VolumeReplicationReconciler{
-		Client: client,
-		Scheme: scheme,
-	}
-}
-
-func TestGetVolumeHandle(t *testing.T) {
+func TestGetPVCVolumeHandle(t *testing.T) {
 	t.Parallel()
 	testcases := []struct {
 		name                 string
@@ -149,7 +105,7 @@ func TestGetVolumeHandle(t *testing.T) {
 
 	for _, tc := range testcases {
 		volumeReplication := &replicationv1alpha1.VolumeReplication{}
-		mockVolumeReplicationObj.DeepCopyInto(volumeReplication)
+		mockPVCVolumeReplicationObj.DeepCopyInto(volumeReplication)
 
 		testPV := &corev1.PersistentVolume{}
 		tc.pv.DeepCopyInto(testPV)
@@ -177,7 +133,6 @@ func TestGetVolumeHandle(t *testing.T) {
 
 func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 	t.Parallel()
-	vrName := "test-vr"
 
 	testcases := []struct {
 		name          string
@@ -219,7 +174,7 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 
 	for _, tc := range testcases {
 		volumeReplication := &replicationv1alpha1.VolumeReplication{}
-		mockVolumeReplicationObj.DeepCopyInto(volumeReplication)
+		mockPVCVolumeReplicationObj.DeepCopyInto(volumeReplication)
 
 		testPVC := &corev1.PersistentVolumeClaim{}
 		tc.pvc.DeepCopyInto(testPVC)
