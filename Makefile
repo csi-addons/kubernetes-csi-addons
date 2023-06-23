@@ -221,38 +221,39 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 .PHONY: controller-gen
 controller-gen:
-	go build -o $(CONTROLLER_GEN) ./vendor/$(shell grep controller-gen tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(CONTROLLER_GEN) ./vendor/$(shell grep controller-gen tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # kustomize gets installed from the vendor/ directory. The tools.go file is
 # used to select the major version of kustomize.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
 kustomize:
-	go build -o $(KUSTOMIZE) ./vendor/$(shell grep kustomize tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(KUSTOMIZE) ./vendor/$(shell grep kustomize tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # setup-envtest gets installed from the vendor/ directory.
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest:
-	go build -o $(ENVTEST) ./vendor/$(shell grep setup-envtest tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(ENVTEST) ./vendor/$(shell grep setup-envtest tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # operator-sdk gets installed from the vendor/ directory.
 OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
 .PHONY: operator-sdk
 operator-sdk:
-	go build -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools.go | sed 's/.*_ "//;s/"//')
+# FIXME: Remove `go mod tidy && go mod vendor` once we find the reason why ci workflow fails.
+	cd ./tools && go mod tidy && go mod vendor && go build -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # protoc-gen-go gets installed from the vendor/ directory.
 PROTOC_GEN_GO = $(shell pwd)/bin/protoc-gen-go
 .PHONY: protoc-gen-go
 protoc-gen-go:
-	go build -o $(PROTOC_GEN_GO) ./vendor/$(shell grep '/protoc-gen-go"' tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(PROTOC_GEN_GO) ./vendor/$(shell grep '/protoc-gen-go"' tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # protoc-gen-go-grpc gets installed from the vendor/ directory.
 PROTOC_GEN_GO_GRPC = $(shell pwd)/bin/protoc-gen-go-grpc
 .PHONY: protoc-gen-go-grpc
 protoc-gen-go-grpc:
-	go build -o $(PROTOC_GEN_GO_GRPC) ./vendor/$(shell grep protoc-gen-go-grpc tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(PROTOC_GEN_GO_GRPC) ./vendor/$(shell grep protoc-gen-go-grpc tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
