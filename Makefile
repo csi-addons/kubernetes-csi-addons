@@ -56,6 +56,18 @@ ifneq ($(TAG),latest)
 BUNDLE_VERSION ?= --version=$(shell sed s/^v// <<< $(TAG))
 endif
 
+# To get the GIT commit id
+GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
+
+# Fetch the git tag
+GIT_TAG ?= $(shell git describe --tags HEAD 2>/dev/null || echo $(GIT_COMMIT))
+
+GO_PROJECT=github.com/csi-addons/kubernetes-csi-addons
+
+LDFLAGS ?=
+LDFLAGS += -X $(GO_PROJECT)/internal/version.GitCommit=$(GIT_COMMIT)
+LDFLAGS += -X $(GO_PROJECT)/internal/version.Version=$(GIT_TAG)
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -158,8 +170,8 @@ bundle-validate: container-cmd operator-sdk
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/manager/main.go
-	go build -o bin/sidecar sidecar/main.go
+	go build -ldflags '$(LDFLAGS)' -o bin/manager cmd/manager/main.go
+	go build -ldflags '$(LDFLAGS)' -o bin/sidecar sidecar/main.go
 	go build -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
