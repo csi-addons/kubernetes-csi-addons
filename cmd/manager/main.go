@@ -28,6 +28,7 @@ import (
 	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -68,6 +69,7 @@ func main() {
 		probeAddr               string
 		enableLeaderElection    bool
 		enableAdmissionWebhooks bool
+		showVersion             bool
 		ctx                     = context.Background()
 		cfg                     = util.NewConfig()
 	)
@@ -80,12 +82,18 @@ func main() {
 	flag.IntVar(&cfg.MaxConcurrentReconciles, "max-concurrent-reconciles", cfg.MaxConcurrentReconciles, "Maximum number of concurrent reconciles")
 	flag.StringVar(&cfg.Namespace, "namespace", cfg.Namespace, "Namespace where the CSIAddons pod is deployed")
 	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", true, "Enable the admission webhooks")
+	flag.BoolVar(&showVersion, "version", false, "Print Version details")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	if showVersion {
+		version.PrintVersion()
+		return
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
