@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -43,17 +44,17 @@ func (v *VolumeReplication) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &VolumeReplication{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (v *VolumeReplication) ValidateCreate() error {
-	return nil
+func (v *VolumeReplication) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (v *VolumeReplication) ValidateUpdate(old runtime.Object) error {
+func (v *VolumeReplication) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	vrLog.Info("validate update", "name", v.Name)
 
 	oldReplication, ok := old.(*VolumeReplication)
 	if !ok {
-		return errors.New("error casting old VolumeReplication object")
+		return nil, errors.New("error casting old VolumeReplication object")
 	}
 
 	var allErrs field.ErrorList
@@ -69,15 +70,15 @@ func (v *VolumeReplication) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "replication.storage.openshift.io", Kind: "VolumeReplication"},
 			v.Name, allErrs)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (v *VolumeReplication) ValidateDelete() error {
-	return nil
+func (v *VolumeReplication) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }

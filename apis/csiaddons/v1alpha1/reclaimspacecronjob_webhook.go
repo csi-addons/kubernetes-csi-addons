@@ -26,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -42,17 +43,17 @@ func (r *ReclaimSpaceCronJob) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &ReclaimSpaceCronJob{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceCronJob) ValidateCreate() error {
-	return nil
+func (r *ReclaimSpaceCronJob) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) error {
+func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	rscjLog.Info("validate update", "name", r.Name)
 
 	oldReclaimSpaceCronJob, ok := old.(*ReclaimSpaceCronJob)
 	if !ok {
-		return errors.New("error casting ReclaimSpaceCronJob object")
+		return nil, errors.New("error casting ReclaimSpaceCronJob object")
 	}
 
 	var allErrs field.ErrorList
@@ -62,14 +63,14 @@ func (r *ReclaimSpaceCronJob) ValidateUpdate(old runtime.Object) error {
 	}
 
 	if len(allErrs) != 0 {
-		return apierrors.NewInvalid(
+		return nil, apierrors.NewInvalid(
 			schema.GroupKind{Group: "csiaddons.openshift.io", Kind: "ReclaimSpaceCronJob"},
 			r.Name, allErrs)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *ReclaimSpaceCronJob) ValidateDelete() error {
-	return nil
+func (r *ReclaimSpaceCronJob) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
