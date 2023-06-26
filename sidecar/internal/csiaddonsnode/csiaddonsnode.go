@@ -38,6 +38,8 @@ const (
 	// nodeCreationRetry is the delay for calling newCSIAddonsNode after a
 	// failure.
 	nodeCreationRetry = time.Minute * 5
+	// nodeCreationTimeout is the time after which the context for node creation request is cancelled.
+	nodeCreationTimeout = time.Minute * 3
 )
 
 var (
@@ -86,7 +88,7 @@ func (mgr *Manager) Deploy() error {
 	}
 
 	// loop until the CSIAddonsNode has been created
-	return wait.PollImmediateInfinite(nodeCreationRetry, func() (bool, error) {
+	return wait.PollUntilContextTimeout(context.TODO(), nodeCreationRetry, nodeCreationTimeout, true, func(ctx context.Context) (bool, error) {
 		err := mgr.newCSIAddonsNode(object)
 		if err != nil {
 			klog.Errorf("failed to create CSIAddonsNode %s/%s: %v",
