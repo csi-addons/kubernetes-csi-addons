@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -55,6 +56,8 @@ var (
 	rsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
 	rsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
 	csiAddonsDriverAnnotation       = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
+	ErrConnNotFoundRequeueNeeded    = errors.New("connection not found, requeue needed")
+	ErrScheduleNotFound             = errors.New("schedule not found")
 )
 
 const (
@@ -117,38 +120,11 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 		logger = logger.WithValues("ReclaimSpaceCronJobName", rsCronJob.Name)
 	}
 
-	annotations := pvc.GetAnnotations()
-	schedule, scheduleFound := getScheduleFromAnnotation(&logger, annotations)
-	if !scheduleFound {
-		// check for namespace schedule annotation.
-		// We cannot have a generic solution for all CSI drivers to get the driver
-		// name from PV and check if driver supports space reclamation or not and
-		// requeue the request if the driver is not registered in the connection
-		// pool. This can put the controller in a requeue loop. Hence we are
-		// reading the driver name from the namespace annotation and checking if
-		// the driver is registered in the connection pool and if not we are not
-		// requeuing the request.
-		ns := &corev1.Namespace{}
-		err = r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
-		if err != nil {
-			logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
-			return ctrl.Result{}, err
-		}
-		schedule, scheduleFound = getScheduleFromAnnotation(&logger, ns.Annotations)
-		// If the schedule is not found, check whether driver supports the
-		// space reclamation using annotation on namespace and registered driver
-		// capability for decision on requeue.
-		if !scheduleFound {
-			requeue, supportReclaimspace := r.checkDriverSupportReclaimsSpace(&logger, ns.Annotations, pv.Spec.CSI.Driver)
-			if !supportReclaimspace {
-				return ctrl.Result{
-					Requeue: requeue,
-				}, nil
-			}
-		}
+	schedule, err := r.determineScheduleAndRequeue(ctx, &logger, pvc, pv.Spec.CSI.Driver)
+	if errors.Is(err, ErrConnNotFoundRequeueNeeded) {
+		return ctrl.Result{Requeue: true}, nil
 	}
-
-	if !scheduleFound {
+	if errors.Is(err, ErrScheduleNotFound) {
 		// if schedule is not found,
 		// delete cron job.
 		if rsCronJob != nil {
@@ -158,7 +134,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		}
 		// delete name from annotation.
-		_, nameFound := annotations[rsCronJobNameAnnotation]
+		_, nameFound := pvc.Annotations[rsCronJobNameAnnotation]
 		if nameFound {
 			// remove name annotation by patching it to null.
 			patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q: null}}}`, rsCronJobNameAnnotation))
@@ -173,6 +149,10 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 		// no schedule annotation set, just dequeue.
 		return ctrl.Result{}, nil
 	}
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	logger = logger.WithValues("Schedule", schedule)
 
 	if rsCronJob != nil {
@@ -257,6 +237,64 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportReclaimsSpace(logger
 	}
 
 	return false, true
+}
+
+// determineScheduleAndRequeue determines the schedule using the following steps
+//   - Check if the schedule is persent in the PVC annotations. If yes, use that.
+//   - Check if the schedule is present in the namespace annotations. If yes,
+//     use that.
+//   - If schedule is not present in namespace annotations, return ErrorScheduleNotFound.
+//   - If schedule is present in namespace annotations, check for reclaimSpace
+//     support by the driver.
+//   - If driver supports reclaimSpace, use the schedule from namespace.
+//   - If driver does not support reclaimSpace, return ErrScheduleNotFound.
+//     Depending on requeue value, it will throw ErrorConnNotFoundRequeueNeeded.
+func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
+	ctx context.Context,
+	logger *logr.Logger,
+	pvc *corev1.PersistentVolumeClaim,
+	driverName string,
+) (string, error) {
+	annotations := pvc.GetAnnotations()
+	schedule, scheduleFound := getScheduleFromAnnotation(logger, annotations)
+	if scheduleFound {
+		return schedule, nil
+	}
+	// check for namespace schedule annotation.
+	// We cannot have a generic solution for all CSI drivers to get the driver
+	// name from PV and check if driver supports space reclamation or not and
+	// requeue the request if the driver is not registered in the connection
+	// pool. This can put the controller in a requeue loop. Hence we are
+	// reading the driver name from the namespace annotation and checking if
+	// the driver is registered in the connection pool and if not we are not
+	// requeuing the request.
+	ns := &corev1.Namespace{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
+	if err != nil {
+		logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
+		return "", err
+	}
+	schedule, scheduleFound = getScheduleFromAnnotation(logger, ns.Annotations)
+	if !scheduleFound {
+		return "", ErrScheduleNotFound
+	}
+	// If the schedule is found, check whether driver supports the
+	// space reclamation using annotation on namespace and registered driver
+	// capability for decision on requeue.
+
+	requeue, supportReclaimspace := r.checkDriverSupportReclaimsSpace(logger, ns.Annotations, driverName)
+	if supportReclaimspace {
+		// if driver supports space reclamation,
+		// return schedule from ns annotation.
+		return schedule, nil
+	}
+	if requeue {
+		// The request needs to be requeued for checking
+		// driver support again.
+		return "", ErrConnNotFoundRequeueNeeded
+	}
+
+	return "", ErrScheduleNotFound
 }
 
 // SetupWithManager sets up the controller with the Manager.
