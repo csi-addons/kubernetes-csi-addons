@@ -2,10 +2,10 @@
 
 ## GitHub Workflows
 
-The GitHub Workflows under [`.github/workflows/][workflows] contain jobs that
+The GitHub Workflows under [`.github/workflows/`][workflows] contains jobs that
 are started when Pull-Requests are created or updated. Some of the jobs can
 build container-images for multiple architectures. Not everyone or all
-environmens wants to run the build tests for all platforms. The workflows can
+environments wants to run the build tests for all platforms. The workflows can
 be configured to select platforms that the `docker/setup-buildx-action`
 supports.
 
