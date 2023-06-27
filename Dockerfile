@@ -4,7 +4,7 @@ FROM quay.io/projectquay/golang:1.20 as builder
 # Copy the contents of the repository
 ADD . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
-ENV GOPATH=/workspace/go
+ENV GOPATH=/workspace/go CGO_ENABLED=0
 WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
 # Build
