@@ -1354,7 +1354,7 @@ spec:
         - --leader-elect
         - --enable-admission-webhooks=true
         command:
-        - /manager
+        - /csi-addons-manager
         env:
         - name: POD_NAMESPACE
           valueFrom:

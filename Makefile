@@ -170,8 +170,8 @@ bundle-validate: container-cmd operator-sdk
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -ldflags '$(LDFLAGS)' -o bin/manager cmd/manager/main.go
-	go build -ldflags '$(LDFLAGS)' -o bin/sidecar sidecar/main.go
+	go build -ldflags '$(LDFLAGS)' -o bin/csi-addons-manager cmd/manager/main.go
+	go build -ldflags '$(LDFLAGS)' -o bin/csi-addons-sidecar sidecar/main.go
 	go build -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
