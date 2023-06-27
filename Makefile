@@ -170,9 +170,9 @@ bundle-validate: container-cmd operator-sdk
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -ldflags '$(LDFLAGS)' -o bin/csi-addons-manager cmd/manager/main.go
-	go build -ldflags '$(LDFLAGS)' -o bin/csi-addons-sidecar sidecar/main.go
-	go build -ldflags '$(LDFLAGS)' -o bin/csi-addons ./cmd/csi-addons
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-manager cmd/manager/main.go
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-sidecar sidecar/main.go
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
