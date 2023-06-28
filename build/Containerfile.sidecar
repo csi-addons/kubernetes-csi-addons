@@ -1,5 +1,5 @@
 # Build the sidecar binary
-FROM quay.io/projectquay/golang:1.20 as builder
+FROM golang:1.20 as builder
 
 # Copy the contents of the repository
 ADD . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
