@@ -1,0 +1,32 @@
+---
+name: Lint Code Base
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout source
+        uses: actions/checkout@v3
+
+      - name: Lint Code Base
+        uses: super-linter/super-linter/slim@v5
+        env:
+          FILTER_REGEX_EXCLUDE: >
+            (.*vendor/.*)|(.*tools/vendor/.*)
+          VALIDATE_DOCKERFILE_HADOLINT: false
+          VALIDATE_GO: false
+          VALIDATE_JSCPD: false
+          VALIDATE_KUBERNETES_KUBECONFORM: false
+          VALIDATE_MARKDOWN: false
+          VALIDATE_PROTOBUF: false
+          VALIDATE_YAML: false
