@@ -56,6 +56,18 @@ ifneq ($(TAG),latest)
 BUNDLE_VERSION ?= --version=$(shell sed s/^v// <<< $(TAG))
 endif
 
+# To get the GIT commit id
+GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
+
+# Fetch the git tag
+GIT_TAG ?= $(shell git describe --tags HEAD 2>/dev/null || echo $(GIT_COMMIT))
+
+GO_PROJECT=github.com/csi-addons/kubernetes-csi-addons
+
+LDFLAGS ?=
+LDFLAGS += -X $(GO_PROJECT)/internal/version.GitCommit=$(GIT_COMMIT)
+LDFLAGS += -X $(GO_PROJECT)/internal/version.Version=$(GIT_TAG)
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.23
 
@@ -158,9 +170,9 @@ bundle-validate: container-cmd operator-sdk
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/manager/main.go
-	go build -o bin/sidecar sidecar/main.go
-	go build -o bin/csi-addons ./cmd/csi-addons
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-manager cmd/manager/main.go
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-sidecar sidecar/main.go
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -192,7 +204,7 @@ docker-push-bundle: container-cmd
 
 .PHONY: docker-build-tools
 docker-generate-protobuf: container-cmd ./build/Containerfile.tools
-	$(CONTAINER_CMD) build -f $^ -t ${TOOLS_IMG} .
+	$(CONTAINER_CMD) build -f ./build/Containerfile.tools -t ${TOOLS_IMG} .
 	$(CONTAINER_CMD) run --rm -ti --volume=${PWD}:/go/src/github.com/csi-addons/kubernetes-csi-addons:Z ${TOOLS_IMG} make generate-protobuf
 
 ##@ Deployment
@@ -221,38 +233,39 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 .PHONY: controller-gen
 controller-gen:
-	go build -o $(CONTROLLER_GEN) ./vendor/$(shell grep controller-gen tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(CONTROLLER_GEN) ./vendor/$(shell grep controller-gen tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # kustomize gets installed from the vendor/ directory. The tools.go file is
 # used to select the major version of kustomize.
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
 kustomize:
-	go build -o $(KUSTOMIZE) ./vendor/$(shell grep kustomize tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(KUSTOMIZE) ./vendor/$(shell grep kustomize tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # setup-envtest gets installed from the vendor/ directory.
 ENVTEST = $(shell pwd)/bin/setup-envtest
 .PHONY: envtest
 envtest:
-	go build -o $(ENVTEST) ./vendor/$(shell grep setup-envtest tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(ENVTEST) ./vendor/$(shell grep setup-envtest tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # operator-sdk gets installed from the vendor/ directory.
 OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
 .PHONY: operator-sdk
 operator-sdk:
-	go build -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools.go | sed 's/.*_ "//;s/"//')
+# FIXME: Remove `go mod tidy && go mod vendor` once we find the reason why ci workflow fails.
+	cd ./tools && go mod tidy && go mod vendor && go build -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # protoc-gen-go gets installed from the vendor/ directory.
 PROTOC_GEN_GO = $(shell pwd)/bin/protoc-gen-go
 .PHONY: protoc-gen-go
 protoc-gen-go:
-	go build -o $(PROTOC_GEN_GO) ./vendor/$(shell grep '/protoc-gen-go"' tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(PROTOC_GEN_GO) ./vendor/$(shell grep '/protoc-gen-go"' tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # protoc-gen-go-grpc gets installed from the vendor/ directory.
 PROTOC_GEN_GO_GRPC = $(shell pwd)/bin/protoc-gen-go-grpc
 .PHONY: protoc-gen-go-grpc
 protoc-gen-go-grpc:
-	go build -o $(PROTOC_GEN_GO_GRPC) ./vendor/$(shell grep protoc-gen-go-grpc tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go build -o $(PROTOC_GEN_GO_GRPC) ./vendor/$(shell grep protoc-gen-go-grpc tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

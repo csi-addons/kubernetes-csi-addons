@@ -12,6 +12,15 @@ updates:
       prefix: "vendor"
     labels:
       - vendor
+  - package-ecosystem: "gomod"
+    directory: "/tools"
+    schedule:
+      interval: "weekly"
+    rebase-strategy: "disabled"
+    commit-message:
+      prefix: "vendor"
+    labels:
+      - vendor
   - package-ecosystem: "github-actions"
     # ODF only: disable PR creation, synced from upstream
     open-pull-requests-limit: 0

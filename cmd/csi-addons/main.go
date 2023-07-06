@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/kubernetes"
@@ -47,12 +49,15 @@ type command struct {
 var cmd = &command{}
 
 func init() {
+	var showVersion bool
+
 	flag.StringVar(&cmd.endpoint, "endpoint", endpoint, "CSI-Addons endpoint")
 	flag.StringVar(&cmd.stagingPath, "stagingpath", stagingPath, "staging path")
 	flag.StringVar(&cmd.operation, "operation", "", "csi-addons operation")
 	flag.StringVar(&cmd.persistentVolume, "persistentvolume", "", "name of the PersistentVolume")
 	flag.StringVar(&cmd.drivername, "drivername", "", "name of the CSI driver")
 	flag.BoolVar(&cmd.legacy, "legacy", false, "use legacy format for old Kubernetes versions")
+	flag.BoolVar(&showVersion, "version", false, "print Version details")
 
 	// output to show when --help is passed
 	flag.Usage = func() {
@@ -66,6 +71,11 @@ func init() {
 	}
 
 	flag.Parse()
+
+	if showVersion {
+		version.PrintVersion()
+		os.Exit(0)
+	}
 }
 
 func main() {

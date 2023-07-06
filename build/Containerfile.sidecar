@@ -1,22 +1,20 @@
 # Build the sidecar binary
-FROM golang:1.19 as builder
+FROM golang:1.20 as builder
 
 # Copy the contents of the repository
 ADD . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
-ENV GOPATH=/workspace/go
+ENV GOPATH=/workspace/go CGO_ENABLED=0
 WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /workspace/csi-addons-sidecar ./sidecar
-
-# Build the csi-addons tool for admin usage and testing
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -a -o /workspace/csi-addons ./cmd/csi-addons
+# Build the sidecar and csi-addons tool for admin usage and testing
+RUN make build
 
 # Use distroless as minimal base image to package the sidecar binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:latest
 WORKDIR /
-COPY --from=builder /workspace /usr/bin/
+COPY --from=builder /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons/bin/csi-addons-sidecar /usr/sbin/
+COPY --from=builder /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons/bin/csi-addons /usr/bin/
 
-ENTRYPOINT ["/usr/bin/csi-addons-sidecar"]
+ENTRYPOINT ["/usr/sbin/csi-addons-sidecar"]

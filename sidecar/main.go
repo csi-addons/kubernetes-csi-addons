@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/sidecar/service"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
@@ -46,12 +47,20 @@ func main() {
 		podName      = flag.String("pod", "", "name of the Pod that contains this sidecar")
 		podNamespace = flag.String("namespace", "", "namespace of the Pod that contains this sidecar")
 		podUID       = flag.String("pod-uid", "", "UID of the Pod that contains this sidecar")
+		showVersion  = flag.Bool("version", false, "Print Version details")
 	)
 	klog.InitFlags(nil)
+
 	if err := flag.Set("logtostderr", "true"); err != nil {
 		klog.Exitf("failed to set logtostderr flag: %v", err)
 	}
+
 	flag.Parse()
+
+	if *showVersion {
+		version.PrintVersion()
+		return
+	}
 
 	controllerEndpoint, err := util.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
