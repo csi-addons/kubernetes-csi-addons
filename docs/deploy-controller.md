@@ -4,7 +4,7 @@ The CSI-Addons Controller can be deployed by different ways:
 
 ## Configuration
 
-**Available command line arguments:**
+**Available command-line arguments:**
 
 | Option                        | Default value   | Description                 |
 | ----------------------------- | --------------- | --------------------------------------------- |
