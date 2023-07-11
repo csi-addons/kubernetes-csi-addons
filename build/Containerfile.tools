@@ -1,8 +1,12 @@
+# DL3007 ignored as it asks to pin the version explicitly to a release tag
+# hadolint ignore=DL3007
 FROM quay.io/fedora/fedora:latest
 
-ENV GOPATH=/go \
- PATH="${GOPATH}/bin:${PATH}"
+ENV GOPATH=/go
+ENV PATH="${GOPATH}/bin:${PATH}"
 
+# DL3041 ignored as it asks to specify version with `dnf install -y <package>-<version>
+# hadolint ignore=DL3041
 RUN dnf -y install \
 	git \
 	make \

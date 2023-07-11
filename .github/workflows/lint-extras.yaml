@@ -23,7 +23,6 @@ jobs:
         env:
           FILTER_REGEX_EXCLUDE: >
             (.*vendor/.*)|(.*tools/vendor/.*)
-          VALIDATE_DOCKERFILE_HADOLINT: false
           VALIDATE_GO: false
           VALIDATE_JSCPD: false
           VALIDATE_KUBERNETES_KUBECONFORM: false
