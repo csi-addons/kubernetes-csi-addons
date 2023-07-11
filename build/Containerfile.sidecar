@@ -2,7 +2,7 @@
 FROM golang:1.20 as builder
 
 # Copy the contents of the repository
-ADD . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
+COPY . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
 ENV GOPATH=/workspace/go CGO_ENABLED=0
 WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
@@ -12,6 +12,8 @@ RUN make build
 
 # Use distroless as minimal base image to package the sidecar binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
+# DL3007 ignored as it asks to pin the version explicitly to a release tag
+# hadolint ignore=DL3007
 FROM gcr.io/distroless/static:latest
 WORKDIR /
 COPY --from=builder /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons/bin/csi-addons-sidecar /usr/sbin/
