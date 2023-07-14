@@ -9,24 +9,34 @@ similar to:
 
 ```console
 $ kubectl exec -c csi-addons csi-backend-nodeplugin -- csi-addons -h
+  -cidrs string
+      comma separated list of cidrs to fence/unfence
   -drivername string
-    name of the CSI driver
+      name of the CSI driver
   -endpoint string
-    CSI-Addons endpoint (default "unix:///tmp/csi-addons.sock")
+      CSI-Addons endpoint (default "unix:///tmp/csi-addons.sock")
   -legacy
-    use legacy format for old Kubernetes versions
+      use legacy format for old Kubernetes versions
   -operation string
-    csi-addons operation
+      csi-addons operation
   -persistentvolume string
-    name of the PersistentVolume
+      name of the PersistentVolume
+  -secretname string
+      name of the kubernetes secret
+  -secretnamespace string
+      namespace of the kubernetes secret
   -stagingpath string
-    staging path (default "/var/lib/kubelet/plugins/kubernetes.io/csi/")
+      staging path (default "/var/lib/kubelet/plugins/kubernetes.io/csi/")
+  -version
+      print Version details
 
 The following operations are supported:
  - NodeReclaimSpace
  - GetIdentity
  - GetCapabilities
  - Probe
+ - NetworkFence
+ - NetworkUnFence
  - ControllerReclaimSpace
 ```
 
