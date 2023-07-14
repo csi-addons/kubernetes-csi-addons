@@ -5,7 +5,7 @@ NetworkFence is a cluster-scoped custom resource that allows Kubernetes to invok
 The user needs to specify the list of CIDR blocks on which network fencing operation will be performed; alongside the csi driver name.
 The creation of NetworkFence CR will add a network fence, and its deletion will undo the operation.
 
-### Fence Operation
+## Fence Operation
 
 ```yaml
 apiVersion: csiaddons.openshift.io/v1alpha1
