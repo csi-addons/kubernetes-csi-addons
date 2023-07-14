@@ -26,6 +26,5 @@ jobs:
           VALIDATE_GO: false
           VALIDATE_JSCPD: false
           VALIDATE_KUBERNETES_KUBECONFORM: false
-          VALIDATE_MARKDOWN: false
           VALIDATE_PROTOBUF: false
           VALIDATE_YAML: false

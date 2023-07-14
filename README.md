@@ -15,7 +15,7 @@ the interface, a new CSI-Addons Controller is needed. The CSI-Addons Controller
 will watch for Kubernetes events (CRs) and relay operation initiated by the
 user to the CSI-driver.
 
-```
+```plaintext
 .------.   CR  .------------.
 | User |-------| CSI-Addons |
 '------'       | Controller |
@@ -83,6 +83,5 @@ Subscribing can be done through the [mailman web interface][mailman] or by
 [csi_addons_spec]: https://github.com/csi-addons/spec/
 [csi_addons]: https://csi-addons.github.io/
 [csi]: https://kubernetes-csi.github.io/docs/
-[operatorhub]: https://operatorhub.io/
 [mailman]: https://listman.redhat.com/mailman/listinfo/csi-addons
 [subscribe]: mailto:csi-addons-request@redhat.com?subject=subscribe
