@@ -115,6 +115,10 @@ jobs:
       github.repository == 'csi-addons/kubernetes-csi-addons'
       &&
       github.ref_type  == 'tag'
+    needs:
+      - tag_bundle
+      - tag_controller
+      - tag_sidecar
     runs-on: ubuntu-latest
     permissions:
       contents: write

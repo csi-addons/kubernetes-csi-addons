@@ -16,7 +16,7 @@ VolumeReplication is a namespaced resource that contains references to storage o
 + `kind` is the kind of resource being replicated. For eg. PersistentVolumeClaim
 + `name` is the name of the resource
 
-`replicationHandle` (optional) is an existing (but new) replication id.
+`replicationHandle` (optional) is an existing (but new) replication ID.
 
 
 ``` yaml
