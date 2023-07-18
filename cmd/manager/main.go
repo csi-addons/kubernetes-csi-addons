@@ -24,8 +24,11 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
+	volumegroupv1 "github.com/csi-addons/kubernetes-csi-addons/apis/volumegroup.storage/v1"
 	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
 	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
+	vgController "github.com/csi-addons/kubernetes-csi-addons/controllers/volumegroup.storage"
+	vgcController "github.com/csi-addons/kubernetes-csi-addons/controllers/volumegroup.storage/volumegroupcontent"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
@@ -60,6 +63,7 @@ func init() {
 
 	utilruntime.Must(csiaddonsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(replicationstoragev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(volumegroupv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -177,6 +181,26 @@ func main() {
 		Timeout:  defaultTimeout,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
+		os.Exit(1)
+	}
+	if err = (&vgController.VolumeGroupReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Log:      ctrl.Log.WithName("controllers").WithName("VolumeGroup"),
+		Connpool: connPool,
+		Timeout:  defaultTimeout,
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroup")
+		os.Exit(1)
+	}
+	if err = (&vgcController.VolumeGroupContentReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Log:      ctrl.Log.WithName("VolumeGroupContentController"),
+		Connpool: connPool,
+		Timeout:  defaultTimeout,
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroupContent")
 		os.Exit(1)
 	}
 

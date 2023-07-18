@@ -3,6 +3,7 @@
 CONTROLLER_IMG ?= quay.io/csiaddons/k8s-controller
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
 BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
+CRD_OPTIONS ?= "crd:generateEmbeddedObjectMeta=true"
 TOOLS_IMG ?= quay.io/csiaddons/tools
 
 # set TAG to a release for consumption in the bundle
@@ -119,7 +120,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./apis/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role $(CRD_OPTIONS) webhook paths="{./apis/...,./cmd/...,./controllers/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG} rbac-proxy=${RBAC_PROXY_IMG}
 	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
 	$(KUSTOMIZE) build config/rbac > deploy/controller/rbac.yaml

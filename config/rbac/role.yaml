@@ -7,16 +7,48 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims
   verbs:
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
   - ""
   resources:
+  - persistentvolumeclaims/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
   verbs:
   - get
   - list
@@ -188,8 +220,76 @@ rules:
 - apiGroups:
   - storage.k8s.io
   resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
   - volumeattachments
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroupclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroupcontents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroupcontents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroupcontents/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroups/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - volumegroup.storage.openshift.io
+  resources:
+  - volumegroups/status
+  verbs:
+  - get
+  - patch
+  - update
