@@ -30,6 +30,7 @@ type NetworkFenceServer struct {
 	// inherit Connect() and Close() from type grpcClient
 	grpcClient
 
+	parameters      map[string]string
 	secretName      string
 	secretNamespace string
 	cidrs           []string
@@ -38,14 +39,24 @@ type NetworkFenceServer struct {
 var _ = registerOperation("NetworkFence", &NetworkFenceServer{})
 
 func (ns *NetworkFenceServer) Init(c *command) error {
-	ns.secretName = c.secretName
-	if ns.secretName == "" {
-		return fmt.Errorf("secret name is not set")
+	ns.parameters = make(map[string]string)
+	ns.parameters["clusterID"] = c.clusterid
+	if ns.parameters["clusterID"] == "" {
+		return fmt.Errorf("clusterID not set")
 	}
 
-	ns.secretNamespace = c.secretNamespace
+	secrets := strings.Split(c.secret, "/")
+	if len(secrets) != 2 {
+		return fmt.Errorf("secret should be specified in the format `namespace/name`")
+	}
+	ns.secretNamespace = secrets[0]
 	if ns.secretNamespace == "" {
 		return fmt.Errorf("secret namespace is not set")
+	}
+
+	ns.secretName = secrets[1]
+	if ns.secretName == "" {
+		return fmt.Errorf("secret name is not set")
 	}
 
 	ns.cidrs = (strings.Split(c.cidrs, ","))
@@ -61,6 +72,7 @@ func (ns *NetworkFenceServer) Execute() error {
 	nfs := service.NewNetworkFenceServer(ns.Client, k)
 
 	req := &proto.NetworkFenceRequest{
+		Parameters:      ns.parameters,
 		SecretName:      ns.secretName,
 		SecretNamespace: ns.secretNamespace,
 		Cidrs:           ns.cidrs,
@@ -80,6 +92,7 @@ type NetworkUnFenceServer struct {
 	// inherit Connect() and Close() from type grpcClient
 	grpcClient
 
+	parameters      map[string]string
 	secretName      string
 	secretNamespace string
 	cidrs           []string
@@ -88,14 +101,24 @@ type NetworkUnFenceServer struct {
 var _ = registerOperation("NetworkUnFence", &NetworkUnFenceServer{})
 
 func (ns *NetworkUnFenceServer) Init(c *command) error {
-	ns.secretName = c.secretName
-	if ns.secretName == "" {
-		return fmt.Errorf("secret name is not set")
+	ns.parameters = make(map[string]string)
+	ns.parameters["clusterID"] = c.clusterid
+	if ns.parameters["clusterID"] == "" {
+		return fmt.Errorf("clusterID not set")
 	}
 
-	ns.secretNamespace = c.secretNamespace
+	secrets := strings.Split(c.secret, "/")
+	if len(secrets) != 2 {
+		return fmt.Errorf("secret should be specified in the format `namespace/name`")
+	}
+	ns.secretNamespace = secrets[0]
 	if ns.secretNamespace == "" {
 		return fmt.Errorf("secret namespace is not set")
+	}
+
+	ns.secretName = secrets[1]
+	if ns.secretName == "" {
+		return fmt.Errorf("secret names is not set")
 	}
 
 	ns.cidrs = strings.Split(c.cidrs, ",")
@@ -111,6 +134,7 @@ func (ns *NetworkUnFenceServer) Execute() error {
 	nfs := service.NewNetworkFenceServer(ns.Client, k)
 
 	req := &proto.NetworkFenceRequest{
+		Parameters:      ns.parameters,
 		SecretName:      ns.secretName,
 		SecretNamespace: ns.secretNamespace,
 		Cidrs:           ns.cidrs,
