@@ -26,7 +26,7 @@ import (
 )
 
 // NetworkFenceServer executes the NetworkFenceServer operation.
-type NetworkFenceServer struct {
+type networkFenceBase struct {
 	// inherit Connect() and Close() from type grpcClient
 	grpcClient
 
@@ -36,9 +36,7 @@ type NetworkFenceServer struct {
 	cidrs           []string
 }
 
-var _ = registerOperation("NetworkFence", &NetworkFenceServer{})
-
-func (ns *NetworkFenceServer) Init(c *command) error {
+func (ns *networkFenceBase) Init(c *command) error {
 	ns.parameters = make(map[string]string)
 	ns.parameters["clusterID"] = c.clusterid
 	if ns.parameters["clusterID"] == "" {
@@ -66,6 +64,12 @@ func (ns *NetworkFenceServer) Init(c *command) error {
 	return nil
 }
 
+type NetworkFenceServer struct {
+	networkFenceBase
+}
+
+var _ = registerOperation("NetworkFence", &NetworkFenceServer{})
+
 func (ns *NetworkFenceServer) Execute() error {
 	k := getKubernetesClient()
 
@@ -87,46 +91,11 @@ func (ns *NetworkFenceServer) Execute() error {
 	return nil
 }
 
-// NetworkUnFenceServer executes the NetworkUnFenceServer operation.
 type NetworkUnFenceServer struct {
-	// inherit Connect() and Close() from type grpcClient
-	grpcClient
-
-	parameters      map[string]string
-	secretName      string
-	secretNamespace string
-	cidrs           []string
+	networkFenceBase
 }
 
 var _ = registerOperation("NetworkUnFence", &NetworkUnFenceServer{})
-
-func (ns *NetworkUnFenceServer) Init(c *command) error {
-	ns.parameters = make(map[string]string)
-	ns.parameters["clusterID"] = c.clusterid
-	if ns.parameters["clusterID"] == "" {
-		return fmt.Errorf("clusterID not set")
-	}
-
-	secrets := strings.Split(c.secret, "/")
-	if len(secrets) != 2 {
-		return fmt.Errorf("secret should be specified in the format `namespace/name`")
-	}
-	ns.secretNamespace = secrets[0]
-	if ns.secretNamespace == "" {
-		return fmt.Errorf("secret namespace is not set")
-	}
-
-	ns.secretName = secrets[1]
-	if ns.secretName == "" {
-		return fmt.Errorf("secret names is not set")
-	}
-
-	ns.cidrs = strings.Split(c.cidrs, ",")
-	if len(ns.cidrs) == 0 || (len(ns.cidrs) == 1 && ns.cidrs[0] == "") {
-		return fmt.Errorf("cidrs not set")
-	}
-	return nil
-}
 
 func (ns *NetworkUnFenceServer) Execute() error {
 	k := getKubernetesClient()
