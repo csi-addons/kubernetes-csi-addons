@@ -38,6 +38,12 @@ The following operations are supported:
  - Probe
  - NetworkFence
  - NetworkUnFence
+ - EnableVolumeReplication
+ - DisableVolumeReplication
+ - PromoteVolume
+ - DemoteVolume
+ - ResyncVolume
+ - GetVolumeReplicationInfo
 ```
 
 The above command assumes the running `csi-backend-nodeplugin` Pod has the
