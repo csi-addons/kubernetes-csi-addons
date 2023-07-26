@@ -10,9 +10,9 @@ similar to:
 ```console
 $ kubectl exec -c csi-addons csi-backend-nodeplugin -- csi-addons -h
   -cidrs string
-        comma separated list of cidrs to fence/unfence
+        comma separated list of cidrs
   -clusterid string
-        clusterID to fence/unfence
+        clusterID
   -drivername string
         name of the CSI driver
   -endpoint string
