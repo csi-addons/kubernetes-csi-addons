@@ -234,12 +234,12 @@ func (rep *GetVolumeReplicationInfo) Execute() error {
 		VolumeId:        rep.volumeID,
 	}
 
-	_, err := rs.GetVolumeReplicationInfo(context.TODO(), req)
+	res, err := rs.GetVolumeReplicationInfo(context.TODO(), req)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("GetVolumeReplicationInfo operation successful")
+	fmt.Printf("replication info for %q: %+v\n", rep.volumeID, res)
 
 	return nil
 }
