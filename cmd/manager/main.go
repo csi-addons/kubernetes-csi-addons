@@ -26,8 +26,6 @@ import (
 	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
 	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
@@ -45,6 +43,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -113,12 +113,14 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
-		Scheme:                 scheme,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
-		Port:                   9443,
+		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "e8cd140a.openshift.io",
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
