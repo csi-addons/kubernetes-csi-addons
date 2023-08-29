@@ -26,6 +26,8 @@ import (
 	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
 	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
@@ -112,7 +114,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
