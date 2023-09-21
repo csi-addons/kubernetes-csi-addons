@@ -58,6 +58,7 @@ const (
 type VolumeReplicationSpec struct {
 	// VolumeReplicationClass is the VolumeReplicationClass name for this VolumeReplication resource
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeReplicationClass is immutable"
 	VolumeReplicationClass string `json:"volumeReplicationClass"`
 
 	// ReplicationState represents the replication operation to be performed on the volume.
@@ -67,6 +68,7 @@ type VolumeReplicationSpec struct {
 
 	// DataSource represents the object associated with the volume
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="dataSource is immutable"
 	DataSource corev1.TypedLocalObjectReference `json:"dataSource"`
 
 	// AutoResync represents the volume to be auto resynced when

@@ -49,9 +49,15 @@ spec:
                 description: Parameters is a key-value map with storage provisioner
                   specific configurations for creating volume replicas
                 type: object
+                x-kubernetes-validations:
+                - message: parameters are immutable
+                  rule: self == oldSelf
               provisioner:
                 description: Provisioner is the name of storage provisioner
                 type: string
+                x-kubernetes-validations:
+                - message: provisioner is immutable
+                  rule: self == oldSelf
             required:
             - provisioner
             type: object

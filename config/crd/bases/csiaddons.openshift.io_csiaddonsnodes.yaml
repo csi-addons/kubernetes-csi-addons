@@ -64,10 +64,16 @@ spec:
                       GetIdentity() call for that driver. The name of the driver is
                       in the format: `example.csi.ceph.com`'
                     type: string
+                    x-kubernetes-validations:
+                    - message: name is immutable
+                      rule: self == oldSelf
                   nodeID:
                     description: NodeID is the ID of the node to identify on which
                       node the side-car is running.
                     type: string
+                    x-kubernetes-validations:
+                    - message: nodeID is immutable
+                      rule: self == oldSelf
                 required:
                 - endpoint
                 - name
