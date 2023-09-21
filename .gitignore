@@ -22,6 +22,9 @@ testbin/*
 bundle.Dockerfile
 bundle
 
+# generated csv file.
+config/manifests/bases/csi-addons.clusterserviceversion.yaml
+
 # editor and IDE paraphernalia
 .idea
 *.swp
