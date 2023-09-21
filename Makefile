@@ -124,10 +124,6 @@ manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRol
 	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
 	$(KUSTOMIZE) build config/rbac > deploy/controller/rbac.yaml
 	$(KUSTOMIZE) build config/manager > deploy/controller/setup-controller.yaml
-	# Disable admission webhooks by default in setup-controller as it need setting up cert managager
-	sed -i 's|enable-admission-webhooks=true|enable-admission-webhooks=false|g' deploy/controller/setup-controller.yaml
-	# generate single yaml which includes crds, rbac, controller, webhooks, certificates
-	$(KUSTOMIZE) build config/default > deploy/controller/install-all-in-one.yaml
 
 # generate the <package-name>.clusterserviceversion.yaml base
 gen-csv-base:
