@@ -70,8 +70,8 @@ func main() {
 		metricsAddr             string
 		probeAddr               string
 		enableLeaderElection    bool
-		enableAdmissionWebhooks bool
 		showVersion             bool
+		enableAdmissionWebhooks bool
 		ctx                     = context.Background()
 		cfg                     = util.NewConfig()
 	)
@@ -83,7 +83,7 @@ func main() {
 	flag.DurationVar(&cfg.ReclaimSpaceTimeout, "reclaim-space-timeout", cfg.ReclaimSpaceTimeout, "Timeout for reclaimspace operation")
 	flag.IntVar(&cfg.MaxConcurrentReconciles, "max-concurrent-reconciles", cfg.MaxConcurrentReconciles, "Maximum number of concurrent reconciles")
 	flag.StringVar(&cfg.Namespace, "namespace", cfg.Namespace, "Namespace where the CSIAddons pod is deployed")
-	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", true, "Enable the admission webhooks")
+	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", false, "[DEPRECATED] Enable the admission webhooks")
 	flag.BoolVar(&showVersion, "version", false, "Print Version details")
 	opts := zap.Options{
 		Development: true,
@@ -95,6 +95,10 @@ func main() {
 	if showVersion {
 		version.PrintVersion()
 		return
+	}
+
+	if enableAdmissionWebhooks {
+		setupLog.Info("enable-admission-webhooks flag is deprecated and will be removed in a future release")
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
@@ -182,38 +186,6 @@ func main() {
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeReplication")
 		os.Exit(1)
-	}
-
-	if enableAdmissionWebhooks {
-		if err = (&replicationstoragev1alpha1.VolumeReplicationClass{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "VolumeReplicationClass")
-			os.Exit(1)
-		}
-
-		if err = (&replicationstoragev1alpha1.VolumeReplication{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "VolumeReplication")
-			os.Exit(1)
-		}
-
-		if err = (&csiaddonsv1alpha1.ReclaimSpaceJob{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ReclaimSpaceJob")
-			os.Exit(1)
-		}
-
-		if err = (&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "ReclaimSpaceCronJob")
-			os.Exit(1)
-		}
-
-		if err = (&csiaddonsv1alpha1.NetworkFence{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "NetworkFence")
-			os.Exit(1)
-		}
-
-		if err = (&csiaddonsv1alpha1.CSIAddonsNode{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "CSIAddonsNode")
-			os.Exit(1)
-		}
 	}
 
 	//+kubebuilder:scaffold:builder
