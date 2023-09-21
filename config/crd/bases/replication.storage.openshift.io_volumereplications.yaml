@@ -78,6 +78,9 @@ spec:
                 - name
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: dataSource is immutable
+                  rule: self == oldSelf
               replicationHandle:
                 description: replicationHandle represents an existing (but new) replication
                   id
@@ -95,6 +98,9 @@ spec:
                 description: VolumeReplicationClass is the VolumeReplicationClass
                   name for this VolumeReplication resource
                 type: string
+                x-kubernetes-validations:
+                - message: volumeReplicationClass is immutable
+                  rule: self == oldSelf
             required:
             - autoResync
             - dataSource

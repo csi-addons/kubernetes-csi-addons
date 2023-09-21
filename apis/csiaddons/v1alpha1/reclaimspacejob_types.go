@@ -36,6 +36,7 @@ const (
 // performed.
 type TargetSpec struct {
 	// PersistentVolumeClaim specifies the target PersistentVolumeClaim name.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="persistentVolumeClaim is immutable"
 	PersistentVolumeClaim string `json:"persistentVolumeClaim,omitempty"`
 }
 

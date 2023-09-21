@@ -36,6 +36,8 @@ type CSIAddonsNodeDriver struct {
 	// This must be the same name returned by the CSI-Addons GetIdentity()
 	// call for that driver. The name of the driver is in the format:
 	// `example.csi.ceph.com`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="name is immutable"
 	Name string `json:"name"`
 
 	// EndPoint is url that contains the ip-address to which the CSI-Addons
@@ -44,6 +46,8 @@ type CSIAddonsNodeDriver struct {
 
 	// NodeID is the ID of the node to identify on which node the side-car
 	// is running.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="nodeID is immutable"
 	NodeID string `json:"nodeID"`
 }
 

@@ -79,6 +79,9 @@ spec:
                     description: PersistentVolumeClaim specifies the target PersistentVolumeClaim
                       name.
                     type: string
+                    x-kubernetes-validations:
+                    - message: persistentVolumeClaim is immutable
+                      rule: self == oldSelf
                 type: object
               timeout:
                 description: Timeout specifies the timeout in seconds for the grpc

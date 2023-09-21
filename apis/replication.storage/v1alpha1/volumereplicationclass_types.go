@@ -26,10 +26,12 @@ import (
 type VolumeReplicationClassSpec struct {
 	// Provisioner is the name of storage provisioner
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="provisioner is immutable"
 	Provisioner string `json:"provisioner"`
 	// Parameters is a key-value map with storage provisioner specific configurations for
 	// creating volume replicas
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="parameters are immutable"
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 

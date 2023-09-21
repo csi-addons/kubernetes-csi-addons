@@ -63,10 +63,16 @@ spec:
                       GetIdentity() call for that driver. The name of the driver is
                       in the format: `example.csi.ceph.com`'
                     type: string
+                    x-kubernetes-validations:
+                    - message: name is immutable
+                      rule: self == oldSelf
                   nodeID:
                     description: NodeID is the ID of the node to identify on which
                       node the side-car is running.
                     type: string
+                    x-kubernetes-validations:
+                    - message: nodeID is immutable
+                      rule: self == oldSelf
                 required:
                 - endpoint
                 - name
@@ -161,6 +167,9 @@ spec:
               driver:
                 description: Driver contains  the name of CSI driver.
                 type: string
+                x-kubernetes-validations:
+                - message: driver is immutable
+                  rule: self == oldSelf
               fenceState:
                 default: Fenced
                 description: FenceState contains the desired state for the CIDRs mentioned
@@ -175,6 +184,9 @@ spec:
                 description: Parameters is used to pass additional parameters to the
                   CSI driver.
                 type: object
+                x-kubernetes-validations:
+                - message: parameters are immutable
+                  rule: self == oldSelf
               secret:
                 description: Secret is a kubernetes secret, which is required to perform
                   the fence/unfence operation.
@@ -182,11 +194,20 @@ spec:
                   name:
                     description: Name specifies the name of the secret.
                     type: string
+                    x-kubernetes-validations:
+                    - message: name is immutable
+                      rule: self == oldSelf
                   namespace:
                     description: Namespace specifies the namespace in which the secret
                       is located.
                     type: string
+                    x-kubernetes-validations:
+                    - message: namespace is immutable
+                      rule: self == oldSelf
                 type: object
+                x-kubernetes-validations:
+                - message: secret is immutable
+                  rule: self == oldSelf
             required:
             - cidrs
             - driver
@@ -394,6 +415,9 @@ spec:
                             description: PersistentVolumeClaim specifies the target
                               PersistentVolumeClaim name.
                             type: string
+                            x-kubernetes-validations:
+                            - message: persistentVolumeClaim is immutable
+                              rule: self == oldSelf
                         type: object
                       timeout:
                         description: Timeout specifies the timeout in seconds for
@@ -573,6 +597,9 @@ spec:
                     description: PersistentVolumeClaim specifies the target PersistentVolumeClaim
                       name.
                     type: string
+                    x-kubernetes-validations:
+                    - message: persistentVolumeClaim is immutable
+                      rule: self == oldSelf
                 type: object
               timeout:
                 description: Timeout specifies the timeout in seconds for the grpc
@@ -739,9 +766,15 @@ spec:
                 description: Parameters is a key-value map with storage provisioner
                   specific configurations for creating volume replicas
                 type: object
+                x-kubernetes-validations:
+                - message: parameters are immutable
+                  rule: self == oldSelf
               provisioner:
                 description: Provisioner is the name of storage provisioner
                 type: string
+                x-kubernetes-validations:
+                - message: provisioner is immutable
+                  rule: self == oldSelf
             required:
             - provisioner
             type: object
@@ -836,6 +869,9 @@ spec:
                 - name
                 type: object
                 x-kubernetes-map-type: atomic
+                x-kubernetes-validations:
+                - message: dataSource is immutable
+                  rule: self == oldSelf
               replicationHandle:
                 description: replicationHandle represents an existing (but new) replication
                   id
@@ -853,6 +889,9 @@ spec:
                 description: VolumeReplicationClass is the VolumeReplicationClass
                   name for this VolumeReplication resource
                 type: string
+                x-kubernetes-validations:
+                - message: volumeReplicationClass is immutable
+                  rule: self == oldSelf
             required:
             - autoResync
             - dataSource
