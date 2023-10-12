@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
 
-// Replication holds the RPC menthod for allowing the communication between
+// Replication holds the RPC method for allowing the communication between
 // the CSIAddons controller and the sidecar for replication operation.
 service Replication {
   // EnableVolumeReplication RPC call to enable the volume replication.
