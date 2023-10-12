@@ -9,25 +9,41 @@ similar to:
 
 ```console
 $ kubectl exec -c csi-addons csi-backend-nodeplugin -- csi-addons -h
+  -cidrs string
+        comma separated list of cidrs
+  -clusterid string
+        clusterID
   -drivername string
-    	name of the CSI driver
+        name of the CSI driver
   -endpoint string
-    	CSI-Addons endpoint (default "unix:///tmp/csi-addons.sock")
+        CSI-Addons endpoint (default "unix:///tmp/csi-addons.sock")
   -legacy
-    	use legacy format for old Kubernetes versions
+        use legacy format for old Kubernetes versions
   -operation string
-    	csi-addons operation
+        csi-addons operation
   -persistentvolume string
-    	name of the PersistentVolume
+        name of the PersistentVolume
+  -secret namespace/name
+        kubernetes secret in the format namespace/name
   -stagingpath string
-    	staging path (default "/var/lib/kubelet/plugins/kubernetes.io/csi/")
+        staging path (default "/var/lib/kubelet/plugins/kubernetes.io/csi/")
+  -version
+        print Version details
 
 The following operations are supported:
+ - ControllerReclaimSpace
  - NodeReclaimSpace
  - GetIdentity
  - GetCapabilities
  - Probe
- - ControllerReclaimSpace
+ - NetworkFence
+ - NetworkUnFence
+ - EnableVolumeReplication
+ - DisableVolumeReplication
+ - PromoteVolume
+ - DemoteVolume
+ - ResyncVolume
+ - GetVolumeReplicationInfo
 ```
 
 The above command assumes the running `csi-backend-nodeplugin` Pod has the

@@ -42,6 +42,9 @@ type command struct {
 	operation        string
 	persistentVolume string
 	drivername       string
+	secret           string
+	cidrs            string
+	clusterid        string
 	legacy           bool
 }
 
@@ -56,6 +59,9 @@ func init() {
 	flag.StringVar(&cmd.operation, "operation", "", "csi-addons operation")
 	flag.StringVar(&cmd.persistentVolume, "persistentvolume", "", "name of the PersistentVolume")
 	flag.StringVar(&cmd.drivername, "drivername", "", "name of the CSI driver")
+	flag.StringVar(&cmd.secret, "secret", "", "kubernetes secret in the format `namespace/name`")
+	flag.StringVar(&cmd.cidrs, "cidrs", "", "comma separated list of cidrs")
+	flag.StringVar(&cmd.clusterid, "clusterid", "", "clusterID")
 	flag.BoolVar(&cmd.legacy, "legacy", false, "use legacy format for old Kubernetes versions")
 	flag.BoolVar(&showVersion, "version", false, "print Version details")
 

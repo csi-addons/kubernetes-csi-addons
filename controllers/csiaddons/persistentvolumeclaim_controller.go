@@ -240,7 +240,7 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportReclaimsSpace(logger
 }
 
 // determineScheduleAndRequeue determines the schedule using the following steps
-//   - Check if the schedule is persent in the PVC annotations. If yes, use that.
+//   - Check if the schedule is present in the PVC annotations. If yes, use that.
 //   - Check if the schedule is present in the namespace annotations. If yes,
 //     use that.
 //   - If schedule is not present in namespace annotations, return ErrorScheduleNotFound.

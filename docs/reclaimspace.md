@@ -68,7 +68,7 @@ spec:
 `reclaimspace.csiaddons.openshift.io/schedule: "@midnight"` annotation
 to PersistentVolumeClaim object.
 
-```
+```console
 $ kubectl get pvc data-pvc
 NAME      STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      AGE
 data-pvc  Bound    pvc-f37b8582-4b04-4676-88dd-e1b95c6abf74   1Gi        RWO            default           20h
@@ -112,7 +112,7 @@ want kubernetes-csi-addons to consider existing PersistentVolumeClaims.
 
 `drivernames` can be `,` separated driver names that supports reclaimspace operations.
 
-```
+```console
 $ kubectl get namespace default
 NAME      STATUS   AGE
 default   Active   5d2h

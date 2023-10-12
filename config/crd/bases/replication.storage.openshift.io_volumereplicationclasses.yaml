@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.12.0
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: volumereplicationclasses.replication.storage.openshift.io
 spec:
   group: replication.storage.openshift.io
@@ -49,9 +49,15 @@ spec:
                 description: Parameters is a key-value map with storage provisioner
                   specific configurations for creating volume replicas
                 type: object
+                x-kubernetes-validations:
+                - message: parameters are immutable
+                  rule: self == oldSelf
               provisioner:
                 description: Provisioner is the name of storage provisioner
                 type: string
+                x-kubernetes-validations:
+                - message: provisioner is immutable
+                  rule: self == oldSelf
             required:
             - provisioner
             type: object

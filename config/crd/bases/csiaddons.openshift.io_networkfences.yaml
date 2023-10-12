@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.12.0
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: networkfences.csiaddons.openshift.io
 spec:
   group: csiaddons.openshift.io
@@ -59,6 +59,9 @@ spec:
               driver:
                 description: Driver contains  the name of CSI driver.
                 type: string
+                x-kubernetes-validations:
+                - message: driver is immutable
+                  rule: self == oldSelf
               fenceState:
                 default: Fenced
                 description: FenceState contains the desired state for the CIDRs mentioned
@@ -73,6 +76,9 @@ spec:
                 description: Parameters is used to pass additional parameters to the
                   CSI driver.
                 type: object
+                x-kubernetes-validations:
+                - message: parameters are immutable
+                  rule: self == oldSelf
               secret:
                 description: Secret is a kubernetes secret, which is required to perform
                   the fence/unfence operation.
@@ -80,11 +86,20 @@ spec:
                   name:
                     description: Name specifies the name of the secret.
                     type: string
+                    x-kubernetes-validations:
+                    - message: name is immutable
+                      rule: self == oldSelf
                   namespace:
                     description: Namespace specifies the namespace in which the secret
                       is located.
                     type: string
+                    x-kubernetes-validations:
+                    - message: namespace is immutable
+                      rule: self == oldSelf
                 type: object
+                x-kubernetes-validations:
+                - message: secret is immutable
+                  rule: self == oldSelf
             required:
             - cidrs
             - driver

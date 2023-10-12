@@ -40,13 +40,18 @@ const (
 	FencingOperationResultFailed FencingOperationResult = "Failed"
 )
 
+// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="secret is immutable"
 // SecretSpec defines the secrets to be used for the network fencing operation.
 type SecretSpec struct {
 	// Name specifies the name of the secret.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="name is immutable"
 	Name string `json:"name,omitempty"`
 
 	// Namespace specifies the namespace in which the secret
 	// is located.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="namespace is immutable"
 	Namespace string `json:"namespace,omitempty"`
 }
 
@@ -54,6 +59,7 @@ type SecretSpec struct {
 type NetworkFenceSpec struct {
 	// Driver contains  the name of CSI driver.
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="driver is immutable"
 	Driver string `json:"driver"`
 
 	// FenceState contains the desired state for the CIDRs
@@ -71,6 +77,7 @@ type NetworkFenceSpec struct {
 	Secret SecretSpec `json:"secret,omitempty"`
 
 	// Parameters is used to pass additional parameters to the CSI driver.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="parameters are immutable"
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
