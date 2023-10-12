@@ -109,7 +109,7 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	logger = logger.WithValues("DriverName", nwFence.Spec.Driver, "CIDRs", nwFence.Spec.Cidrs)
 
-	client, err := r.getNetworkFenceClient(nwFence.Spec.Driver, "")
+	client, err := r.getNetworkFenceClient(ctx, nwFence.Spec.Driver)
 	if err != nil {
 		logger.Error(err, "Failed to get NetworkFenceClient")
 		return ctrl.Result{}, err
@@ -298,26 +298,29 @@ func (nf *NetworkFenceInstance) removeFinalizerFromNetworkFence(ctx context.Cont
 	return nil
 }
 
-// getNetworkFenceClient returns a NetworkFenceClient for the given driver.
-func (r *NetworkFenceReconciler) getNetworkFenceClient(drivername, nodeID string) (proto.NetworkFenceClient, error) {
-	conns := r.Connpool.GetByNodeID(drivername, nodeID)
+// getNetworkFenceClient returns a NetworkFenceClient that is the leader for
+// the given driver.
+// The NetworkFenceClient should only run on a CONTROLLER_SERVICE capable
+// CSI-Addons plugin, there can only be one plugin that holds the lease.
+func (r *NetworkFenceReconciler) getNetworkFenceClient(ctx context.Context, drivername string) (proto.NetworkFenceClient, error) {
+	conn, err := r.Connpool.GetLeaderByDriver(ctx, r.Client, drivername)
+	if err != nil {
+		return nil, err
+	}
 
-	// Iterate through the connections and find the one that matches the driver name
-	// provided in the NetworkFence spec; so that corresponding network fence and
-	// unfence operations can be performed.
-	for _, v := range conns {
-		for _, cap := range v.Capabilities {
-			// validate if NETWORK_FENCE capability is supported by the driver.
-			if cap.GetNetworkFence() == nil {
-				continue
-			}
+	// verify that the CSI-Addons plugin holding the lease supports
+	// NetworkFence, it probably is a bug if it doesn't
+	for _, capability := range conn.Capabilities {
+		// validate if NETWORK_FENCE capability is supported by the driver.
+		if capability.GetNetworkFence() == nil {
+			continue
+		}
 
-			// validate of NETWORK_FENCE capability is enabled by the storage driver.
-			if cap.GetNetworkFence().GetType() == identity.Capability_NetworkFence_NETWORK_FENCE {
-				return proto.NewNetworkFenceClient(v.Client), nil
-			}
+		// validate of NETWORK_FENCE capability is enabled by the storage driver.
+		if capability.GetNetworkFence().GetType() == identity.Capability_NetworkFence_NETWORK_FENCE {
+			return proto.NewNetworkFenceClient(conn.Client), nil
 		}
 	}
 
-	return nil, fmt.Errorf("no connections for driver: %s", drivername)
+	return nil, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support NetworkFence", conn.Name, drivername)
 }

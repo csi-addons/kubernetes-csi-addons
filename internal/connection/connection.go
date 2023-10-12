@@ -30,6 +30,7 @@ import (
 type Connection struct {
 	Client       *grpc.ClientConn
 	Capabilities []*identity.Capability
+	Name         string
 	NodeID       string
 	DriverName   string
 	Timeout      time.Duration
@@ -37,7 +38,7 @@ type Connection struct {
 
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
 // filled with required information.
-func NewConnection(ctx context.Context, endpoint, nodeID, driverName string) (*Connection, error) {
+func NewConnection(ctx context.Context, endpoint, nodeID, driverName, podName string) (*Connection, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithIdleTimeout(time.Duration(0)),
@@ -49,6 +50,7 @@ func NewConnection(ctx context.Context, endpoint, nodeID, driverName string) (*C
 
 	conn := &Connection{
 		Client:     cc,
+		Name:       podName,
 		NodeID:     nodeID,
 		DriverName: driverName,
 		Timeout:    time.Minute,
@@ -82,4 +84,15 @@ func (c *Connection) fetchCapabilities(ctx context.Context) error {
 	c.Capabilities = res.GetCapabilities()
 
 	return nil
+}
+
+func (c *Connection) HasControllerService() bool {
+	for _, capability := range c.Capabilities {
+		svc := capability.GetService()
+		if svc != nil && svc.GetType() == identity.Capability_Service_CONTROLLER_SERVICE {
+			return true
+		}
+	}
+
+	return false
 }
