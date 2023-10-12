@@ -3,7 +3,7 @@ package proto;
 
 option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
 
-// ReclaimSpace holds the RPC menthod for allowing the
+// ReclaimSpace holds the RPC method for allowing the
 // communication between the CSIAddons controller and the sidecar.
 service ReclaimSpace {
     // ControllerReclaimSpace is a procedure that gets called on the CSI
