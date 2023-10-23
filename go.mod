@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/kubernetes-csi/csi-lib-utils v0.15.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.28.0
+	github.com/onsi/gomega v1.28.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
@@ -39,7 +39,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
