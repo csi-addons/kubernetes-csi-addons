@@ -154,7 +154,15 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	err = nf.updateStatus(ctx, csiaddonsv1alpha1.FencingOperationResultSucceeded, "fencing operation successful")
+	var successMsg string
+	switch nf.instance.Spec.FenceState {
+	case csiaddonsv1alpha1.Fenced:
+		successMsg = csiaddonsv1alpha1.FenceOperationSuccessfulMessage
+	case csiaddonsv1alpha1.Unfenced:
+		successMsg = csiaddonsv1alpha1.UnFenceOperationSuccessfulMessage
+	}
+
+	err = nf.updateStatus(ctx, csiaddonsv1alpha1.FencingOperationResultSucceeded, successMsg)
 	if err != nil {
 		logger.Error(err, "failed to update status")
 		return ctrl.Result{}, err

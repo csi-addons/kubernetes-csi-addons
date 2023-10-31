@@ -40,6 +40,14 @@ const (
 	FencingOperationResultFailed FencingOperationResult = "Failed"
 )
 
+const (
+	// FenceOperationSuccessfulMessage represents successful message on fence operation
+	FenceOperationSuccessfulMessage = "fencing operation successful"
+
+	// UnFenceOperationSuccessfulMessage represents successful message on unfence operation
+	UnFenceOperationSuccessfulMessage = "unfencing operation successful"
+)
+
 // +kubebuilder:validation:XValidation:rule="self == oldSelf",message="secret is immutable"
 // SecretSpec defines the secrets to be used for the network fencing operation.
 type SecretSpec struct {
