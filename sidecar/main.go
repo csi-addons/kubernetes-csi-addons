@@ -64,22 +64,22 @@ func main() {
 
 	controllerEndpoint, err := util.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
-		klog.Fatalf("Failed to validate controller endpoint: %w", err)
+		klog.Fatalf("Failed to validate controller endpoint: %v", err)
 	}
 
 	csiClient, err := client.New(*csiAddonsAddress, *timeout)
 	if err != nil {
-		klog.Fatalf("Failed to connect to %q : %w", *csiAddonsAddress, err)
+		klog.Fatalf("Failed to connect to %q : %v", *csiAddonsAddress, err)
 	}
 
 	err = csiClient.Probe()
 	if err != nil {
-		klog.Fatalf("Failed to probe driver: %w", err)
+		klog.Fatalf("Failed to probe driver: %v", err)
 	}
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		klog.Fatalf("Failed to get cluster config: %w", err)
+		klog.Fatalf("Failed to get cluster config: %v", err)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
