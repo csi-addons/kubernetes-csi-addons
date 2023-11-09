@@ -778,6 +778,9 @@ spec:
             required:
             - provisioner
             type: object
+            x-kubernetes-validations:
+            - message: parameters are immutable
+              rule: has(self.parameters) == has(oldSelf.parameters)
           status:
             description: VolumeReplicationClassStatus defines the observed state of
               VolumeReplicationClass.
