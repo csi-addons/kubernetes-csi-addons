@@ -57,6 +57,7 @@ type SecretSpec struct {
 
 // NetworkFenceSpec defines the desired state of NetworkFence
 // +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="parameters are immutable"
+// +kubebuilder:validation:XValidation:rule="has(self.secret) == has(oldSelf.secret)",message="secret is immutable"
 type NetworkFenceSpec struct {
 	// Driver contains  the name of CSI driver.
 	// +kubebuilder:validation:Required
