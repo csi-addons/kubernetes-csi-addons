@@ -23,6 +23,7 @@ import (
 // VolumeReplicationClassSpec specifies parameters that an underlying storage system uses
 // when creating a volume replica. A specific VolumeReplicationClass is used by specifying
 // its name in a VolumeReplication object.
+// +kubebuilder:validation:XValidation:rule="has(self.parameters) == has(oldSelf.parameters)",message="parameters are immutable"
 type VolumeReplicationClassSpec struct {
 	// Provisioner is the name of storage provisioner
 	// +kubebuilder:validation:Required
