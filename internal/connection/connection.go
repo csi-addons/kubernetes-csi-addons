@@ -38,8 +38,11 @@ type Connection struct {
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
 // filled with required information.
 func NewConnection(ctx context.Context, endpoint, nodeID, driverName string) (*Connection, error) {
-	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
-	cc, err := grpc.Dial(endpoint, opts)
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithIdleTimeout(time.Duration(0)),
+	}
+	cc, err := grpc.Dial(endpoint, opts...)
 	if err != nil {
 		return nil, err
 	}
