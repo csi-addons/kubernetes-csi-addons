@@ -108,6 +108,8 @@ spec:
             x-kubernetes-validations:
             - message: parameters are immutable
               rule: has(self.parameters) == has(oldSelf.parameters)
+            - message: secret is immutable
+              rule: has(self.secret) == has(oldSelf.secret)
           status:
             description: NetworkFenceStatus defines the observed state of NetworkFence
             properties:
