@@ -105,6 +105,9 @@ spec:
             - driver
             - fenceState
             type: object
+            x-kubernetes-validations:
+            - message: parameters are immutable
+              rule: has(self.parameters) == has(oldSelf.parameters)
           status:
             description: NetworkFenceStatus defines the observed state of NetworkFence
             properties:
