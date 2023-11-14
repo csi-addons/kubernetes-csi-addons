@@ -10,6 +10,22 @@ updates:
       prefix: "vendor"
     labels:
       - vendor
+    groups:
+      golang-dependencies:
+        patterns:
+          - "github.com/golang*"
+          - "google.golang.org/*"
+          - "golang.org/x/*"
+      k8s-dependencies:
+        patterns:
+          - "k8s.io*"
+          - "sigs.k8s.io*"
+      github-dependencies:
+        patterns:
+          - "github.com*"
+        exclude-patterns:
+          - "github.com/golang*"
+          - "github.com/container-storage-interface/spec"
   - package-ecosystem: "gomod"
     directory: "/tools"
     schedule:
@@ -19,6 +35,20 @@ updates:
       prefix: "vendor"
     labels:
       - vendor
+    groups:
+      golang-dependencies:
+        patterns:
+          - "github.com/golang*"
+          - "google.golang.org/*"
+      k8s-dependencies:
+        patterns:
+          - "k8s.io*"
+          - "sigs.k8s.io*"
+      github-dependencies:
+        patterns:
+          - "github.com*"
+        exclude-patterns:
+          - "github.com/golang*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
