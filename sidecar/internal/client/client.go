@@ -39,6 +39,7 @@ type Client interface {
 	GetGRPCClient() *grpc.ClientConn
 	Probe() error
 	GetDriverName() (string, error)
+	HasControllerService() (bool, error)
 }
 
 // clientImpl holds the GRPC connenction details
@@ -121,6 +122,34 @@ func (c *clientImpl) probeOnce() (bool, error) {
 		return true, nil
 	}
 	return r.GetValue(), nil
+}
+
+// HasControllerService gets the driver name from the driver
+func (c *clientImpl) HasControllerService() (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+
+	identityClient := identity.NewIdentityClient(c.client)
+
+	req := identity.GetCapabilitiesRequest{}
+	rsp, err := identityClient.GetCapabilities(ctx, &req)
+	if err != nil {
+		return false, err
+	}
+
+	caps := rsp.GetCapabilities()
+	if len(caps) == 0 {
+		return false, errors.New("driver does not have any capabilities")
+	}
+
+	for _, c := range caps {
+		svc := c.GetService()
+		if svc != nil && svc.GetType() == identity.Capability_Service_CONTROLLER_SERVICE {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // GetDriverName gets the driver name from the driver
