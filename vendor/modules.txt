@@ -106,6 +106,7 @@ github.com/json-iterator/go
 ## explicit; go 1.18
 github.com/kubernetes-csi/csi-lib-utils/accessmodes
 github.com/kubernetes-csi/csi-lib-utils/connection
+github.com/kubernetes-csi/csi-lib-utils/leaderelection
 github.com/kubernetes-csi/csi-lib-utils/metrics
 github.com/kubernetes-csi/csi-lib-utils/protosanitizer
 # github.com/mailru/easyjson v0.7.7

@@ -32,6 +32,10 @@ import (
 type mockClient struct {
 	// Driver contains the drivername obtained with GetDriverName()
 	driver string
+
+	// isController is set to true when the CSI-plugin supports the
+	// CONTROLLER_SERVICE
+	isController bool
 }
 
 func NewMockClient(driver string) client.Client {
@@ -48,6 +52,10 @@ func (mc *mockClient) Probe() error {
 
 func (mc *mockClient) GetDriverName() (string, error) {
 	return mc.driver, nil
+}
+
+func (mc *mockClient) HasControllerService() (bool, error) {
+	return mc.isController, nil
 }
 
 func Test_getCSIAddonsNode(t *testing.T) {

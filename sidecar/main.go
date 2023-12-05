@@ -17,16 +17,19 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/sidecar/service"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
-	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
+	sideutil "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
 
+	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -48,6 +51,11 @@ func main() {
 		podNamespace = flag.String("namespace", "", "namespace of the Pod that contains this sidecar")
 		podUID       = flag.String("pod-uid", "", "UID of the Pod that contains this sidecar")
 		showVersion  = flag.Bool("version", false, "Print Version details")
+
+		leaderElectionNamespace     = flag.String("leader-election-namespace", "", "The namespace where the leader election resource exists. Defaults to the pod namespace if not set.")
+		leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Duration, in seconds, that non-leader candidates will wait to force acquire leadership. Defaults to 15 seconds.")
+		leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 10*time.Second, "Duration, in seconds, that the acting leader will retry refreshing leadership before giving up. Defaults to 10 seconds.")
+		leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 5*time.Second, "Duration, in seconds, the LeaderElector clients should wait between tries of actions. Defaults to 5 seconds.")
 	)
 	klog.InitFlags(nil)
 
@@ -62,7 +70,7 @@ func main() {
 		return
 	}
 
-	controllerEndpoint, err := util.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
+	controllerEndpoint, err := sideutil.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
 		klog.Fatalf("Failed to validate controller endpoint: %v", err)
 	}
@@ -107,5 +115,49 @@ func main() {
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))
 	sidecarServer.RegisterService(service.NewReplicationServer(csiClient.GetGRPCClient(), kubeClient))
 
-	sidecarServer.Start()
+	isController, err := csiClient.HasControllerService()
+	if err != nil {
+		klog.Fatalf("Failed to check if the CSI-plugin supports CONTROLLER_SERVICE: %v", err)
+	}
+
+	// do not use leaderelection when the CSI-plugin does not have
+	// CONTROLLER_SERVICE
+	if !isController {
+		klog.Info("The CSI-plugin does not have the CSI-Addons CONTROLLER_SERVICE capability, not running leader election")
+		sidecarServer.Start()
+	} else {
+		// start the server in a go-routine so that the controller can
+		// connect to it, even if this service is not the leaser
+		go sidecarServer.Start()
+
+		driver, err := csiClient.GetDriverName()
+		if err != nil {
+			klog.Fatalf("Failed to get the drivername from the CSI-plugin: %v", err)
+		}
+
+		leaseName := util.NormalizeLeaseName(driver) + "-csi-addons"
+		le := leaderelection.NewLeaderElection(kubeClient, leaseName, func(context.Context) {
+			klog.Infof("Obtained leader status: lease name %q, receiving CONTROLLER_SERVICE requests", leaseName)
+		})
+
+		if *podName != "" {
+			le.WithIdentity(*podName)
+		}
+
+		if *leaderElectionNamespace != "" {
+			le.WithNamespace(*leaderElectionNamespace)
+		}
+
+		le.WithLeaseDuration(*leaderElectionLeaseDuration)
+		le.WithRenewDeadline(*leaderElectionRenewDeadline)
+		le.WithRetryPeriod(*leaderElectionRetryPeriod)
+
+		// le.Run() is not expected to return on success
+		err = le.Run()
+		if err != nil {
+			klog.Fatalf("Failed to run as a leader: %v", err)
+		}
+
+		klog.Fatalf("Lost leader status: lease name %q, no longer receiving CONTROLLER_REQUESTS", leaseName)
+	}
 }
