@@ -16,7 +16,16 @@ limitations under the License.
 
 package connection
 
-import "sync"
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	coordination "k8s.io/api/coordination/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
+)
 
 // ConnectionPool consists of map of Connection objects and
 // methods Put, Get & Delete which operates with required rw locks
@@ -92,4 +101,31 @@ func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) map[string]*Con
 	}
 
 	return result
+}
+
+// GetLeaderByDriver finds the holder of the lease for the driver, and returns
+// the connection to that particular CSI-Addons sidecar.
+func (cp *ConnectionPool) GetLeaderByDriver(ctx context.Context, reconciler client.Client, driverName string) (*Connection, error) {
+	// get the Lease for the driver
+	leaseName := util.NormalizeLeaseName(driverName) + "-csi-addons"
+	var lease coordination.Lease
+	err := reconciler.Get(ctx, client.ObjectKey{Name: leaseName}, &lease)
+	if err != nil {
+		return nil, fmt.Errorf("no leader found for driver %q: %w", driverName, err)
+	} else if lease.Spec.HolderIdentity == nil || *lease.Spec.HolderIdentity == "" {
+		return nil, fmt.Errorf("lease %q for driver %q does not have a leader", leaseName, driverName)
+	}
+
+	// get the connection for the leader
+	key := lease.Namespace + "/" + *lease.Spec.HolderIdentity
+
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
+
+	conn, ok := cp.pool[key]
+	if !ok {
+		return nil, fmt.Errorf("no connection with key %q found for driver %q: %w", key, driverName, err)
+	}
+
+	return conn, nil
 }
