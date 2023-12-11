@@ -343,17 +343,38 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	return &details, nil
 }
 
-// getRSClientWithCap returns ReclaimSpaceClient given driverName, nodeID and capabilityType.
-func (r *ReclaimSpaceJobReconciler) getRSClientWithCap(
-	driverName, nodeID string,
-	capType identity.Capability_ReclaimSpace_Type) (string, proto.ReclaimSpaceClient) {
+// getLeadingRSClient returns ReclaimSpaceClient that holds the lease given driverName.
+func (r *ReclaimSpaceJobReconciler) getLeadingRSClient(
+	ctx context.Context,
+	client client.Client,
+	driverName string) (proto.ReclaimSpaceClient, error) {
+	conn, err := r.ConnPool.GetLeaderByDriver(ctx, r.Client, driverName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, cap := range conn.Capabilities {
+		if cap.GetReclaimSpace() == nil {
+			continue
+		}
+		if cap.GetReclaimSpace().Type == identity.Capability_ReclaimSpace_OFFLINE {
+			return proto.NewReclaimSpaceClient(conn.Client), nil
+		}
+	}
+
+	return nil, fmt.Errorf("leading controller for driver %q does not support ReclaimSpace_OFFLINE", driverName)
+}
+
+// getRSClientByNode returns ReclaimSpaceClient given driverName and nodeID.
+func (r *ReclaimSpaceJobReconciler) getRSClientByNode(
+	driverName, nodeID string) (string, proto.ReclaimSpaceClient) {
 	conns := r.ConnPool.GetByNodeID(driverName, nodeID)
 	for k, v := range conns {
 		for _, cap := range v.Capabilities {
 			if cap.GetReclaimSpace() == nil {
 				continue
 			}
-			if cap.GetReclaimSpace().Type == capType {
+			if cap.GetReclaimSpace().Type == identity.Capability_ReclaimSpace_ONLINE {
 				return k, proto.NewReclaimSpaceClient(v.Client)
 			}
 		}
@@ -372,12 +393,11 @@ func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	ctx context.Context,
 	logger *logr.Logger,
 	target *targetDetails) (bool, *int64, error) {
-	clientName, controllerClient := r.getRSClientWithCap(target.driverName, "", identity.Capability_ReclaimSpace_OFFLINE)
-	if controllerClient == nil {
-		logger.Info("Controller Client not found")
-		return false, nil, nil
+	controllerClient, err := r.getLeadingRSClient(ctx, r.Client, target.driverName)
+	if err != nil {
+		logger.Info("Controller Client not found: %v", err)
+		return false, nil, err
 	}
-	*logger = logger.WithValues("controllerClient", clientName)
 
 	logger.Info("Making controller reclaim space request")
 	req := &proto.ReclaimSpaceRequest{
@@ -407,10 +427,9 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	ctx context.Context,
 	logger *logr.Logger,
 	target *targetDetails) (*int64, error) {
-	clientName, nodeClient := r.getRSClientWithCap(
+	clientName, nodeClient := r.getRSClientByNode(
 		target.driverName,
-		target.nodeID,
-		identity.Capability_ReclaimSpace_ONLINE)
+		target.nodeID)
 	if nodeClient == nil {
 		return nil, fmt.Errorf("node Client not found for %q nodeID", target.nodeID)
 	}
