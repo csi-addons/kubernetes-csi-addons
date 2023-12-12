@@ -27,6 +27,8 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 )
 
+//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch
+
 // ConnectionPool consists of map of Connection objects and
 // methods Put, Get & Delete which operates with required rw locks
 // to ensure consistency.
@@ -103,13 +105,43 @@ func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) map[string]*Con
 	return result
 }
 
+// getNamespaceByDriverName loops through the connections in the pool and
+// returns the Namespace of the first connection that matches the driverName.
+func (cp *ConnectionPool) getNamespaceByDriverName(driverName string) (string, error) {
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
+
+	for _, conn := range cp.pool {
+		if conn.DriverName != driverName {
+			continue
+		}
+
+		return conn.Namespace, nil
+	}
+
+	// should be impossible to get here, all Connections have a Namespace
+	return "", fmt.Errorf("failed to find the namespace where driver %q is running", driverName)
+}
+
 // GetLeaderByDriver finds the holder of the lease for the driver, and returns
 // the connection to that particular CSI-Addons sidecar.
 func (cp *ConnectionPool) GetLeaderByDriver(ctx context.Context, reconciler client.Client, driverName string) (*Connection, error) {
+	// detect the Namespace where the driver is deployed
+	ns, err := cp.getNamespaceByDriverName(driverName)
+	if err != nil {
+		return nil, err
+	}
+
 	// get the Lease for the driver
 	leaseName := util.NormalizeLeaseName(driverName) + "-csi-addons"
 	var lease coordination.Lease
-	err := reconciler.Get(ctx, client.ObjectKey{Name: leaseName}, &lease)
+	err = reconciler.Get(
+		ctx,
+		client.ObjectKey{
+			Namespace: ns,
+			Name:      leaseName,
+		},
+		&lease)
 	if err != nil {
 		return nil, fmt.Errorf("no leader found for driver %q: %w", driverName, err)
 	} else if lease.Spec.HolderIdentity == nil || *lease.Spec.HolderIdentity == "" {
