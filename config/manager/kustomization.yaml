@@ -14,8 +14,6 @@ resources:
 # Protect the /metrics endpoint by putting it behind auth.
 # If you want your controller-manager to expose the /metrics
 # endpoint w/o any authn/z, please comment the following line.
-patchesStrategicMerge:
-- manager_auth_proxy_patch.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
@@ -33,3 +31,5 @@ images:
 - name: rbac-proxy
   newName: gcr.io/kubebuilder/kube-rbac-proxy
   newTag: v0.8.0
+patches:
+- path: manager_auth_proxy_patch.yaml
