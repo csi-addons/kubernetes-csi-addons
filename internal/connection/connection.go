@@ -30,6 +30,7 @@ import (
 type Connection struct {
 	Client       *grpc.ClientConn
 	Capabilities []*identity.Capability
+	Namespace    string
 	Name         string
 	NodeID       string
 	DriverName   string
@@ -38,7 +39,7 @@ type Connection struct {
 
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
 // filled with required information.
-func NewConnection(ctx context.Context, endpoint, nodeID, driverName, podName string) (*Connection, error) {
+func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace, podName string) (*Connection, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithIdleTimeout(time.Duration(0)),
@@ -50,6 +51,7 @@ func NewConnection(ctx context.Context, endpoint, nodeID, driverName, podName st
 
 	conn := &Connection{
 		Client:     cc,
+		Namespace:  namespace,
 		Name:       podName,
 		NodeID:     nodeID,
 		DriverName: driverName,
