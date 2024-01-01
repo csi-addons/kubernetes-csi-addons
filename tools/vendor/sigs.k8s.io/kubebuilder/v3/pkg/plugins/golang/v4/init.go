@@ -23,6 +23,7 @@ import (
 	"strings"
 	"unicode"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
@@ -69,10 +70,10 @@ func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *
   - a "cmd/main.go" file that creates the manager that will run the project controllers
 `
 	subcmdMeta.Examples = fmt.Sprintf(`  # Initialize a new project with your domain and name in copyright
-  %[1]s init --plugins go/v4-alpha --domain example.org --owner "Your name"
+  %[1]s init --plugins go/v4 --domain example.org --owner "Your name"
 
   # Initialize a new project defining a specific project version
-  %[1]s init --plugins go/v4-alpha --project-version 3
+  %[1]s init --plugins go/v4 --project-version 3
 `, cliMeta.CommandName)
 }
 
@@ -129,7 +130,7 @@ func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 	}
 
 	if !p.fetchDeps {
-		fmt.Println("Skipping fetching dependencies.")
+		log.Println("Skipping fetching dependencies.")
 		return nil
 	}
 

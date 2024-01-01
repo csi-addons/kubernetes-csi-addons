@@ -91,7 +91,7 @@ func (p *createAPISubcommand) PostScaffold() error {
 func (p *createAPISubcommand) Scaffold(fs machinery.Filesystem) error {
 	scaffolder := scaffolds.NewCreateAPIScaffolder(p.config, *p.resource)
 
-	var s = fmt.Sprintf(makefileBundleCRDFile, p.resource.Plural, p.resource.QualifiedGroup(), p.resource.Version)
+	var s = fmt.Sprintf(makefileBundleCRDFile, p.resource.Plural, p.resource.QualifiedGroup())
 	foundLine := findOldFilesForReplacement(filePath, s)
 
 	if !foundLine {
@@ -109,7 +109,7 @@ func (p *createAPISubcommand) Scaffold(fs machinery.Filesystem) error {
 			projectName = strings.ToLower(filepath.Base(dir))
 		}
 
-		makefileBytes = append(makefileBytes, []byte(fmt.Sprintf(makefileBundleVarFragment, p.resource.Plural, p.resource.QualifiedGroup(), p.resource.Version))...)
+		makefileBytes = append(makefileBytes, []byte(fmt.Sprintf(makefileBundleVarFragment, p.resource.Plural, p.resource.QualifiedGroup()))...)
 
 		makefileBytes = append([]byte(fmt.Sprintf(makefileBundleImageFragement, p.config.GetDomain(), projectName)), makefileBytes...)
 
@@ -208,7 +208,7 @@ func findOldFilesForReplacement(path, newfile string) bool {
 }
 
 const (
-	makefileBundleCRDFile = `target/kubernetes/%[1]s.%[2]s-%[3]s.yml`
+	makefileBundleCRDFile = `target/kubernetes/%[1]s.%[2]s-v1.yml`
 )
 
 const (
@@ -217,7 +217,7 @@ const (
 .PHONY: bundle
 bundle:  ## Generate bundle manifests and metadata, then validate generated files.
 ## marker
-	cat target/kubernetes/%[1]s.%[2]s-%[3]s.yml target/kubernetes/kubernetes.yml | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	cat target/kubernetes/%[1]s.%[2]s-v1.yml target/kubernetes/kubernetes.yml | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 	
 .PHONY: bundle-build

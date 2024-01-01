@@ -17,6 +17,7 @@ package fbcutil
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -46,6 +47,8 @@ const (
 	// DefaultIndexImage is the index base image used if none is specified. It contains no bundles.
 	// TODO(v2.0.0): pin this image tag to a specific version.
 	DefaultIndexImage = DefaultIndexImageBase + "latest"
+	// DefaultInitImage is the default image to be used in the registry init container
+	DefaultInitImage = "docker.io/library/busybox:1.36.0"
 )
 
 // BundleDeclcfg represents a minimal File-Based Catalog.
@@ -134,7 +137,8 @@ func NullLogger() *log.Entry {
 // RenderRefs will invoke Operator Registry APIs and return a declarative config object representation
 // of the references that are passed in as a string array.
 func RenderRefs(ctx context.Context, refs []string, skipTLSVerify bool, useHTTP bool) (*declarativeconfig.DeclarativeConfig, error) {
-	cacheDir := strings.ReplaceAll(strings.Join(refs, "_"), "/", "-")
+	cacheDir := dirNameFromRefs(refs)
+
 	if cacheDir == "" {
 		cacheDir = DefaultCacheDir
 	}
@@ -167,6 +171,14 @@ func RenderRefs(ctx context.Context, refs []string, skipTLSVerify bool, useHTTP 
 	}
 
 	return declcfg, nil
+}
+
+func dirNameFromRefs(refs []string) string {
+	dirNameBytes := []byte(strings.ReplaceAll(strings.Join(refs, "_"), "/", "-"))
+	hash := sha256.New()
+	hash.Write(dirNameBytes)
+	hashBytes := hash.Sum(nil)
+	return fmt.Sprintf("%x", hashBytes)
 }
 
 // IsFBC will determine if an index image uses the File-Based Catalog or SQLite index image format.

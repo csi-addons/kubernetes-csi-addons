@@ -21,17 +21,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/model/resource"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
 	kustomizev1scaffolds "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1/scaffolds"
-	kustomizev2scaffolds "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha/scaffolds"
+	kustomizev2scaffolds "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2/scaffolds"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds/internal/templates/api"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds/internal/templates/config/samples"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/deploy-image/v1alpha1/scaffolds/internal/templates/controllers"
@@ -55,7 +55,7 @@ type apiScaffolder struct {
 	fs machinery.Filesystem
 }
 
-// NewAPIScaffolder returns a new Scaffolder for declarative
+// NewDeployImageScaffolder returns a new Scaffolder for declarative
 // nolint: lll
 func NewDeployImageScaffolder(config config.Config, res resource.Resource, image,
 	command, port, runAsUser string,
@@ -77,7 +77,7 @@ func (s *apiScaffolder) InjectFS(fs machinery.Filesystem) {
 
 // Scaffold implements cmdutil.Scaffolder
 func (s *apiScaffolder) Scaffold() error {
-	fmt.Println("Writing scaffold for you to edit...")
+	log.Println("Writing scaffold for you to edit...")
 
 	//nolint: staticcheck
 	isGoV3 := plugin.IsLegacyLayout(s.config)
@@ -134,7 +134,7 @@ func (s *apiScaffolder) Scaffold() error {
 	if isGoV3 {
 		defaultMainPath = "main.go"
 	}
-	if err := s.updateMainByAddingEventRecorder(isGoV3, defaultMainPath); err != nil {
+	if err := s.updateMainByAddingEventRecorder(defaultMainPath); err != nil {
 		return fmt.Errorf("error updating main.go: %v", err)
 	}
 
@@ -188,29 +188,16 @@ func (s *apiScaffolder) scaffoldCreateAPIFromPlugins(isLegacyLayout bool) error 
 // TODO: replace this implementation by creating its own MainUpdater
 // which will have its own controller template which set the recorder so that we can use it
 // in the reconciliation to create an event inside for the finalizer
-func (s *apiScaffolder) updateMainByAddingEventRecorder(isGoV3 bool, defaultMainPath string) error {
-	if isGoV3 {
-		if err := util.InsertCode(
-			defaultMainPath,
-			fmt.Sprintf(
-				`if err = (&controllers.%sReconciler{
+func (s *apiScaffolder) updateMainByAddingEventRecorder(defaultMainPath string) error {
+	if err := util.InsertCode(
+		defaultMainPath,
+		fmt.Sprintf(
+			`%sReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),`, s.resource.Kind),
-			fmt.Sprintf(recorderTemplate, strings.ToLower(s.resource.Kind)),
-		); err != nil {
-			return fmt.Errorf("error scaffolding event recorder in %s: %v", defaultMainPath, err)
-		}
-	} else {
-		if err := util.InsertCode(
-			defaultMainPath,
-			fmt.Sprintf(
-				`if err = (&controller.%sReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),`, s.resource.Kind),
-			fmt.Sprintf(recorderTemplate, strings.ToLower(s.resource.Kind)),
-		); err != nil {
-			return fmt.Errorf("error scaffolding event recorder in %s: %v", defaultMainPath, err)
-		}
+		fmt.Sprintf(recorderTemplate, strings.ToLower(s.resource.Kind)),
+	); err != nil {
+		return fmt.Errorf("error scaffolding event recorder in %s: %v", defaultMainPath, err)
 	}
 
 	return nil
@@ -296,7 +283,7 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 
 func (s *apiScaffolder) scaffoldCreateAPIFromKustomize(isLegacyLayout bool) error {
 	// Now we need call the kustomize/v1 plugin to do its scaffolds when we create a new API
-	// todo: when we have the go/v4-alpha plugin we will also need to check what is the plugin used
+	// todo: when we have the go/v4 plugin we will also need to check what is the plugin used
 	// in the Project layout to know if we should use kustomize/v1 OR kustomize/v2-alpha
 	var kustomizeScaffolder plugins.Scaffolder
 
@@ -325,7 +312,7 @@ func (s *apiScaffolder) scaffoldCreateAPIFromKustomize(isLegacyLayout bool) erro
 
 func (s *apiScaffolder) scaffoldCreateAPIFromGolang(isLegacyLayout bool) error {
 	// Now we need call the kustomize/v1 plugin to do its scaffolds when we create a new API
-	// todo: when we have the go/v4-alpha plugin we will also need to check what is the plugin used
+	// todo: when we have the go/v4 plugin we will also need to check what is the plugin used
 	// in the Project layout to know if we should use kustomize/v1 OR kustomize/v2-alpha
 	if isLegacyLayout {
 		golangV3Scaffolder := golangv3scaffolds.NewAPIScaffolder(s.config,

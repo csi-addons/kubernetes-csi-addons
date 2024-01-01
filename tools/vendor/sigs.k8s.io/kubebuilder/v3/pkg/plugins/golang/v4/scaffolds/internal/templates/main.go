@@ -113,9 +113,11 @@ const (
 		os.Exit(1)
 	}
 `
-	webhookSetupCodeFragment = `if err = (&%s.%s{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "%s")
-		os.Exit(1)
+	webhookSetupCodeFragment = `if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&%s.%s{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "%s")
+			os.Exit(1)
+		}
 	}
 `
 )
@@ -198,6 +200,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	%s
 )
 
@@ -240,8 +243,7 @@ func main() {
 {{ if not .ComponentConfig }}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "{{ hashFNV .Repo }}.{{ .Domain }}",

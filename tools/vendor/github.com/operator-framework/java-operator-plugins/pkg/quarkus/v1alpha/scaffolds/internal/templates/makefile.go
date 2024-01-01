@@ -29,6 +29,12 @@ type Makefile struct {
 	// Image is controller manager image name
 	Image string
 
+	// OS is the operating system to use for building the image
+	OS string
+
+	// Arch is the architecture to use for building the image
+	Arch string
+
 	// Kustomize version to use in the project
 	KustomizeVersion string
 
@@ -50,6 +56,15 @@ func (f *Makefile) SetTemplateDefaults() error {
 		f.Image = "controller:latest"
 	}
 
+	if f.OS == "" && f.Arch == "" {
+		// Default OS/Arch to linux/amd64
+		f.OS = "linux"
+		f.Arch = "amd64"
+	} else if f.OS == "" || f.Arch == "" {
+		// Require both OS and Arch
+		return errors.New("Both OS and Arch are required to be set if not using default")
+	}
+
 	if f.KustomizeVersion == "" {
 		return errors.New("kustomize version is required in scaffold")
 	}
@@ -62,8 +77,11 @@ func (f *Makefile) SetTemplateDefaults() error {
 }
 
 const makefileTemplate = `
-# Image URL to use all building/pushing image targets
+# Image URL to use for all building/pushing image targets
 IMG ?= {{ .Image }}
+# Operating system and architecture to use for building image
+OS ?= {{ .OS }}
+ARCH ?= {{ .Arch }}
 
 all: docker-build
 
@@ -86,7 +104,7 @@ help: ## Display this help.
 ##@ Build
 
 docker-build: ## Build docker image with the manager.
-	mvn package -Dquarkus.container-image.build=true -Dquarkus.container-image.image=${IMG}
+	mvn package -Dquarkus.container-image.build=true -Dquarkus.container-image.builder=docker -Dquarkus.container-image.image=${IMG} -Dquarkus.docker.buildx.platform=${OS}/${ARCH}
 
 docker-push: ## Push docker image with the manager.
 	mvn package -Dquarkus.container-image.push=true -Dquarkus.container-image.image=${IMG}

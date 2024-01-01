@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	noticeColor    = "\033[1;36m%s\033[0m"
+	noticeColor    = "\033[1;33m%s\033[0m"
 	deprecationFmt = "[Deprecation Notice] %s\n\n"
 
 	pluginsFlag        = "plugins"
@@ -443,8 +443,8 @@ func (c *CLI) addExtraCommands() error {
 // printDeprecationWarnings prints the deprecation warnings of the resolved plugins.
 func (c CLI) printDeprecationWarnings() {
 	for _, p := range c.resolvedPlugins {
-		if d, isDeprecated := p.(plugin.Deprecated); isDeprecated {
-			fmt.Printf(noticeColor, fmt.Sprintf(deprecationFmt, d.DeprecationWarning()))
+		if p != nil && p.(plugin.Deprecated) != nil && len(p.(plugin.Deprecated).DeprecationWarning()) > 0 {
+			fmt.Fprintf(os.Stderr, noticeColor, fmt.Sprintf(deprecationFmt, p.(plugin.Deprecated).DeprecationWarning()))
 		}
 	}
 }
