@@ -78,7 +78,6 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/cel-go v0.16.1 // indirect
-	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-containerregistry v0.16.1 // indirect
@@ -216,12 +215,12 @@ require (
 	k8s.io/apiextensions-apiserver v0.28.0 // indirect
 	k8s.io/apimachinery v0.28.0 // indirect
 	k8s.io/apiserver v0.28.0 // indirect
-	k8s.io/cli-runtime v0.27.8 // indirect
+	k8s.io/cli-runtime v0.28.0 // indirect
 	k8s.io/client-go v0.28.0 // indirect
 	k8s.io/component-base v0.28.0 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
-	k8s.io/kubectl v0.27.8 // indirect
+	k8s.io/kubectl v0.28.0 // indirect
 	k8s.io/utils v0.0.0-20230711102312-30195339c3c7 // indirect
 	oras.land/oras-go v1.2.4 // indirect
 	rsc.io/letsencrypt v0.0.3 // indirect
