@@ -47,6 +47,12 @@ func (f *ApplicationPropertiesFile) SetTemplateDefaults() error {
 const ApplicationPropertiesTemplate = `quarkus.container-image.build=true
 #quarkus.container-image.group=
 quarkus.container-image.name={{ .ProjectName }}-operator
-# set to true to automatically apply CRDs to the cluster when they get regenerated
-quarkus.operator-sdk.crd.apply=false
+
+# Set to false to prevent CRDs from being applied to the cluster automatically (only applies to dev mode, CRD applying is disabled in prod)
+# See https://docs.quarkiverse.io/quarkus-operator-sdk/dev/index.html#extension-configuration-reference for the complete list of available configuration options
+# quarkus.operator-sdk.crd.apply=false
+
+# Uncomment this to prevent the client from trusting self-signed certificates (mostly useful when using a local cluster for testing)
+# See https://quarkus.io/guides/kubernetes-client#configuration-reference for the complete list of Quarkus Kubernetes client configuration options
+# quarkus.kubernetes-client.trust-certs=false
 `

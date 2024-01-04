@@ -1,3 +1,5 @@
+//go:build windows
+
 package ociwclayer
 
 import (
@@ -12,10 +14,10 @@ import (
 
 	winio "github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/backuptar"
-	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/internal/wclayer"
 )
 
-const whiteoutPrefix = ".wh."
+const WhiteoutPrefix = ".wh."
 
 var (
 	// mutatedFiles is a list of files that are mutated by the import process
@@ -41,7 +43,7 @@ func ImportLayerFromTar(ctx context.Context, r io.Reader, path string, parentLay
 	if err != nil {
 		return 0, err
 	}
-	w, err := hcsshim.NewLayerWriter(hcsshim.DriverInfo{}, path, parentLayerPaths)
+	w, err := wclayer.NewLayerWriter(ctx, path, parentLayerPaths)
 	if err != nil {
 		return 0, err
 	}
@@ -56,7 +58,7 @@ func ImportLayerFromTar(ctx context.Context, r io.Reader, path string, parentLay
 	return n, nil
 }
 
-func writeLayerFromTar(ctx context.Context, r io.Reader, w hcsshim.LayerWriter, root string) (int64, error) {
+func writeLayerFromTar(ctx context.Context, r io.Reader, w wclayer.LayerWriter, root string) (int64, error) {
 	t := tar.NewReader(r)
 	hdr, err := t.Next()
 	totalSize := int64(0)
@@ -69,8 +71,8 @@ func writeLayerFromTar(ctx context.Context, r io.Reader, w hcsshim.LayerWriter, 
 		}
 
 		base := path.Base(hdr.Name)
-		if strings.HasPrefix(base, whiteoutPrefix) {
-			name := path.Join(path.Dir(hdr.Name), base[len(whiteoutPrefix):])
+		if strings.HasPrefix(base, WhiteoutPrefix) {
+			name := path.Join(path.Dir(hdr.Name), base[len(WhiteoutPrefix):])
 			err = w.Remove(filepath.FromSlash(name))
 			if err != nil {
 				return 0, err

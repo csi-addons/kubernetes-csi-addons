@@ -17,8 +17,10 @@ limitations under the License.
 package scaffolds
 
 import (
+	"errors"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
@@ -62,12 +64,16 @@ func (s *apiScaffolder) InjectFS(fs machinery.Filesystem) {
 
 // Scaffold implements cmdutil.Scaffolder
 func (s *apiScaffolder) Scaffold() error {
-	fmt.Println("Writing scaffold for you to edit...")
+	log.Println("Writing scaffold for you to edit...")
 
 	// Load the boilerplate
 	boilerplate, err := afero.ReadFile(s.fs.FS, hack.DefaultBoilerplatePath)
 	if err != nil {
-		return fmt.Errorf("error scaffolding API/controller: unable to load boilerplate: %w", err)
+		if errors.Is(err, afero.ErrFileNotFound) {
+			boilerplate = []byte("")
+		} else {
+			return fmt.Errorf("error scaffolding API/controller: unable to load boilerplate: %w", err)
+		}
 	}
 
 	// Initialize the machinery.Scaffold that will write the files to disk
@@ -96,7 +102,7 @@ func (s *apiScaffolder) Scaffold() error {
 
 	if doController {
 		if err := scaffold.Execute(
-			&controllers.SuiteTest{Force: s.force},
+			&controllers.SuiteTest{Force: s.force, K8SVersion: EnvtestK8SVersion},
 			&controllers.Controller{ControllerRuntimeVersion: ControllerRuntimeVersion, Force: s.force},
 		); err != nil {
 			return fmt.Errorf("error scaffolding controller: %v", err)

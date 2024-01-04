@@ -17,9 +17,7 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"os"
 	"syscall"
 
@@ -63,51 +61,6 @@ func copyFileInfo(fi os.FileInfo, src, name string) error {
 	return nil
 }
 
-const maxSSizeT = int64(^uint(0) >> 1)
-
-func copyFileContent(dst, src *os.File) error {
-	st, err := src.Stat()
-	if err != nil {
-		return fmt.Errorf("unable to stat source: %w", err)
-	}
-
-	size := st.Size()
-	first := true
-	srcFd := int(src.Fd())
-	dstFd := int(dst.Fd())
-
-	for size > 0 {
-		// Ensure that we are never trying to copy more than SSIZE_MAX at a
-		// time and at the same time avoids overflows when the file is larger
-		// than 4GB on 32-bit systems.
-		var copySize int
-		if size > maxSSizeT {
-			copySize = int(maxSSizeT)
-		} else {
-			copySize = int(size)
-		}
-		n, err := unix.CopyFileRange(srcFd, nil, dstFd, nil, copySize, 0)
-		if err != nil {
-			if (err != unix.ENOSYS && err != unix.EXDEV) || !first {
-				return fmt.Errorf("copy file range failed: %w", err)
-			}
-
-			buf := bufferPool.Get().(*[]byte)
-			_, err = io.CopyBuffer(dst, src, *buf)
-			bufferPool.Put(buf)
-			if err != nil {
-				return fmt.Errorf("userspace copy failed: %w", err)
-			}
-			return nil
-		}
-
-		first = false
-		size -= int64(n)
-	}
-
-	return nil
-}
-
 func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAttrErrorHandler) error {
 	xattrKeys, err := sysx.LListxattr(src)
 	if err != nil {
@@ -143,12 +96,4 @@ func copyXAttrs(dst, src string, excludes map[string]struct{}, errorHandler XAtt
 	}
 
 	return nil
-}
-
-func copyDevice(dst string, fi os.FileInfo) error {
-	st, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return errors.New("unsupported stat type")
-	}
-	return unix.Mknod(dst, uint32(fi.Mode()), int(st.Rdev))
 }

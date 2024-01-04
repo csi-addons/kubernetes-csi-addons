@@ -171,26 +171,59 @@ func parseExternalPluginArgs() (args []string) {
 	return args
 }
 
-// getPluginsRoot detects the host system and gets the plugins root based on the host.
+// isHostSupported checks whether the host system is supported or not.
+func isHostSupported(host string) bool {
+	for _, platform := range supportedPlatforms {
+		if host == platform {
+			return true
+		}
+	}
+	return false
+}
+
+// getPluginsRoot gets the plugin root path.
 func getPluginsRoot(host string) (pluginsRoot string, err error) {
+	if !isHostSupported(host) {
+		// freebsd, openbsd, windows...
+		return "", fmt.Errorf("host not supported: %v", host)
+	}
+
+	// if user provides specific path, return
+	if pluginsPath := os.Getenv("EXTERNAL_PLUGINS_PATH"); pluginsPath != "" {
+		// verify if the path actually exists
+		if _, err := os.Stat(pluginsPath); err != nil {
+			if os.IsNotExist(err) {
+				// the path does not exist
+				return "", fmt.Errorf("the specified path %s does not exist", pluginsPath)
+			}
+			// some other error
+			return "", fmt.Errorf("error checking the path: %v", err)
+		}
+		// the path exists
+		return pluginsPath, nil
+	}
+
+	// if no specific path, detects the host system and gets the plugins root based on the host.
+	pluginsRelativePath := filepath.Join("kubebuilder", "plugins")
+	if xdgHome := os.Getenv("XDG_CONFIG_HOME"); xdgHome != "" {
+		return filepath.Join(xdgHome, pluginsRelativePath), nil
+	}
+
 	switch host {
 	case "darwin":
 		logrus.Debugf("Detected host is macOS.")
-		pluginsRoot = filepath.Join("Library", "Application Support", "kubebuilder", "plugins")
+		pluginsRoot = filepath.Join("Library", "Application Support", pluginsRelativePath)
 	case "linux":
 		logrus.Debugf("Detected host is Linux.")
-		pluginsRoot = filepath.Join(".config", "kubebuilder", "plugins")
-	default:
-		// freebsd, openbsd, windows...
-		return "", fmt.Errorf("Host not supported: %v", host)
+		pluginsRoot = filepath.Join(".config", pluginsRelativePath)
 	}
-	userHomeDir, err := getHomeDir()
+
+	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("error retrieving home dir: %v", err)
 	}
-	pluginsRoot = filepath.Join(userHomeDir, pluginsRoot)
 
-	return pluginsRoot, nil
+	return filepath.Join(userHomeDir, pluginsRoot), nil
 }
 
 // DiscoverExternalPlugins discovers the external plugins in the plugins root directory
@@ -285,17 +318,4 @@ func DiscoverExternalPlugins(fs afero.Fs) (ps []plugin.Plugin, err error) {
 // isPluginExectuable checks if a plugin is an executable based on the bitmask and returns true or false.
 func isPluginExectuable(mode fs.FileMode) bool {
 	return mode&0111 != 0
-}
-
-// getHomeDir returns $XDG_CONFIG_HOME if set, otherwise $HOME.
-func getHomeDir() (string, error) {
-	var err error
-	xdgHome := os.Getenv("XDG_CONFIG_HOME")
-	if xdgHome == "" {
-		xdgHome, err = os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-	}
-	return xdgHome, nil
 }
