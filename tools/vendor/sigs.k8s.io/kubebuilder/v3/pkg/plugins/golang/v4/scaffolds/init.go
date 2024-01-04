@@ -17,26 +17,26 @@ limitations under the License.
 package scaffolds
 
 import (
-	"fmt"
-
-	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
 	kustomizecommonv1 "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v1"
-	kustomizecommonv2alpha "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2-alpha"
+	kustomizecommonv2alpha "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v4/scaffolds/internal/templates"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v4/scaffolds/internal/templates/hack"
 )
 
 const (
 	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.14.1"
+	ControllerRuntimeVersion = "v0.16.0"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
-	ControllerToolsVersion = "v0.11.1"
+	ControllerToolsVersion = "v0.13.0"
+	// EnvtestK8SVersion is the k8s version used to do the scaffold
+	EnvtestK8SVersion = "1.28.0"
 
 	imageName = "controller:latest"
 )
@@ -72,7 +72,7 @@ func (s *initScaffolder) InjectFS(fs machinery.Filesystem) {
 
 // Scaffold implements cmdutil.Scaffolder
 func (s *initScaffolder) Scaffold() error {
-	fmt.Println("Writing scaffold for you to edit...")
+	log.Println("Writing scaffold for you to edit...")
 
 	// Initialize the machinery.Scaffold that will write the boilerplate file to disk
 	// The boilerplate file needs to be scaffolded as a separate step as it is going to
@@ -81,36 +81,43 @@ func (s *initScaffolder) Scaffold() error {
 		machinery.WithConfig(s.config),
 	)
 
-	bpFile := &hack.Boilerplate{
-		License: s.license,
-		Owner:   s.owner,
-	}
-	bpFile.Path = s.boilerplatePath
-	if err := scaffold.Execute(bpFile); err != nil {
-		return err
-	}
+	if s.license != "none" {
+		bpFile := &hack.Boilerplate{
+			License: s.license,
+			Owner:   s.owner,
+		}
+		bpFile.Path = s.boilerplatePath
+		if err := scaffold.Execute(bpFile); err != nil {
+			return err
+		}
 
-	boilerplate, err := afero.ReadFile(s.fs.FS, s.boilerplatePath)
-	if err != nil {
-		return err
+		boilerplate, err := afero.ReadFile(s.fs.FS, s.boilerplatePath)
+		if err != nil {
+			return err
+		}
+		// Initialize the machinery.Scaffold that will write the files to disk
+		scaffold = machinery.NewScaffold(s.fs,
+			machinery.WithConfig(s.config),
+			machinery.WithBoilerplate(string(boilerplate)),
+		)
+	} else {
+		s.boilerplatePath = ""
+		// Initialize the machinery.Scaffold without boilerplate
+		scaffold = machinery.NewScaffold(s.fs,
+			machinery.WithConfig(s.config),
+		)
 	}
-
-	// Initialize the machinery.Scaffold that will write the files to disk
-	scaffold = machinery.NewScaffold(s.fs,
-		machinery.WithConfig(s.config),
-		machinery.WithBoilerplate(string(boilerplate)),
-	)
 
 	// If the KustomizeV2 was used to do the scaffold then
 	// we need to ensure that we use its supported Kustomize Version
 	// in order to support it
 	kustomizeVersion = kustomizecommonv1.KustomizeVersion
 	kustomizev2 := kustomizecommonv2alpha.Plugin{}
-	gov4alpha := "go.kubebuilder.io/v4-alpha"
+	gov4 := "go.kubebuilder.io/v4"
 	pluginKeyForKustomizeV2 := plugin.KeyFor(kustomizev2)
 
 	for _, pluginKey := range s.config.GetPluginChain() {
-		if pluginKey == pluginKeyForKustomizeV2 || pluginKey == gov4alpha {
+		if pluginKey == pluginKeyForKustomizeV2 || pluginKey == gov4 {
 			kustomizeVersion = kustomizecommonv2alpha.KustomizeVersion
 			break
 		}

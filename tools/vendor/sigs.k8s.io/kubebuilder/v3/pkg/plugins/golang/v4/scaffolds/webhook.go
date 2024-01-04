@@ -19,6 +19,7 @@ package scaffolds
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
@@ -59,7 +60,7 @@ func (s *webhookScaffolder) InjectFS(fs machinery.Filesystem) {
 
 // Scaffold implements cmdutil.Scaffolder
 func (s *webhookScaffolder) Scaffold() error {
-	fmt.Println("Writing scaffold for you to edit...")
+	log.Println("Writing scaffold for you to edit...")
 
 	// Load the boilerplate
 	boilerplate, err := afero.ReadFile(s.fs.FS, hack.DefaultBoilerplatePath)
@@ -91,14 +92,14 @@ func (s *webhookScaffolder) Scaffold() error {
 	}
 
 	if doConversion {
-		fmt.Println(`Webhook server has been set up for you.
+		log.Println(`Webhook server has been set up for you.
 You need to implement the conversion.Hub and conversion.Convertible interfaces for your CRD types.`)
 	}
 
 	// TODO: Add test suite for conversion webhook after #1664 has been merged & conversion tests supported in envtest.
 	if doDefaulting || doValidation {
 		if err := scaffold.Execute(
-			&api.WebhookSuite{},
+			&api.WebhookSuite{K8SVersion: EnvtestK8SVersion},
 		); err != nil {
 			return err
 		}

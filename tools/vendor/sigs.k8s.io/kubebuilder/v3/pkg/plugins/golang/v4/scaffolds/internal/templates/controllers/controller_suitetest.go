@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	log "github.com/sirupsen/logrus"
+
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 )
 
@@ -33,6 +35,10 @@ type SuiteTest struct {
 	machinery.MultiGroupMixin
 	machinery.BoilerplateMixin
 	machinery.ResourceMixin
+
+	// K8SVersion define the k8s version used to do the scaffold
+	// so that is possible retrieve the binaries
+	K8SVersion string
 
 	// CRDDirectoryRelativePath define the Path for the CRD
 	CRDDirectoryRelativePath string
@@ -51,7 +57,7 @@ func (f *SuiteTest) SetTemplateDefaults() error {
 	}
 
 	f.Path = f.Resource.Replacer().Replace(f.Path)
-	fmt.Println(f.Path)
+	log.Println(f.Path)
 
 	f.TemplateBody = fmt.Sprintf(controllerSuiteTestTemplate,
 		machinery.NewMarkerFor(f.Path, importMarker),
@@ -130,7 +136,9 @@ package controller
 {{end}}
 
 import (
+	"fmt"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -152,7 +160,7 @@ var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 
-func TestAPIs(t *testing.T) {
+func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "Controller Suite")
@@ -165,6 +173,14 @@ var _ = BeforeSuite(func() {
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join({{ .CRDDirectoryRelativePath }}, "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: {{ .Resource.HasAPI }},
+
+		// The BinaryAssetsDirectory is only required if you want to run the tests directly
+		// without call the makefile target test. If not informed it will look for the
+		// default path defined in controller-runtime which is /usr/local/kubebuilder/.
+		// Note that you must have the required binaries setup under the bin directory to perform
+		// the tests directly. When we run make test it will be setup and used automatically.
+		BinaryAssetsDirectory: filepath.Join({{ .CRDDirectoryRelativePath }}, "bin", "k8s",
+			fmt.Sprintf("{{ .K8SVersion }}-%%s-%%s", runtime.GOOS, runtime.GOARCH)),
 	}
 
 	var err error

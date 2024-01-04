@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/matchers"
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -52,13 +53,14 @@ type Render struct {
 	Refs           []string
 	Registry       image.Registry
 	AllowedRefMask RefType
+	Migrate        bool
 
 	skipSqliteDeprecationLog bool
 }
 
 func nullLogger() *logrus.Entry {
 	logger := logrus.New()
-	logger.SetOutput(ioutil.Discard)
+	logger.SetOutput(io.Discard)
 	return logrus.NewEntry(logger)
 }
 
@@ -82,12 +84,18 @@ func (r Render) Run(ctx context.Context) (*declcfg.DeclarativeConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("render reference %q: %w", ref, err)
 		}
-		renderBundleObjects(cfg)
+		moveBundleObjectsToEndOfPropertySlices(cfg)
 
 		for _, b := range cfg.Bundles {
 			sort.Slice(b.RelatedImages, func(i, j int) bool {
 				return b.RelatedImages[i].Image < b.RelatedImages[j].Image
 			})
+		}
+
+		if r.Migrate {
+			if err := migrate(cfg); err != nil {
+				return nil, fmt.Errorf("migrate: %v", err)
+			}
 		}
 
 		cfgs = append(cfgs, *cfg)
@@ -122,7 +130,7 @@ func (r Render) renderReference(ctx context.Context, ref string) (*declcfg.Decla
 			if !r.AllowedRefMask.Allowed(RefDCDir) {
 				return nil, fmt.Errorf("cannot render declarative config directory: %w", ErrNotAllowed)
 			}
-			return declcfg.LoadFS(os.DirFS(ref))
+			return declcfg.LoadFS(ctx, os.DirFS(ref))
 		} else {
 			// The only supported file type is an sqlite DB file,
 			// since declarative configs will be in a directory.
@@ -147,7 +155,7 @@ func (r Render) imageToDeclcfg(ctx context.Context, imageRef string) (*declcfg.D
 	if err != nil {
 		return nil, err
 	}
-	tmpDir, err := ioutil.TempDir("", "render-unpack-")
+	tmpDir, err := os.MkdirTemp("", "render-unpack-")
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +177,7 @@ func (r Render) imageToDeclcfg(ctx context.Context, imageRef string) (*declcfg.D
 		if !r.AllowedRefMask.Allowed(RefDCImage) {
 			return nil, fmt.Errorf("cannot render declarative config image: %w", ErrNotAllowed)
 		}
-		cfg, err = declcfg.LoadFS(os.DirFS(filepath.Join(tmpDir, configsDir)))
+		cfg, err = declcfg.LoadFS(ctx, os.DirFS(filepath.Join(tmpDir, configsDir)))
 		if err != nil {
 			return nil, err
 		}
@@ -304,6 +312,7 @@ func bundleToDeclcfg(bundle *registry.Bundle) (*declcfg.DeclarativeConfig, error
 	if err != nil {
 		return nil, fmt.Errorf("get related images for bundle %q: %v", bundle.Name, err)
 	}
+
 	var csvJson []byte
 	for _, obj := range bundle.Objects {
 		if obj.GetKind() == "ClusterServiceVersion" {
@@ -376,29 +385,72 @@ func getRelatedImages(b *registry.Bundle) ([]declcfg.RelatedImage, error) {
 	return relatedImages, nil
 }
 
-func renderBundleObjects(cfg *declcfg.DeclarativeConfig) {
+func moveBundleObjectsToEndOfPropertySlices(cfg *declcfg.DeclarativeConfig) {
 	for bi, b := range cfg.Bundles {
+		var (
+			others []property.Property
+			objs   []property.Property
+		)
+		for _, p := range b.Properties {
+			switch p.Type {
+			case property.TypeBundleObject, property.TypeCSVMetadata:
+				objs = append(objs, p)
+			default:
+				others = append(others, p)
+			}
+		}
+		cfg.Bundles[bi].Properties = append(others, objs...)
+	}
+}
+
+func migrate(cfg *declcfg.DeclarativeConfig) error {
+	migrations := []func(*declcfg.DeclarativeConfig) error{
+		convertObjectsToCSVMetadata,
+	}
+
+	for _, m := range migrations {
+		if err := m(cfg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func convertObjectsToCSVMetadata(cfg *declcfg.DeclarativeConfig) error {
+BundleLoop:
+	for bi, b := range cfg.Bundles {
+		if b.Image == "" || b.CsvJSON == "" {
+			continue
+		}
+
+		var csv v1alpha1.ClusterServiceVersion
+		if err := json.Unmarshal([]byte(b.CsvJSON), &csv); err != nil {
+			return err
+		}
+
 		props := b.Properties[:0]
 		for _, p := range b.Properties {
-			if p.Type != property.TypeBundleObject {
+			switch p.Type {
+			case property.TypeBundleObject:
+				// Get rid of the bundle objects
+			case property.TypeCSVMetadata:
+				// If this bundle already has a CSV metadata
+				// property, we won't mutate the bundle at all.
+				continue BundleLoop
+			default:
+				// Keep all of the other properties
 				props = append(props, p)
 			}
 		}
-
-		for _, obj := range b.Objects {
-			props = append(props, property.MustBuildBundleObjectData([]byte(obj)))
-		}
-		cfg.Bundles[bi].Properties = props
+		cfg.Bundles[bi].Properties = append(props, property.MustBuildCSVMetadata(csv))
 	}
+	return nil
 }
 
 func combineConfigs(cfgs []declcfg.DeclarativeConfig) *declcfg.DeclarativeConfig {
 	out := &declcfg.DeclarativeConfig{}
 	for _, in := range cfgs {
-		out.Packages = append(out.Packages, in.Packages...)
-		out.Channels = append(out.Channels, in.Channels...)
-		out.Bundles = append(out.Bundles, in.Bundles...)
-		out.Others = append(out.Others, in.Others...)
+		out.Merge(&in)
 	}
 	return out
 }

@@ -1,6 +1,3 @@
-//go:build darwin
-// +build darwin
-
 /*
    Copyright The containerd Authors.
 
@@ -21,16 +18,18 @@ package fs
 
 import (
 	"errors"
-	"os"
-	"syscall"
+	"fmt"
 
 	"golang.org/x/sys/unix"
 )
 
-func copyDevice(dst string, fi os.FileInfo) error {
-	st, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return errors.New("unsupported stat type")
+func copyFile(target, source string) error {
+	if err := unix.Clonefile(source, target, unix.CLONE_NOFOLLOW); err != nil {
+		if !errors.Is(err, unix.ENOTSUP) && !errors.Is(err, unix.EXDEV) {
+			return fmt.Errorf("clonefile failed: %w", err)
+		}
+
+		return openAndCopyFile(target, source)
 	}
-	return unix.Mknod(dst, uint32(fi.Mode()), int(st.Rdev))
+	return nil
 }
