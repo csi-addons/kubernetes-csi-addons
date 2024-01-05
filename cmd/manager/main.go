@@ -67,19 +67,25 @@ func init() {
 
 func main() {
 	var (
-		metricsAddr             string
-		probeAddr               string
-		enableLeaderElection    bool
-		showVersion             bool
-		enableAdmissionWebhooks bool
-		ctx                     = context.Background()
-		cfg                     = util.NewConfig()
+		metricsAddr                 string
+		probeAddr                   string
+		enableLeaderElection        bool
+		leaderElectionLeaseDuration time.Duration
+		leaderElectionRenewDeadline time.Duration
+		leaderElectionRetryPeriod   time.Duration
+		showVersion                 bool
+		enableAdmissionWebhooks     bool
+		ctx                         = context.Background()
+		cfg                         = util.NewConfig()
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 15*time.Second, "Duration, in seconds, that non-leader candidates will wait to force acquire leadership. Defaults to 15 seconds.")
+	flag.DurationVar(&leaderElectionRenewDeadline, "leader-election-renew-deadline", 10*time.Second, "Duration, in seconds, that the acting leader will retry refreshing leadership before giving up. Defaults to 10 seconds.")
+	flag.DurationVar(&leaderElectionRetryPeriod, "leader-election-retry-period", 5*time.Second, "Duration, in seconds, the LeaderElector clients should wait between tries of actions. Defaults to 5 seconds.")
 	flag.DurationVar(&cfg.ReclaimSpaceTimeout, "reclaim-space-timeout", cfg.ReclaimSpaceTimeout, "Timeout for reclaimspace operation")
 	flag.IntVar(&cfg.MaxConcurrentReconciles, "max-concurrent-reconciles", cfg.MaxConcurrentReconciles, "Maximum number of concurrent reconciles")
 	flag.StringVar(&cfg.Namespace, "namespace", cfg.Namespace, "Namespace where the CSIAddons pod is deployed")
@@ -122,6 +128,9 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "e8cd140a.openshift.io",
+		LeaseDuration:          &leaderElectionLeaseDuration,
+		RenewDeadline:          &leaderElectionRenewDeadline,
+		RetryPeriod:            &leaderElectionRetryPeriod,
 		WebhookServer: webhook.NewServer(webhook.Options{
 			Port: 9443,
 		}),
