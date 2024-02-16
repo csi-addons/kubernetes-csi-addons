@@ -352,7 +352,6 @@ func getScheduledTimeForRSJob(rsJob *csiaddonsv1alpha1.ReclaimSpaceJob) (*time.T
 	return &timeParsed, nil
 }
 
-// TODO: add unit test for getNextSchedule
 // getNextSchedule returns lastMissed and next time after parsing the schedule.
 // This function returns error if there are more than 100 missed start times.
 func getNextSchedule(
