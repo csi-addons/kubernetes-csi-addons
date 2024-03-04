@@ -19,7 +19,6 @@ package scaffolds
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-
 	"sigs.k8s.io/kubebuilder/v3/pkg/config"
 	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
@@ -28,15 +27,17 @@ import (
 	kustomizecommonv2alpha "sigs.k8s.io/kubebuilder/v3/pkg/plugins/common/kustomize/v2"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v4/scaffolds/internal/templates"
 	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v4/scaffolds/internal/templates/hack"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v4/scaffolds/internal/templates/test/e2e"
+	"sigs.k8s.io/kubebuilder/v3/pkg/plugins/golang/v4/scaffolds/internal/templates/test/utils"
 )
 
 const (
 	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.16.0"
+	ControllerRuntimeVersion = "v0.16.3"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
 	ControllerToolsVersion = "v0.13.0"
 	// EnvtestK8SVersion is the k8s version used to do the scaffold
-	EnvtestK8SVersion = "1.28.0"
+	EnvtestK8SVersion = "1.28.3"
 
 	imageName = "controller:latest"
 )
@@ -139,5 +140,9 @@ func (s *initScaffolder) Scaffold() error {
 		&templates.Dockerfile{},
 		&templates.DockerIgnore{},
 		&templates.Readme{},
+		&templates.Golangci{},
+		&e2e.Test{},
+		&e2e.SuiteTest{},
+		&utils.Utils{},
 	)
 }
