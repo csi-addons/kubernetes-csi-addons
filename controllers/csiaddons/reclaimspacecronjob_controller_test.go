@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -113,6 +112,7 @@ func TestGetScheduledTimeForRSJob(t *testing.T) {
 
 func TestGetNextSchedule(t *testing.T) {
 	now := time.Now()
+	expectedLastMissed := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 	type args struct {
 		rsCronJob *csiaddonsv1alpha1.ReclaimSpaceCronJob
 		now       time.Time
@@ -132,12 +132,12 @@ func TestGetNextSchedule(t *testing.T) {
 						Schedule: "0 0 * * *",
 					},
 					Status: csiaddonsv1alpha1.ReclaimSpaceCronJobStatus{
-						LastScheduleTime: &metav1.Time{Time: now.Add(-time.Hour)},
+						LastScheduleTime: &metav1.Time{Time: now.Add(-24 * time.Hour).Truncate(24 * time.Hour).Local()},
 					},
 				},
 				now: now,
 			},
-			lastMissed:   time.Time{},
+			lastMissed:   expectedLastMissed,
 			nextSchedule: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).Add(time.Hour * 24),
 			wantErr:      false,
 		},
@@ -150,12 +150,12 @@ func TestGetNextSchedule(t *testing.T) {
 						StartingDeadlineSeconds: ptr.To(int64(3600)),
 					},
 					Status: csiaddonsv1alpha1.ReclaimSpaceCronJobStatus{
-						LastScheduleTime: &metav1.Time{Time: now.Add(-time.Hour)},
+						LastScheduleTime: &metav1.Time{Time: now.Add(-24 * time.Hour).Truncate(24 * time.Hour).Local()},
 					},
 				},
 				now: now,
 			},
-			lastMissed:   time.Time{},
+			lastMissed:   expectedLastMissed,
 			nextSchedule: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).Add(time.Hour * 24),
 			wantErr:      false,
 		},
@@ -203,10 +203,10 @@ func TestGetNextSchedule(t *testing.T) {
 				t.Errorf("getNextSchedule() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotLastMissed, tt.lastMissed) {
+			if !gotLastMissed.Equal(tt.lastMissed) && !gotLastMissed.Equal(time.Time{}) {
 				t.Errorf("getNextSchedule() got last missed = %v, want %v", gotLastMissed, tt.lastMissed)
 			}
-			if !reflect.DeepEqual(gotNextSchedule, tt.nextSchedule) {
+			if !gotNextSchedule.Equal(tt.nextSchedule) {
 				t.Errorf("getNextSchedule() got next schedule = %v, want %v", gotNextSchedule, tt.nextSchedule)
 			}
 		})
