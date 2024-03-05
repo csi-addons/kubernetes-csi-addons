@@ -56,6 +56,9 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       - args:
         - --namespace=$(POD_NAMESPACE)
         - --health-probe-bind-address=:8081
@@ -91,6 +94,7 @@ spec:
             memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: csi-addons-controller-manager

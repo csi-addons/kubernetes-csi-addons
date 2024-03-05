@@ -30,6 +30,9 @@ spec:
             requests:
               cpu: 10m
               memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
         - name: manager
           args:
             - "--namespace=$(POD_NAMESPACE)"
