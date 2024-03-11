@@ -3,7 +3,7 @@ module github.com/csi-addons/kubernetes-csi-addons/tools
 go 1.21
 
 require (
-	github.com/operator-framework/operator-sdk v1.34.0
+	github.com/operator-framework/operator-sdk v1.34.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.32.0
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240102165319-7f316f1309b1
