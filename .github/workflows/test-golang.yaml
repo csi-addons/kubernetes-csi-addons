@@ -22,7 +22,7 @@ jobs:
 
       - name: Install Protoc
         # action @v1.3.0 can install protoc 3.19, @v2 installs protoc v21.0+
-        uses: arduino/setup-protoc@v1.3.0
+        uses: arduino/setup-protoc@v3.0.0
         with:
           version: "3.19.6"
 
