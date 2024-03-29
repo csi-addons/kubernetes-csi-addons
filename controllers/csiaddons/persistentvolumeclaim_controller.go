@@ -21,12 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
-	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -221,7 +221,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 func (r *PersistentVolumeClaimReconciler) checkDriverSupportReclaimsSpace(logger *logr.Logger, annotations map[string]string, driver string) (bool, bool) {
 	reclaimSpaceSupportedByDriver := false
 
-	if drivers, ok := annotations[csiAddonsDriverAnnotation]; ok && util.ContainsInSlice(strings.Split(drivers, ","), driver) {
+	if drivers, ok := annotations[csiAddonsDriverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driver) {
 		reclaimSpaceSupportedByDriver = true
 	}
 

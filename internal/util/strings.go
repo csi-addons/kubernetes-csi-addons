@@ -16,26 +16,13 @@ limitations under the License.
 
 package util
 
-// ConstainsInSlice find given string in given slice.
-func ContainsInSlice(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-
-	return false
-}
+import (
+	"slices"
+)
 
 // RemoveFromSlice removes given string from given slice.
 func RemoveFromSlice(slice []string, s string) []string {
-	result := []string{}
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-
-	return result
+	return slices.DeleteFunc(slice, func(v string) bool {
+		return s == v
+	})
 }

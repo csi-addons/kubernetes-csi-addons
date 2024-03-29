@@ -22,57 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestContainsInSlice(t *testing.T) {
-	type args struct {
-		slice []string
-		s     string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "present",
-			args: args{
-				slice: []string{"hello", "hi", "hey"},
-				s:     "hello",
-			},
-			want: true,
-		},
-		{
-			name: "absent",
-			args: args{
-				slice: []string{"hello", "hi", "hey"},
-				s:     "bye",
-			},
-			want: false,
-		},
-		{
-			name: "nil slice",
-			args: args{
-				slice: nil,
-				s:     "hello",
-			},
-			want: false,
-		},
-		{
-			name: "empty slice",
-			args: args{
-				slice: []string{},
-				s:     "hello",
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			res := ContainsInSlice(tt.args.slice, tt.args.s)
-			assert.Equal(t, tt.want, res)
-		})
-	}
-}
-
 func TestRemoveFromSlice(t *testing.T) {
 	type args struct {
 		slice []string
