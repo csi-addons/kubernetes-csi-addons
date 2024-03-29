@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
@@ -166,7 +167,7 @@ func (r *CSIAddonsNodeReconciler) addFinalizer(
 	logger *logr.Logger,
 	csiAddonsNode *csiaddonsv1alpha1.CSIAddonsNode) error {
 
-	if !util.ContainsInSlice(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer) {
+	if !slices.Contains(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer) {
 		logger.Info("Adding finalizer")
 
 		csiAddonsNode.Finalizers = append(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer)
@@ -186,7 +187,7 @@ func (r *CSIAddonsNodeReconciler) removeFinalizer(
 	logger *logr.Logger,
 	csiAddonsNode *csiaddonsv1alpha1.CSIAddonsNode) error {
 
-	if util.ContainsInSlice(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer) {
+	if slices.Contains(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer) {
 		logger.Info("Removing finalizer")
 
 		csiAddonsNode.Finalizers = util.RemoveFromSlice(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer)

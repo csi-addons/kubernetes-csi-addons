@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
@@ -215,7 +216,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			return reconcile.Result{}, err
 		}
 	} else {
-		if util.ContainsInSlice(instance.GetFinalizers(), volumeReplicationFinalizer) {
+		if slices.Contains(instance.GetFinalizers(), volumeReplicationFinalizer) {
 			err = r.disableVolumeReplication(vr)
 			if err != nil {
 				logger.Error(err, "failed to disable replication")

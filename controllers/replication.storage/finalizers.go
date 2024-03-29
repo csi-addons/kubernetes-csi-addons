@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
@@ -35,7 +36,7 @@ const (
 // addFinalizerToVR adds the VR finalizer on the VolumeReplication instance.
 func (r *VolumeReplicationReconciler) addFinalizerToVR(logger logr.Logger, vr *replicationv1alpha1.VolumeReplication,
 ) error {
-	if !util.ContainsInSlice(vr.ObjectMeta.Finalizers, volumeReplicationFinalizer) {
+	if !slices.Contains(vr.ObjectMeta.Finalizers, volumeReplicationFinalizer) {
 		logger.Info("adding finalizer to volumeReplication object", "Finalizer", volumeReplicationFinalizer)
 		vr.ObjectMeta.Finalizers = append(vr.ObjectMeta.Finalizers, volumeReplicationFinalizer)
 		if err := r.Client.Update(context.TODO(), vr); err != nil {
@@ -50,7 +51,7 @@ func (r *VolumeReplicationReconciler) addFinalizerToVR(logger logr.Logger, vr *r
 
 // removeFinalizerFromVR removes the VR finalizer from the VolumeReplication instance.
 func (r *VolumeReplicationReconciler) removeFinalizerFromVR(logger logr.Logger, vr *replicationv1alpha1.VolumeReplication) error {
-	if util.ContainsInSlice(vr.ObjectMeta.Finalizers, volumeReplicationFinalizer) {
+	if slices.Contains(vr.ObjectMeta.Finalizers, volumeReplicationFinalizer) {
 		logger.Info("removing finalizer from volumeReplication object", "Finalizer", volumeReplicationFinalizer)
 		vr.ObjectMeta.Finalizers = util.RemoveFromSlice(vr.ObjectMeta.Finalizers, volumeReplicationFinalizer)
 		if err := r.Client.Update(context.TODO(), vr); err != nil {
@@ -65,7 +66,7 @@ func (r *VolumeReplicationReconciler) removeFinalizerFromVR(logger logr.Logger, 
 
 // addFinalizerToPVC adds the VR finalizer on the PersistentVolumeClaim.
 func (r *VolumeReplicationReconciler) addFinalizerToPVC(logger logr.Logger, pvc *corev1.PersistentVolumeClaim) error {
-	if !util.ContainsInSlice(pvc.ObjectMeta.Finalizers, pvcReplicationFinalizer) {
+	if !slices.Contains(pvc.ObjectMeta.Finalizers, pvcReplicationFinalizer) {
 		logger.Info("adding finalizer to PersistentVolumeClaim object", "Finalizer", pvcReplicationFinalizer)
 		pvc.ObjectMeta.Finalizers = append(pvc.ObjectMeta.Finalizers, pvcReplicationFinalizer)
 		if err := r.Client.Update(context.TODO(), pvc); err != nil {
@@ -81,7 +82,7 @@ func (r *VolumeReplicationReconciler) addFinalizerToPVC(logger logr.Logger, pvc 
 // removeFinalizerFromPVC removes the VR finalizer on PersistentVolumeClaim.
 func (r *VolumeReplicationReconciler) removeFinalizerFromPVC(logger logr.Logger, pvc *corev1.PersistentVolumeClaim,
 ) error {
-	if util.ContainsInSlice(pvc.ObjectMeta.Finalizers, pvcReplicationFinalizer) {
+	if slices.Contains(pvc.ObjectMeta.Finalizers, pvcReplicationFinalizer) {
 		logger.Info("removing finalizer from PersistentVolumeClaim object", "Finalizer", pvcReplicationFinalizer)
 		pvc.ObjectMeta.Finalizers = util.RemoveFromSlice(pvc.ObjectMeta.Finalizers, pvcReplicationFinalizer)
 		if err := r.Client.Update(context.TODO(), pvc); err != nil {

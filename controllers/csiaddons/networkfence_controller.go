@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -124,7 +125,7 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// check if the networkfence object is getting deleted and handle it.
 	if !nf.instance.GetDeletionTimestamp().IsZero() {
-		if util.ContainsInSlice(nwFence.GetFinalizers(), networkFenceFinalizer) {
+		if slices.Contains(nwFence.GetFinalizers(), networkFenceFinalizer) {
 
 			err := nf.removeFinalizerFromNetworkFence(ctx)
 			if err != nil {
@@ -270,7 +271,7 @@ func (nf *NetworkFenceInstance) unfenceClusterNetwork(ctx context.Context, reque
 
 // addFinalizerToNetworkFence adds a finalizer to the Networkfence instance.
 func (nf *NetworkFenceInstance) addFinalizerToNetworkFence(ctx context.Context) error {
-	if !util.ContainsInSlice(nf.instance.Finalizers, networkFenceFinalizer) {
+	if !slices.Contains(nf.instance.Finalizers, networkFenceFinalizer) {
 		nf.logger.Info("adding finalizer to NetworkFence object", "Finalizer", networkFenceFinalizer)
 
 		nf.instance.Finalizers = append(nf.instance.Finalizers, networkFenceFinalizer)
@@ -285,7 +286,7 @@ func (nf *NetworkFenceInstance) addFinalizerToNetworkFence(ctx context.Context) 
 
 // removeFinalizerFromNetworkFence removes the finalizer from the Networkfence instance.
 func (nf *NetworkFenceInstance) removeFinalizerFromNetworkFence(ctx context.Context) error {
-	if util.ContainsInSlice(nf.instance.Finalizers, networkFenceFinalizer) {
+	if slices.Contains(nf.instance.Finalizers, networkFenceFinalizer) {
 		nf.logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
 
 		nf.instance.Finalizers = util.RemoveFromSlice(nf.instance.Finalizers, networkFenceFinalizer)
