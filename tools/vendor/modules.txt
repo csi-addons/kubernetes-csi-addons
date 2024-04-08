@@ -1061,7 +1061,7 @@ golang.org/x/oauth2/internal
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.16.0
+# golang.org/x/sys v0.17.0
 ## explicit; go 1.18
 golang.org/x/sys/execabs
 golang.org/x/sys/plan9
@@ -1250,9 +1250,9 @@ google.golang.org/protobuf/types/known/structpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
 google.golang.org/protobuf/types/pluginpb
-# gopkg.in/evanphx/json-patch.v5 v5.6.0
+# gopkg.in/evanphx/json-patch.v4 v4.12.0
 ## explicit
-gopkg.in/evanphx/json-patch.v5
+gopkg.in/evanphx/json-patch.v4
 # gopkg.in/inf.v0 v0.9.1
 ## explicit
 gopkg.in/inf.v0
@@ -1838,8 +1838,8 @@ sigs.k8s.io/kubebuilder/v3/pkg/plugins/optional/grafana/v1alpha
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/optional/grafana/v1alpha/scaffolds
 sigs.k8s.io/kubebuilder/v3/pkg/plugins/optional/grafana/v1alpha/scaffolds/internal/templates
 sigs.k8s.io/kubebuilder/v3/pkg/rescaffold
-# sigs.k8s.io/kustomize/api v0.16.0
-## explicit; go 1.20
+# sigs.k8s.io/kustomize/api v0.17.1
+## explicit; go 1.21
 sigs.k8s.io/kustomize/api/filters/annotations
 sigs.k8s.io/kustomize/api/filters/fieldspec
 sigs.k8s.io/kustomize/api/filters/filtersutil
@@ -1882,13 +1882,14 @@ sigs.k8s.io/kustomize/api/krusty
 sigs.k8s.io/kustomize/api/krusty/localizer
 sigs.k8s.io/kustomize/api/kv
 sigs.k8s.io/kustomize/api/pkg/loader
+sigs.k8s.io/kustomize/api/pkg/util
 sigs.k8s.io/kustomize/api/provenance
 sigs.k8s.io/kustomize/api/provider
 sigs.k8s.io/kustomize/api/resmap
 sigs.k8s.io/kustomize/api/resource
 sigs.k8s.io/kustomize/api/types
-# sigs.k8s.io/kustomize/cmd/config v0.13.0
-## explicit; go 1.20
+# sigs.k8s.io/kustomize/cmd/config v0.14.0
+## explicit; go 1.21
 sigs.k8s.io/kustomize/cmd/config/completion
 sigs.k8s.io/kustomize/cmd/config/configcobra
 sigs.k8s.io/kustomize/cmd/config/ext
@@ -1898,8 +1899,8 @@ sigs.k8s.io/kustomize/cmd/config/internal/generateddocs/api
 sigs.k8s.io/kustomize/cmd/config/internal/generateddocs/commands
 sigs.k8s.io/kustomize/cmd/config/internal/generateddocs/tutorials
 sigs.k8s.io/kustomize/cmd/config/runner
-# sigs.k8s.io/kustomize/kustomize/v5 v5.3.0
-## explicit; go 1.20
+# sigs.k8s.io/kustomize/kustomize/v5 v5.4.1
+## explicit; go 1.21
 sigs.k8s.io/kustomize/kustomize/v5
 sigs.k8s.io/kustomize/kustomize/v5/commands
 sigs.k8s.io/kustomize/kustomize/v5/commands/build
@@ -1917,8 +1918,8 @@ sigs.k8s.io/kustomize/kustomize/v5/commands/openapi
 sigs.k8s.io/kustomize/kustomize/v5/commands/openapi/fetch
 sigs.k8s.io/kustomize/kustomize/v5/commands/openapi/info
 sigs.k8s.io/kustomize/kustomize/v5/commands/version
-# sigs.k8s.io/kustomize/kyaml v0.16.0
-## explicit; go 1.20
+# sigs.k8s.io/kustomize/kyaml v0.17.0
+## explicit; go 1.21
 sigs.k8s.io/kustomize/kyaml/comments
 sigs.k8s.io/kustomize/kyaml/errors
 sigs.k8s.io/kustomize/kyaml/ext
