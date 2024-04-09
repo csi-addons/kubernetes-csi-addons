@@ -150,7 +150,7 @@ type grpcClient struct {
 
 // Connect to the endpoint, or panic in case it fails.
 func (g *grpcClient) Connect(endpoint string) {
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {

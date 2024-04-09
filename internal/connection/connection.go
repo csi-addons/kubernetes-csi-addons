@@ -44,7 +44,7 @@ func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithIdleTimeout(time.Duration(0)),
 	}
-	cc, err := grpc.Dial(endpoint, opts...)
+	cc, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return nil, err
 	}
