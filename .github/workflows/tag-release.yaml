@@ -20,7 +20,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.22"
 
       - name: Generate the bundle contents
         run: make bundle TAG=${{ github.ref_name }}
@@ -129,7 +129,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.22"
 
       - name: Generate manifests for installation by kubectl
         run: make manifests TAG=${{ github.ref_name }}
