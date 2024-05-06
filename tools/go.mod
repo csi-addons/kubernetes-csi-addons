@@ -1,7 +1,6 @@
 module github.com/csi-addons/kubernetes-csi-addons/tools
 
-go 1.21
-toolchain go1.22.2
+go 1.22.2
 
 require (
 	github.com/operator-framework/operator-sdk v1.34.1
