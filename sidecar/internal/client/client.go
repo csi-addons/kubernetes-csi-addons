@@ -51,14 +51,14 @@ type clientImpl struct {
 }
 
 // Connect to the GRPC client
-func (c *clientImpl) connect(address string) (*grpc.ClientConn, error) {
-	return connection.Connect(address, metrics.NewCSIMetricsManager(""), connection.OnConnectionLoss(connection.ExitOnConnectionLoss()))
+func (c *clientImpl) connect(ctx context.Context, address string) (*grpc.ClientConn, error) {
+	return connection.Connect(ctx, address, metrics.NewCSIMetricsManager(""), connection.OnConnectionLoss(connection.ExitOnConnectionLoss()))
 }
 
 // New creates and returns the GRPC client
-func New(address string, timeout time.Duration) (Client, error) {
+func New(ctx context.Context, address string, timeout time.Duration) (Client, error) {
 	c := &clientImpl{}
-	cc, err := c.connect(address)
+	cc, err := c.connect(ctx, address)
 	if err != nil {
 		return nil, err
 	}
