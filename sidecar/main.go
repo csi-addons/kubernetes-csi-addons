@@ -75,7 +75,7 @@ func main() {
 		klog.Fatalf("Failed to validate controller endpoint: %v", err)
 	}
 
-	csiClient, err := client.New(*csiAddonsAddress, *timeout)
+	csiClient, err := client.New(context.Background(), *csiAddonsAddress, *timeout)
 	if err != nil {
 		klog.Fatalf("Failed to connect to %q : %v", *csiAddonsAddress, err)
 	}
