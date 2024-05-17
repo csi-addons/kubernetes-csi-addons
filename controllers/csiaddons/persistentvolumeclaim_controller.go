@@ -31,6 +31,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,6 +69,7 @@ const (
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims/finalizers,verbs=update
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=reclaimspacecronjobs,verbs=get;list;watch;create;delete;update
 //+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.  This is
@@ -260,6 +262,7 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 	if scheduleFound {
 		return schedule, nil
 	}
+
 	// check for namespace schedule annotation.
 	// We cannot have a generic solution for all CSI drivers to get the driver
 	// name from PV and check if driver supports space reclamation or not and
@@ -292,6 +295,18 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 		// The request needs to be requeued for checking
 		// driver support again.
 		return "", ErrConnNotFoundRequeueNeeded
+	}
+
+	// check for storageclass schedule annotation.
+	sc := &storagev1.StorageClass{}
+	err = r.Client.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, sc)
+	if err != nil {
+		logger.Error(err, "Failed to get StorageClass", "StorageClass", *pvc.Spec.StorageClassName)
+		return "", err
+	}
+	schedule, scheduleFound = getScheduleFromAnnotation(logger, sc.Annotations)
+	if scheduleFound {
+		return schedule, nil
 	}
 
 	return "", ErrScheduleNotFound
