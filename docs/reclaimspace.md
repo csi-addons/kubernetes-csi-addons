@@ -121,8 +121,31 @@ $ kubectl annotate namespace default "reclaimspace.csiaddons.openshift.io/schedu
 namespace/default annotated
 ```
 
-**Note** Please note that the PersistentVolumeClaim annotation takes priority
-over Namespace annotation. The kubernetes-csi-addons only generate a
-`ReclaimSpaceCronJob` if the annotation exists on the Namespace. If an admin
-needs to modify or delete the annotation on the Namespace, they must perform
-the same action on all the PersistentVolumeClaims within that Namespace.
+**Note** Please note that the PersistentVolumeClaim annotation takes priority over Namespace
+annotation. The kubernetes-csi-addons only generate a `ReclaimSpaceCronJob` if the annotation
+exists on the Namespace. If an admin needs to modify or delete the annotation on the Namespace,
+they must perform the same action on all the PersistentVolumeClaims within that Namespace.
+
+## Annotating StorageClass
+
+You can create `ReclaimSpaceCronJob` CR automatically by adding the
+`reclaimspace.csiaddons.openshift.io/schedule: "@midnight"` annotations to the StorageClass object.
+This will only affect new PersistentVolumeClaims created from this StorageClass for ReclaimSpace
+operations. To include existing PersistentVolumeClaims for ReclaimSpace operations, you must restart
+the controller. This will ensure that reclaimspace annotations are added to the existing
+PersistentVolumeClaims and `ReclaimSpaceCronJob` resources are created for them.
+
+```console
+$ kubectl get storageclass rbd-sc
+NAME       PROVISIONER        RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+rbd-sc     rbd.csi.ceph.com   Delete          Immediate           true                   5d2h
+
+$ kubectl annotate storageclass rbd-sc "reclaimspace.csiaddons.openshift.io/schedule=@midnight"
+storageclass.storage.k8s.io/rbd-sc annotated
+```
+
+**Note** Please note that the PersistentVolumeClaim and Namespace annotation takes priority
+over StorageClass annotation. The kubernetes-csi-addons only generate a `ReclaimSpaceCronJob`
+if the annotation exists on the StorageClass. If an admin needs to modify or delete the
+annotation on the StorageClass, they must perform the same action on all the PersistentVolumeClaims
+created from this StorageClass.
