@@ -217,6 +217,32 @@ rules:
 - apiGroups:
   - replication.storage.openshift.io
   resources:
+  - volumegroupreplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumegroupreplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumegroupreplications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
   - volumereplicationclasses
   verbs:
   - get
