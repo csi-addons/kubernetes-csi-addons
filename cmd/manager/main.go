@@ -204,6 +204,13 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroupReplication")
 		os.Exit(1)
 	}
+	if err = (&replicationController.VolumeGroupReplicationContentReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroupReplicationContent")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

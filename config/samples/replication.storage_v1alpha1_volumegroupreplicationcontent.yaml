@@ -1,0 +1,12 @@
+apiVersion: replication.storage.openshift.io/v1alpha1
+kind: VolumeGroupReplicationContent
+metadata:
+  labels:
+    app.kubernetes.io/name: volumegroupreplicationcontent
+    app.kubernetes.io/instance: volumegroupreplicationcontent-sample
+    app.kubernetes.io/part-of: kubernetes-csi-addons
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kubernetes-csi-addons
+  name: volumegroupreplicationcontent-sample
+spec:
+  # TODO(user): Add fields here

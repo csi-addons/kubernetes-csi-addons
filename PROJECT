@@ -79,4 +79,12 @@ resources:
   kind: VolumeGroupReplication
   path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: openshift.io
+  group: replication.storage
+  kind: VolumeGroupReplicationContent
+  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  version: v1alpha1
 version: "3"
