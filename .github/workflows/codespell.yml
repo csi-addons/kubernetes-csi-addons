@@ -17,10 +17,6 @@ jobs:
         uses: codespell-project/actions-codespell@master
         with:
           skip: .git,go.mod,go.sum,vendor
-          # kubebuilder latest release has a label with name kuberentes
-          # TODO: remove this in next kubebuilder update as this is fixed
-          # in kubebuilder master
-          # https://github.com/kubernetes-sigs/kubebuilder/pull/2964
-          ignore_words_list: kuberentes
+          ignore_words_list: NotIn
           check_filenames: true
           check_hidden: true
