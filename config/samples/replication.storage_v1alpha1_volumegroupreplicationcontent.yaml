@@ -9,4 +9,11 @@ metadata:
     app.kubernetes.io/created-by: kubernetes-csi-addons
   name: volumegroupreplicationcontent-sample
 spec:
-  # TODO(user): Add fields here
+  volumeGroupReplicationRef:
+    name: volumegroupreplication
+    namespace: default
+  volumeGroupReplicationHandle: replicationHandle
+  provisioner: driver.csi.com
+  volumeGroupReplicationClassName: volumegroupreplicationclassname
+  source:
+    - volumeHandles: volumeID

@@ -9,4 +9,9 @@ metadata:
     app.kubernetes.io/created-by: kubernetes-csi-addons
   name: volumegroupreplication-sample
 spec:
-  # TODO(user): Add fields here
+  source:
+    selector:
+      matchLabels:
+        group: replication
+  volumeGroupReplicationClassName: volumegroupreplicationclassname
+  replicationState: primary

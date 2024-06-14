@@ -9,4 +9,7 @@ metadata:
     app.kubernetes.io/created-by: kubernetes-csi-addons
   name: volumegroupreplicationclass-sample
 spec:
-  # TODO(user): Add fields here
+  provisioner: driver.csi.com
+  parameters:
+    replication.storage.openshift.io/group-replication-secret-name: secret
+    replication.storage.openshift.io/group-replication-secret-namespace: default
