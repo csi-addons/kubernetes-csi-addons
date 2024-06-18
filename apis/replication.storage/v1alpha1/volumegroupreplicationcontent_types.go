@@ -50,7 +50,7 @@ type VolumeGroupReplicationContentSpec struct {
 	// VolumeGroupReplicationClassName is the name of the VolumeGroupReplicationClass from
 	// which this group replication was (or will be) created.
 	// +optional
-	VolumeGroupSnapshotClassName string `json:"volumeGroupReplicationClassName"`
+	VolumeGroupReplicationClassName string `json:"volumeGroupReplicationClassName"`
 
 	// Source specifies whether the snapshot is (or should be) dynamically provisioned
 	// or already exists, and just requires a Kubernetes object representation.
@@ -59,7 +59,7 @@ type VolumeGroupReplicationContentSpec struct {
 	Source VolumeGroupReplicationContentSource `json:"source"`
 }
 
-// VolumeGroupSnapshotContentSource represents the CSI source of a group replication.
+// VolumeGroupReplicationContentSource represents the CSI source of a group replication.
 type VolumeGroupReplicationContentSource struct {
 	// VolumeHandles is a list of volume handles on the backend to be grouped
 	// and replicated.
