@@ -13,8 +13,10 @@ github.com/cncf/xds/go v0.0.0-20240318125728-8a4994d93e50/go.mod h1:5e1+Vvlzido6
 github.com/container-storage-interface/spec v1.9.0 h1:zKtX4STsq31Knz3gciCYCi1SXtO2HJDecIjDVboYavY=
 github.com/container-storage-interface/spec v1.9.0/go.mod h1:ZfDu+3ZRyeVqxZM0Ds19MVLkN2d1XJ5MAfi1L3VjlT0=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/csi-addons/spec v0.2.1-0.20230606140122-d20966d2e444 h1:hWVCrZWVHctpWt6cQxV1I6dW3wpBDMg3Vrvu9uAuUxw=
-github.com/csi-addons/spec v0.2.1-0.20230606140122-d20966d2e444/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
+github.com/csi-addons/spec v0.2.1-0.20240613070511-6a5ff0906b5a h1:UQQNA/VUz3zIXmDHI0bRUBPql2Xx+LvoZpDL7DbFS0k=
+github.com/csi-addons/spec v0.2.1-0.20240613070511-6a5ff0906b5a/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
+github.com/csi-addons/spec v0.2.1-0.20240619103729-12c61f25a2a5 h1:/pXa+X+YKDPRI2JG8WEnxGKk6PcVZRhcLqdPks+bQa8=
+github.com/csi-addons/spec v0.2.1-0.20240619103729-12c61f25a2a5/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
