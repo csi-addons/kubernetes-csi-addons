@@ -130,6 +130,13 @@ spec:
                 x-kubernetes-validations:
                 - message: volumeGroupReplicationContentName is immutable
                   rule: self == oldSelf
+              volumeReplicationClassName:
+                description: volumeReplicationClassName is the volumeReplicationClass
+                  name for VolumeReplication object
+                type: string
+                x-kubernetes-validations:
+                - message: volumReplicationClassName is immutable
+                  rule: self == oldSelf
               volumeReplicationName:
                 description: Name of the VolumeReplication object created for this
                   volumeGroupReplication
@@ -142,6 +149,7 @@ spec:
             - replicationState
             - source
             - volumeGroupReplicationClassName
+            - volumeReplicationClassName
             type: object
           status:
             description: VolumeGroupReplicationStatus defines the observed state of
