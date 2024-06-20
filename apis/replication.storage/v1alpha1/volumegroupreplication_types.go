@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -72,6 +73,10 @@ type VolumeGroupReplicationSource struct {
 // VolumeGroupReplicationStatus defines the observed state of VolumeGroupReplication
 type VolumeGroupReplicationStatus struct {
 	VolumeReplicationStatus `json:",inline"`
+	// PersistentVolumeClaimsRefList is the list of PVCs for the volume group replication.
+	// The maximum number of allowed PVCs in the group is 100.
+	// +optional
+	PersistentVolumeClaimsRefList []corev1.LocalObjectReference `json:"persistentVolumeClaimsRefList,omitempty"`
 }
 
 //+kubebuilder:object:root=true
