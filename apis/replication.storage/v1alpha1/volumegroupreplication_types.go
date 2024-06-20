@@ -27,6 +27,11 @@ type VolumeGroupReplicationSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeGroupReplicationClassName is immutable"
 	VolumeGroupReplicationClassName string `json:"volumeGroupReplicationClassName"`
 
+	// volumeReplicationClassName is the volumeReplicationClass name for VolumeReplication object
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumReplicationClassName is immutable"
+	VolumeReplicationClassName string `json:"volumeReplicationClassName"`
+
 	// Name of the VolumeReplication object created for this volumeGroupReplication
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeReplicationName is immutable"
