@@ -28,6 +28,7 @@ pull_request_rules:
   - name: merge after two approvals (no API changes)
     conditions:
       - base~=^(main)|(release-.+)$
+      - label!=DNM
       - label!=api
       - "#approved-reviews-by>=2"
       - "#changes-requested-reviews-by=0"
@@ -46,6 +47,7 @@ pull_request_rules:
   - name: API changes needs approval from a contributor and a reviewer
     conditions:
       - base~=^(main)|(release-.+)$
+      - label!=DNM
       - label=api
       - "#approved-reviews-by>=2"
       - "#changes-requested-reviews-by=0"
@@ -63,6 +65,13 @@ pull_request_rules:
       queue: {}
       dismiss_reviews: {}
       delete_head_branch: {}
+  - name: pr title contains DNM
+    conditions:
+      - title~=DNM
+    actions:
+      label:
+        add:
+          - DNM
   - name: label API change
     conditions:
       - files~=^(api/)
