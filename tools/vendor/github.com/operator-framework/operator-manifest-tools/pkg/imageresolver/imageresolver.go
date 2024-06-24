@@ -86,6 +86,10 @@ func GetResolver(resolver ResolverOption, args map[string]string) (ImageResolver
 				opts = append(opts, WithDefaultKeychain())
 			}
 		}
+		insecure := args["insecure"]
+		if insecure == "true" {
+			opts = append(opts, Insecure())
+		}
 
 		return NewCraneResolver(opts...), nil
 	default:
