@@ -11,6 +11,7 @@ var _ ImageResolver = CraneResolver{}
 type CraneResolver struct {
 	authenticator authn.Authenticator
 	useDefault    bool
+	insecure      bool
 }
 
 // CraneOption is a function that configures the `CraneResolver`
@@ -30,6 +31,13 @@ func WithDefaultKeychain() CraneOption {
 	}
 }
 
+// Insecure returns a CraneOption that sets the auth to insecure
+func Insecure() CraneOption {
+	return func(res *CraneResolver) {
+		res.insecure = true
+	}
+}
+
 // NewCraneResolver returns a CraneResolver with the applied options.
 func NewCraneResolver(opts ...CraneOption) CraneResolver {
 	res := CraneResolver{authenticator: authn.Anonymous}
@@ -43,11 +51,14 @@ func NewCraneResolver(opts ...CraneOption) CraneResolver {
 func (res CraneResolver) ResolveImageReference(imageReference string) (string, error) {
 	var digest string
 	var err error
-	if res.useDefault {
-		digest, err = crane.Digest(imageReference)
-	} else {
-		digest, err = crane.Digest(imageReference, crane.WithAuth(res.authenticator))
+	craneOpts := []crane.Option{}
+	if !res.useDefault {
+		craneOpts = append(craneOpts, crane.WithAuth(res.authenticator))
 	}
+	if res.insecure {
+		craneOpts = append(craneOpts, crane.Insecure)
+	}
+	digest, err = crane.Digest(imageReference, craneOpts...)
 	if err != nil {
 		return "", err
 	}
