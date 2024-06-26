@@ -278,29 +278,39 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 		return "", err
 	}
 	schedule, scheduleFound = getScheduleFromAnnotation(logger, ns.Annotations)
-	if !scheduleFound {
-		return "", ErrScheduleNotFound
-	}
+
 	// If the schedule is found, check whether driver supports the
 	// space reclamation using annotation on namespace and registered driver
 	// capability for decision on requeue.
-
-	requeue, supportReclaimspace := r.checkDriverSupportReclaimsSpace(logger, ns.Annotations, driverName)
-	if supportReclaimspace {
-		// if driver supports space reclamation,
-		// return schedule from ns annotation.
-		return schedule, nil
+	if scheduleFound {
+		requeue, supportReclaimspace := r.checkDriverSupportReclaimsSpace(logger, ns.Annotations, driverName)
+		if supportReclaimspace {
+			// if driver supports space reclamation,
+			// return schedule from ns annotation.
+			return schedule, nil
+		}
+		if requeue {
+			// The request needs to be requeued for checking
+			// driver support again.
+			return "", ErrConnNotFoundRequeueNeeded
+		}
 	}
-	if requeue {
-		// The request needs to be requeued for checking
-		// driver support again.
-		return "", ErrConnNotFoundRequeueNeeded
+
+	// For static provisioned PVs, StorageClassName is empty.
+	if len(*pvc.Spec.StorageClassName) == 0 {
+		logger.Info("StorageClassName is empty")
+		return "", ErrScheduleNotFound
 	}
 
 	// check for storageclass schedule annotation.
 	sc := &storagev1.StorageClass{}
 	err = r.Client.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, sc)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Error(err, "StorageClass not found", "StorageClass", *pvc.Spec.StorageClassName)
+			return "", ErrScheduleNotFound
+		}
+
 		logger.Error(err, "Failed to get StorageClass", "StorageClass", *pvc.Spec.StorageClassName)
 		return "", err
 	}
