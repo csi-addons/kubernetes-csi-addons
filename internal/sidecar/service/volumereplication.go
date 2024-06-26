@@ -17,6 +17,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	kube "github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
@@ -68,17 +69,12 @@ func (rs *ReplicationServer) EnableVolumeReplication(
 		Parameters:    req.GetParameters(),
 		Secrets:       data,
 	}
-	if req.VolumeId != "" {
-		// setting repReq.VolumeId for backward compatibility for volume replication of a given volume
-		repReq.VolumeId = req.GetVolumeId() // nolint:staticcheck
-		repReq.ReplicationSource = &csiReplication.ReplicationSource{
-			Type: &csiReplication.ReplicationSource_Volume{
-				Volume: &csiReplication.ReplicationSource_VolumeSource{
-					VolumeId: req.GetVolumeId(),
-				},
-			},
-		}
+	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		klog.Errorf("Failed to set replication source: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	_, err = rs.controllerClient.EnableVolumeReplication(ctx, repReq)
 
 	if err != nil {
@@ -106,16 +102,10 @@ func (rs *ReplicationServer) DisableVolumeReplication(
 		Parameters:    req.GetParameters(),
 		Secrets:       data,
 	}
-	if req.GetVolumeId() != "" {
-		// setting repReq.VolumeId for backward compatibility for volume replication of a given volume
-		repReq.VolumeId = req.GetVolumeId() // nolint:staticcheck
-		repReq.ReplicationSource = &csiReplication.ReplicationSource{
-			Type: &csiReplication.ReplicationSource_Volume{
-				Volume: &csiReplication.ReplicationSource_VolumeSource{
-					VolumeId: req.GetVolumeId(),
-				},
-			},
-		}
+	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		klog.Errorf("Failed to set replication source: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = rs.controllerClient.DisableVolumeReplication(ctx, repReq)
@@ -145,16 +135,10 @@ func (rs *ReplicationServer) PromoteVolume(
 		Force:         req.GetForce(),
 		Secrets:       data,
 	}
-	if req.GetVolumeId() != "" {
-		// setting repReq.VolumeId for backward compatibility for volume replication of a given volume
-		repReq.VolumeId = req.GetVolumeId() // nolint:staticcheck
-		repReq.ReplicationSource = &csiReplication.ReplicationSource{
-			Type: &csiReplication.ReplicationSource_Volume{
-				Volume: &csiReplication.ReplicationSource_VolumeSource{
-					VolumeId: req.GetVolumeId(),
-				},
-			},
-		}
+	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		klog.Errorf("Failed to set replication source: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = rs.controllerClient.PromoteVolume(ctx, repReq)
@@ -184,17 +168,12 @@ func (rs *ReplicationServer) DemoteVolume(
 		Force:         req.GetForce(),
 		Secrets:       data,
 	}
-	if req.GetVolumeId() != "" {
-		// setting repReq.VolumeId for backward compatibility for volume replication of a given volume
-		repReq.VolumeId = req.GetVolumeId() // nolint:staticcheck
-		repReq.ReplicationSource = &csiReplication.ReplicationSource{
-			Type: &csiReplication.ReplicationSource_Volume{
-				Volume: &csiReplication.ReplicationSource_VolumeSource{
-					VolumeId: req.GetVolumeId(),
-				},
-			},
-		}
+	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		klog.Errorf("Failed to set replication source: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	_, err = rs.controllerClient.DemoteVolume(ctx, repReq)
 	if err != nil {
 		klog.Errorf("Failed to demote volume: %v", err)
@@ -222,16 +201,10 @@ func (rs *ReplicationServer) ResyncVolume(
 		Force:         req.GetForce(),
 		Secrets:       data,
 	}
-	if req.GetVolumeId() != "" {
-		// setting repReq.VolumeId for backward compatibility for volume replication of a given volume
-		repReq.VolumeId = req.GetVolumeId() // nolint:staticcheck
-		repReq.ReplicationSource = &csiReplication.ReplicationSource{
-			Type: &csiReplication.ReplicationSource_Volume{
-				Volume: &csiReplication.ReplicationSource_VolumeSource{
-					VolumeId: req.GetVolumeId(),
-				},
-			},
-		}
+	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		klog.Errorf("Failed to set replication source: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	resp, err := rs.controllerClient.ResyncVolume(ctx, repReq)
@@ -261,16 +234,10 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 		ReplicationId: req.GetReplicationId(),
 		Secrets:       data,
 	}
-	if req.GetVolumeId() != "" {
-		// setting repReq.VolumeId for backward compatibility for volume replication of a given volume
-		repReq.VolumeId = req.GetVolumeId() // nolint:staticcheck
-		repReq.ReplicationSource = &csiReplication.ReplicationSource{
-			Type: &csiReplication.ReplicationSource_Volume{
-				Volume: &csiReplication.ReplicationSource_VolumeSource{
-					VolumeId: req.GetVolumeId(),
-				},
-			},
-		}
+	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		klog.Errorf("Failed to set replication source: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	resp, err := rs.controllerClient.GetVolumeReplicationInfo(ctx, repReq)
@@ -289,4 +256,29 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 		LastSyncDuration: resp.GetLastSyncDuration(),
 		LastSyncBytes:    resp.GetLastSyncBytes(),
 	}, nil
+}
+
+// setReplicationSource sets the replication source for the given volumeID or groupID.
+func setReplicationSource(src *csiReplication.ReplicationSource, req *proto.ReplicationSource) error {
+	if src == nil {
+		src = &csiReplication.ReplicationSource{}
+	}
+	if req == nil {
+		return fmt.Errorf("replication source is required")
+	}
+	if req.GetVolume() == nil && req.GetVolumegroup() == nil {
+		return fmt.Errorf("either volume or volume group is required")
+	}
+	if req.GetVolume() != nil {
+		src.Type = &csiReplication.ReplicationSource_Volume{Volume: &csiReplication.ReplicationSource_VolumeSource{
+			VolumeId: req.GetVolume().GetVolumeId(),
+		}}
+	}
+	if req.GetVolumegroup() != nil {
+		src.Type = &csiReplication.ReplicationSource_Volumegroup{Volumegroup: &csiReplication.ReplicationSource_VolumeGroupSource{
+			VolumeGroupId: req.GetVolumegroup().GetVolumeGroupId(),
+		}}
+	}
+
+	return nil
 }

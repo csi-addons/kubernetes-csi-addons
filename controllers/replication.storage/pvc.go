@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -106,4 +107,35 @@ func (r *VolumeReplicationReconciler) removeOwnerFromPVCAnnotation(ctx context.C
 	}
 
 	return nil
+}
+
+func (r *VolumeReplicationReconciler) getVolumeGroupReplicationContent(logger logr.Logger, req types.NamespacedName) (*replicationv1alpha1.VolumeGroupReplicationContent, error) {
+	volumeGroupReplication := &replicationv1alpha1.VolumeGroupReplication{}
+	err := r.Client.Get(context.TODO(), req, volumeGroupReplication)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Error(err, "VolumeGroupReplication not found", "VolumeGroupReplication Name", req.Name)
+		}
+
+		return nil, err
+	}
+	vgrcName := volumeGroupReplication.Spec.VolumeGroupReplicationContentName
+	if vgrcName == "" {
+		logger.Error(err, "VolumeGroupReplicationContentName is empty", "VolumeGroupReplication Name", req.Name)
+
+		return nil, stderrors.New("VolumeGroupReplicationContentName is empty")
+	}
+
+	vgrcReq := types.NamespacedName{Name: vgrcName}
+	volumeGroupReplicationContent := &replicationv1alpha1.VolumeGroupReplicationContent{}
+	err = r.Client.Get(context.TODO(), vgrcReq, volumeGroupReplicationContent)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Error(err, "VolumeGroupReplicationContent not found", "VolumeGroupReplicationContent Name", vgrcName)
+		}
+
+		return nil, err
+	}
+
+	return volumeGroupReplicationContent, nil
 }

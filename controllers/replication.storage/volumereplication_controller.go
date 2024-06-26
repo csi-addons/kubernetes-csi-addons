@@ -49,10 +49,11 @@ import (
 )
 
 const (
-	pvcDataSource          = "PersistentVolumeClaim"
-	volumeReplicationClass = "VolumeReplicationClass"
-	volumeReplication      = "VolumeReplication"
-	defaultScheduleTime    = time.Hour
+	pvcDataSource                    = "PersistentVolumeClaim"
+	volumeGroupReplicationDataSource = "VolumeGroupReplication"
+	volumeReplicationClass           = "VolumeReplicationClass"
+	volumeReplication                = "VolumeReplication"
+	defaultScheduleTime              = time.Hour
 )
 
 var (
@@ -134,10 +135,15 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	secretNamespace := vrcObj.Spec.Parameters[prefixedReplicationSecretNamespaceKey]
 
 	var (
+		// var for pvc replication
 		volumeHandle string
 		pvc          *corev1.PersistentVolumeClaim
 		pv           *corev1.PersistentVolume
 		pvErr        error
+		// var for volume group replication
+		groupHandle string
+		vgrc        *replicationv1alpha1.VolumeGroupReplicationContent
+		vgrErr      error
 	)
 
 	replicationHandle := instance.Spec.ReplicationHandle
@@ -158,6 +164,20 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		volumeHandle = pv.Spec.CSI.VolumeHandle
+		logger.Info("volume handle", "VolumeHandleName", volumeHandle)
+	case volumeGroupReplicationDataSource:
+		vgrc, vgrErr = r.getVolumeGroupReplicationContent(logger, nameSpacedName)
+		if vgrErr != nil {
+			logger.Error(vgrErr, "failed to get VolumeGroupReplication", "VGRName", instance.Spec.DataSource.Name)
+			setFailureCondition(instance)
+			uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), vgrErr.Error())
+			if uErr != nil {
+				logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
+			}
+			return ctrl.Result{}, vgrErr
+		}
+		groupHandle = vgrc.Spec.VolumeGroupReplicationHandle
+		logger.Info("Group handle", "GroupHandleName", groupHandle)
 	default:
 		err = fmt.Errorf("unsupported datasource kind")
 		logger.Error(err, "given kind not supported", "Kind", instance.Spec.DataSource.Kind)
@@ -170,12 +190,11 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, nil
 	}
 
-	logger.Info("volume handle", "VolumeHandleName", volumeHandle)
 	if replicationHandle != "" {
 		logger.Info("Replication handle", "ReplicationHandleName", replicationHandle)
 	}
 
-	replicationClient, err := r.getReplicationClient(ctx, vrcObj.Spec.Provisioner)
+	replicationClient, err := r.getReplicationClient(ctx, vrcObj.Spec.Provisioner, instance.Spec.DataSource.Kind)
 	if err != nil {
 		logger.Error(err, "Failed to get ReplicationClient")
 
@@ -187,6 +206,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		instance: instance,
 		commonRequestParameters: replication.CommonRequestParameters{
 			VolumeID:        volumeHandle,
+			GroupID:         groupHandle,
 			ReplicationID:   replicationHandle,
 			Parameters:      parameters,
 			SecretName:      secretName,
@@ -203,17 +223,19 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 			return reconcile.Result{}, err
 		}
+		switch instance.Spec.DataSource.Kind {
+		case pvcDataSource:
+			err = r.annotatePVCWithOwner(ctx, logger, req.Name, pvc)
+			if err != nil {
+				logger.Error(err, "Failed to annotate PVC owner")
+				return ctrl.Result{}, err
+			}
 
-		err = r.annotatePVCWithOwner(ctx, logger, req.Name, pvc)
-		if err != nil {
-			logger.Error(err, "Failed to annotate PVC owner")
-			return ctrl.Result{}, err
-		}
+			if err = r.addFinalizerToPVC(logger, pvc); err != nil {
+				logger.Error(err, "Failed to add PersistentVolumeClaim finalizer")
 
-		if err = r.addFinalizerToPVC(logger, pvc); err != nil {
-			logger.Error(err, "Failed to add PersistentVolumeClaim finalizer")
-
-			return reconcile.Result{}, err
+				return reconcile.Result{}, err
+			}
 		}
 	} else {
 		if slices.Contains(instance.GetFinalizers(), volumeReplicationFinalizer) {
@@ -223,19 +245,20 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 				return ctrl.Result{}, err
 			}
+			switch instance.Spec.DataSource.Kind {
+			case pvcDataSource:
+				if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
+					logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
 
-			if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
-				logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
+					return reconcile.Result{}, err
+				}
 
-				return reconcile.Result{}, err
+				if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
+					logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
+
+					return reconcile.Result{}, err
+				}
 			}
-
-			if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
-				logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
-
-				return reconcile.Result{}, err
-			}
-
 			// once all finalizers have been removed, the object will be
 			// deleted
 			if err = r.removeFinalizerFromVR(logger, instance); err != nil {
@@ -454,7 +477,7 @@ func getInfoReconcileInterval(parameters map[string]string, logger logr.Logger) 
 	return scheduleTime / 2
 }
 
-func (r *VolumeReplicationReconciler) getReplicationClient(ctx context.Context, driverName string) (grpcClient.VolumeReplication, error) {
+func (r *VolumeReplicationReconciler) getReplicationClient(ctx context.Context, driverName, dataSource string) (grpcClient.VolumeReplication, error) {
 	conn, err := r.Connpool.GetLeaderByDriver(ctx, r.Client, driverName)
 	if err != nil {
 		return nil, fmt.Errorf("no leader for the ControllerService of driver %q", driverName)
@@ -468,7 +491,11 @@ func (r *VolumeReplicationReconciler) getReplicationClient(ctx context.Context, 
 
 		// validate of VOLUME_REPLICATION capability is enabled by the storage driver.
 		if cap.GetVolumeReplication().GetType() == identity.Capability_VolumeReplication_VOLUME_REPLICATION {
-			return grpcClient.NewReplicationClient(conn.Client, r.Timeout), nil
+			if dataSource == pvcDataSource {
+				return grpcClient.NewVolumeReplicationClient(conn.Client, r.Timeout), nil
+			} else if dataSource == volumeGroupReplicationDataSource {
+				return grpcClient.NewVolumeGroupReplicationClient(conn.Client, r.Timeout), nil
+			}
 		}
 	}
 
