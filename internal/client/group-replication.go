@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Kubernetes-CSI-Addons Authors.
+Copyright 2024 The Kubernetes-CSI-Addons Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,41 +25,30 @@ import (
 	"google.golang.org/grpc"
 )
 
-type replicationClient struct {
+type volumeGroupReplicationClient struct {
 	client  proto.ReplicationClient
 	timeout time.Duration
 }
 
-// VolumeReplication holds the methods required for volume replication.
-type VolumeReplication interface {
-	// EnableVolumeReplication RPC call to enable the volume replication.
-	EnableVolumeReplication(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error)
-	// DisableVolumeReplication RPC call to disable the volume replication.
-	DisableVolumeReplication(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error)
-	// PromoteVolume RPC call to promote the volume.
-	PromoteVolume(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
-		PromoteVolumeResponse, error)
-	// DemoteVolume RPC call to demote the volume.
-	DemoteVolume(volumeID, replicationID string, secretName, secretNamespace string, parameters map[string]string) (*proto.
-		DemoteVolumeResponse, error)
-	// ResyncVolume RPC call to resync the volume.
-	ResyncVolume(volumeID, replicationID string, force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.
-		ResyncVolumeResponse, error)
-	// GetVolumeReplicationInfo RPC call to get volume replication info.
-	GetVolumeReplicationInfo(volumeID, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
+var _ VolumeReplication = &volumeGroupReplicationClient{}
+
+// NewVolumeGroupReplicationClient returns VolumeReplication interface which has the RPC
+// calls for volume group replication.
+func NewVolumeGroupReplicationClient(cc *grpc.ClientConn, timeout time.Duration) VolumeReplication {
+	return &volumeGroupReplicationClient{client: proto.NewReplicationClient(cc), timeout: timeout}
 }
 
-// NewReplicationClient returns VolumeReplication interface which has the RPC
-// calls for replication.
-func NewReplicationClient(cc *grpc.ClientConn, timeout time.Duration) VolumeReplication {
-	return &replicationClient{client: proto.NewReplicationClient(cc), timeout: timeout}
-}
-
-// EnableVolumeReplication RPC call to enable the volume replication.
-func (rc *replicationClient) EnableVolumeReplication(volumeID, replicationID string,
+// EnableVolumeReplication RPC call to enable the volume group replication.
+func (rc *volumeGroupReplicationClient) EnableVolumeReplication(groupID, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.EnableVolumeReplicationResponse, error) {
 	req := &proto.EnableVolumeReplicationRequest{
-		VolumeId:        volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
 		ReplicationId:   replicationID,
 		Parameters:      parameters,
 		SecretName:      secretName,
@@ -73,11 +62,17 @@ func (rc *replicationClient) EnableVolumeReplication(volumeID, replicationID str
 	return resp, err
 }
 
-// DisableVolumeReplication RPC call to disable the volume replication.
-func (rc *replicationClient) DisableVolumeReplication(volumeID, replicationID string,
+// DisableVolumeReplication RPC call to disable the volume group replication.
+func (rc *volumeGroupReplicationClient) DisableVolumeReplication(groupID, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.DisableVolumeReplicationResponse, error) {
 	req := &proto.DisableVolumeReplicationRequest{
-		VolumeId:        volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
 		ReplicationId:   replicationID,
 		Parameters:      parameters,
 		SecretName:      secretName,
@@ -91,11 +86,17 @@ func (rc *replicationClient) DisableVolumeReplication(volumeID, replicationID st
 	return resp, err
 }
 
-// PromoteVolume RPC call to promote the volume.
-func (rc *replicationClient) PromoteVolume(volumeID, replicationID string,
+// PromoteVolume RPC call to promote the volume group.
+func (rc *volumeGroupReplicationClient) PromoteVolume(groupID, replicationID string,
 	force bool, secretName, secretNamespace string, parameters map[string]string) (*proto.PromoteVolumeResponse, error) {
 	req := &proto.PromoteVolumeRequest{
-		VolumeId:        volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
 		ReplicationId:   replicationID,
 		Force:           force,
 		Parameters:      parameters,
@@ -110,11 +111,17 @@ func (rc *replicationClient) PromoteVolume(volumeID, replicationID string,
 	return resp, err
 }
 
-// DemoteVolume RPC call to demote the volume.
-func (rc *replicationClient) DemoteVolume(volumeID, replicationID string,
+// DemoteVolume RPC call to demote the volume group.
+func (rc *volumeGroupReplicationClient) DemoteVolume(groupID, replicationID string,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.DemoteVolumeResponse, error) {
 	req := &proto.DemoteVolumeRequest{
-		VolumeId:        volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
 		ReplicationId:   replicationID,
 		Parameters:      parameters,
 		SecretName:      secretName,
@@ -127,11 +134,17 @@ func (rc *replicationClient) DemoteVolume(volumeID, replicationID string,
 	return resp, err
 }
 
-// ResyncVolume RPC call to resync the volume.
-func (rc *replicationClient) ResyncVolume(volumeID, replicationID string, force bool,
+// ResyncVolume RPC call to resync the volume group.
+func (rc *volumeGroupReplicationClient) ResyncVolume(groupID, replicationID string, force bool,
 	secretName, secretNamespace string, parameters map[string]string) (*proto.ResyncVolumeResponse, error) {
 	req := &proto.ResyncVolumeRequest{
-		VolumeId:        volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
 		ReplicationId:   replicationID,
 		Parameters:      parameters,
 		Force:           force,
@@ -146,11 +159,17 @@ func (rc *replicationClient) ResyncVolume(volumeID, replicationID string, force 
 	return resp, err
 }
 
-// GetVolumeReplicationInfo RPC call to get volume replication info.
-func (rc *replicationClient) GetVolumeReplicationInfo(volumeID, replicationID,
+// GetVolumeReplicationInfo RPC call to get volume group replication info.
+func (rc *volumeGroupReplicationClient) GetVolumeReplicationInfo(groupID, replicationID,
 	secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error) {
 	req := &proto.GetVolumeReplicationInfoRequest{
-		VolumeId:        volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
 		ReplicationId:   replicationID,
 		SecretName:      secretName,
 		SecretNamespace: secretNamespace,

@@ -31,6 +31,7 @@ import (
 const (
 	volumeReplicationFinalizer = "replication.storage.openshift.io"
 	pvcReplicationFinalizer    = "replication.storage.openshift.io/pvc-protection"
+	vgrReplicationFinalizer    = "replication.storage.openshift.io/vgr-protection"
 )
 
 // addFinalizerToVR adds the VR finalizer on the VolumeReplication instance.
@@ -89,6 +90,37 @@ func (r *VolumeReplicationReconciler) removeFinalizerFromPVC(logger logr.Logger,
 			return fmt.Errorf("failed to remove finalizer (%s) from PersistentVolumeClaim resource"+
 				" (%s/%s), %w",
 				pvcReplicationFinalizer, pvc.Namespace, pvc.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// addFinalizerToVGR adds the VR finalizer on the VolumeGroupReplication.
+func (r *VolumeReplicationReconciler) addFinalizerToVGR(logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication) error {
+	if !slices.Contains(vgr.ObjectMeta.Finalizers, vgrReplicationFinalizer) {
+		logger.Info("adding finalizer to VolumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
+		vgr.ObjectMeta.Finalizers = append(vgr.ObjectMeta.Finalizers, vgrReplicationFinalizer)
+		if err := r.Client.Update(context.TODO(), vgr); err != nil {
+			return fmt.Errorf("failed to add finalizer (%s) to VolumeGroupReplication resource"+
+				" (%s/%s) %w",
+				vgrReplicationFinalizer, vgr.Namespace, vgr.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// removeFinalizerFromVGR removes the VR finalizer on VolumeGroupReplication.
+func (r *VolumeReplicationReconciler) removeFinalizerFromVGR(logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication,
+) error {
+	if slices.Contains(vgr.ObjectMeta.Finalizers, vgrReplicationFinalizer) {
+		logger.Info("removing finalizer from VolumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
+		vgr.ObjectMeta.Finalizers = util.RemoveFromSlice(vgr.ObjectMeta.Finalizers, vgrReplicationFinalizer)
+		if err := r.Client.Update(context.TODO(), vgr); err != nil {
+			return fmt.Errorf("failed to remove finalizer (%s) from VolumeGroupReplication resource"+
+				" (%s/%s), %w",
+				vgrReplicationFinalizer, vgr.Namespace, vgr.Name, err)
 		}
 	}
 
