@@ -37,15 +37,16 @@ const (
 // command contains the parsed arguments that were passed while running the
 // executable.
 type command struct {
-	endpoint         string
-	stagingPath      string
-	operation        string
-	persistentVolume string
-	drivername       string
-	secret           string
-	cidrs            string
-	clusterid        string
-	legacy           bool
+	endpoint                      string
+	stagingPath                   string
+	operation                     string
+	persistentVolume              string
+	volumeGroupReplicationContent string
+	drivername                    string
+	secret                        string
+	cidrs                         string
+	clusterid                     string
+	legacy                        bool
 }
 
 // cmd is the single instance of the command struct, used inside main().
@@ -58,6 +59,7 @@ func init() {
 	flag.StringVar(&cmd.stagingPath, "stagingpath", stagingPath, "staging path")
 	flag.StringVar(&cmd.operation, "operation", "", "csi-addons operation")
 	flag.StringVar(&cmd.persistentVolume, "persistentvolume", "", "name of the PersistentVolume")
+	flag.StringVar(&cmd.volumeGroupReplicationContent, "volumegroupreplicationcontent", "", "name of the VolumeGroupReplicationContent")
 	flag.StringVar(&cmd.drivername, "drivername", "", "name of the CSI driver")
 	flag.StringVar(&cmd.secret, "secret", "", "kubernetes secret in the format `namespace/name`")
 	flag.StringVar(&cmd.cidrs, "cidrs", "", "comma separated list of cidrs")
