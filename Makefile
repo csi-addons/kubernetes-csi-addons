@@ -219,7 +219,7 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd deploy/controller && kubectl apply -f crds.yaml -f rbac.yaml -f setup-controller.yaml
+	cd deploy/controller && kubectl apply -f setup-controller.yaml -f crds.yaml -f rbac.yaml
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
