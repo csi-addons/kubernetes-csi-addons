@@ -22,11 +22,11 @@ import (
 	"os"
 	"time"
 
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
-	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1"
-	controllers "github.com/csi-addons/kubernetes-csi-addons/controllers/csiaddons"
-	replicationController "github.com/csi-addons/kubernetes-csi-addons/controllers/replication.storage"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	replicationstoragev1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	controllers "github.com/csi-addons/kubernetes-csi-addons/internal/controller/csiaddons"
+	replicationController "github.com/csi-addons/kubernetes-csi-addons/internal/controller/replication.storage"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
 
