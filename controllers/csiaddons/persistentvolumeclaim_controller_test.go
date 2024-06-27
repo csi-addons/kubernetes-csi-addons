@@ -22,10 +22,14 @@ import (
 	"testing"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -247,4 +251,117 @@ func TestGetScheduleFromAnnotation(t *testing.T) {
 			assert.Equal(t, tt.want1, got1)
 		})
 	}
+}
+
+func TestDetermineScheduleAndRequeue(t *testing.T) {
+	type args struct {
+		pvcAnnotations map[string]string
+		nsAnnotations  map[string]string
+		scAnnotations  map[string]string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "pvc annotation set",
+			args: args{
+				pvcAnnotations: map[string]string{rsCronJobScheduleTimeAnnotation: "@daily"},
+			},
+			want: "@daily",
+		},
+		{
+			name: "sc annotation set",
+			args: args{
+				scAnnotations: map[string]string{rsCronJobScheduleTimeAnnotation: "@monthly"},
+			},
+			want: "@monthly",
+		},
+		{
+			name: "pvc & sc annotation set",
+			args: args{
+				pvcAnnotations: map[string]string{rsCronJobScheduleTimeAnnotation: "@daily"},
+				scAnnotations:  map[string]string{rsCronJobScheduleTimeAnnotation: "@weekly"},
+			},
+			want: "@daily",
+		},
+	}
+
+	ctx := context.TODO()
+	logger := logr.Discard()
+	client := fake.NewClientBuilder().Build()
+	driverName := "test-driver"
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-namespace",
+		},
+	}
+	sc := &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-sc",
+		},
+	}
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pvc",
+			Namespace: ns.Name,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			StorageClassName: &sc.Name,
+		},
+	}
+
+	r := &PersistentVolumeClaimReconciler{
+		Client:   client,
+		ConnPool: connection.NewConnectionPool(),
+	}
+
+	// Create the namespace, storage class, and PVC
+	err := r.Client.Create(ctx, ns)
+	assert.NoError(t, err)
+	err = r.Client.Create(ctx, sc)
+	assert.NoError(t, err)
+	err = r.Client.Create(ctx, pvc)
+	assert.NoError(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pvc.Annotations = tt.args.pvcAnnotations
+			ns.Annotations = tt.args.nsAnnotations
+			sc.Annotations = tt.args.scAnnotations
+
+			err = r.Client.Update(ctx, ns)
+			assert.NoError(t, err)
+			err = r.Client.Update(ctx, sc)
+			assert.NoError(t, err)
+			err = r.Client.Update(ctx, pvc)
+			assert.NoError(t, err)
+
+			schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName)
+			assert.NoError(t, error)
+			assert.Equal(t, tt.want, schedule)
+		})
+	}
+
+	t.Run("empty StorageClassName for static pv", func(t *testing.T) {
+		emptyScName := ""
+		pvc.Spec.StorageClassName = &emptyScName
+		pvc.Annotations = nil
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName)
+		assert.ErrorIs(t, error, ErrScheduleNotFound)
+		assert.Equal(t, "", schedule)
+	})
+
+	// test for StorageClassName not found
+	t.Run("StorageClassName not found", func(t *testing.T) {
+		sc.Name = "non-existent-sc"
+		pvc.Spec.StorageClassName = &sc.Name
+		pvc.Annotations = nil
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName)
+		assert.ErrorIs(t, error, ErrScheduleNotFound)
+		assert.Equal(t, "", schedule)
+	})
+
 }
