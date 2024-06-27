@@ -1,0 +1,12 @@
+## Append samples of your project ##
+resources:
+- csiaddons_v1alpha1_csiaddonsnode.yaml
+- csiaddons_v1alpha1_networkfence.yaml
+- csiaddons_v1alpha1_reclaimspacecronjob.yaml
+- csiaddons_v1alpha1_reclaimspacejob.yaml
+- replication.storage_v1alpha1_volumegroupreplicationclass.yaml
+- replication.storage_v1alpha1_volumegroupreplicationcontent.yaml
+- replication.storage_v1alpha1_volumegroupreplication.yaml
+- replication.storage_v1alpha1_volumereplicationclass.yaml
+- replication.storage_v1alpha1_volumereplication.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

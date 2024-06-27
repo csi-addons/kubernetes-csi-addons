@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 
 	"google.golang.org/grpc"
