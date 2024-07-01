@@ -1,0 +1,24 @@
+syntax = "proto3";
+package encryptionkeyrotation;
+
+option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto";
+
+// EncKeyRotation holds the RPC method for running
+// key rotation operation on the volume.
+service EncKeyRotation {
+  rpc EncKeyRotate(EncKeyRotateRequest)
+  returns (EncKeyRotateResponse){}
+}
+// EncKeyRotateRequest contains the information needed to identify
+// the volume by the SP and access any backend services so that the key can be
+// rotated.
+message EncKeyRotateRequest {
+  // The name of the pv
+  // This field is required
+  string pv_name = 1;
+}
+// EncKeyRotateResponse holds the information about the result of the
+// EncKeyRotateRequest call.
+message EncKeyRotateResponse {
+
+}
