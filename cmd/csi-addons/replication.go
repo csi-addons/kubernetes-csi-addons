@@ -36,6 +36,7 @@ type VolumeReplicationBase struct {
 	secretName      string
 	secretNamespace string
 	volumeID        string
+	groupID         string
 }
 
 func (rep *VolumeReplicationBase) Init(c *command) error {
@@ -59,19 +60,34 @@ func (rep *VolumeReplicationBase) Init(c *command) error {
 		return errors.New("secret name is not set")
 	}
 
-	pv, err := getKubernetesClient().CoreV1().PersistentVolumes().Get(context.Background(), c.persistentVolume, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get pv %q", c.persistentVolume)
+	if c.persistentVolume != "" && c.volumeGroupReplicationContent != "" {
+		return errors.New("only one of persistentVolume or volumeGroupReplicationContent should be set")
 	}
+	if c.persistentVolume != "" {
+		pv, err := getKubernetesClient().CoreV1().PersistentVolumes().Get(context.Background(), c.persistentVolume, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get pv %q", c.persistentVolume)
+		}
 
-	if pv.Spec.CSI == nil {
-		return fmt.Errorf("pv %q is not a CSI volume", c.persistentVolume)
-	}
+		if pv.Spec.CSI == nil {
+			return fmt.Errorf("pv %q is not a CSI volume", c.persistentVolume)
+		}
 
-	if pv.Spec.CSI.VolumeHandle == "" {
-		return errors.New("volume ID is not set")
+		if pv.Spec.CSI.VolumeHandle == "" {
+			return errors.New("volume ID is not set")
+		}
+		rep.volumeID = pv.Spec.CSI.VolumeHandle
+	} else if c.volumeGroupReplicationContent != "" {
+		vgrc, err := getVolumeReplicationClient().getVolumeGroupReplicationContent(context.Background(), c.volumeGroupReplicationContent, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to get VolumeGroupReplicationContent %q", c.volumeGroupReplicationContent)
+		}
+		if vgrc.Spec.VolumeGroupReplicationHandle == "" {
+			return errors.New("volume group ID is not set")
+		}
+		rep.groupID = vgrc.Spec.VolumeGroupReplicationHandle
+
 	}
-	rep.volumeID = pv.Spec.CSI.VolumeHandle
 
 	return nil
 }
@@ -79,6 +95,35 @@ func (rep *VolumeReplicationBase) Init(c *command) error {
 // EnableVolumeReplication executes the EnableVolumeReplication operation.
 type EnableVolumeReplication struct {
 	VolumeReplicationBase
+}
+
+func (v VolumeReplicationBase) setReplicationSource(req *proto.ReplicationSource) error {
+	if req == nil {
+		return errors.New("replication source is not set")
+	}
+	if v.volumeID == "" && v.groupID == "" {
+		return errors.New("volumeID or groupID is not set")
+	}
+	if v.volumeID != "" && v.groupID != "" {
+		return errors.New("only one of volumeID or groupID should be set")
+	}
+	if v.volumeID != "" {
+		req.Type = &proto.ReplicationSource_Volume{
+			Volume: &proto.ReplicationSource_VolumeSource{
+				VolumeId: v.volumeID,
+			},
+		}
+	}
+	if v.groupID != "" {
+		req = &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_Volumegroup{
+				Volumegroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: v.groupID,
+				},
+			},
+		}
+	}
+	return nil
 }
 
 var _ = registerOperation("EnableVolumeReplication", &EnableVolumeReplication{})
@@ -91,10 +136,12 @@ func (rep *EnableVolumeReplication) Execute() error {
 	req := &proto.EnableVolumeReplicationRequest{
 		SecretName:      rep.secretName,
 		SecretNamespace: rep.secretNamespace,
-		VolumeId:        rep.volumeID,
 	}
-
-	_, err := rs.EnableVolumeReplication(context.TODO(), req)
+	err := rep.setReplicationSource(req.ReplicationSource)
+	if err != nil {
+		return err
+	}
+	_, err = rs.EnableVolumeReplication(context.TODO(), req)
 	if err != nil {
 		return err
 	}
@@ -119,10 +166,13 @@ func (rep *DisableVolumeReplication) Execute() error {
 	req := &proto.DisableVolumeReplicationRequest{
 		SecretName:      rep.secretName,
 		SecretNamespace: rep.secretNamespace,
-		VolumeId:        rep.volumeID,
+	}
+	err := rep.setReplicationSource(req.ReplicationSource)
+	if err != nil {
+		return err
 	}
 
-	_, err := rs.DisableVolumeReplication(context.TODO(), req)
+	_, err = rs.DisableVolumeReplication(context.TODO(), req)
 	if err != nil {
 		return err
 	}
@@ -147,10 +197,12 @@ func (rep *PromoteVolume) Execute() error {
 	req := &proto.PromoteVolumeRequest{
 		SecretName:      rep.secretName,
 		SecretNamespace: rep.secretNamespace,
-		VolumeId:        rep.volumeID,
 	}
-
-	_, err := rs.PromoteVolume(context.TODO(), req)
+	err := rep.setReplicationSource(req.ReplicationSource)
+	if err != nil {
+		return err
+	}
+	_, err = rs.PromoteVolume(context.TODO(), req)
 	if err != nil {
 		return err
 	}
@@ -175,10 +227,12 @@ func (rep *DemoteVolume) Execute() error {
 	req := &proto.DemoteVolumeRequest{
 		SecretName:      rep.secretName,
 		SecretNamespace: rep.secretNamespace,
-		VolumeId:        rep.volumeID,
 	}
-
-	_, err := rs.DemoteVolume(context.TODO(), req)
+	err := rep.setReplicationSource(req.ReplicationSource)
+	if err != nil {
+		return err
+	}
+	_, err = rs.DemoteVolume(context.TODO(), req)
 	if err != nil {
 		return err
 	}
@@ -203,10 +257,12 @@ func (rep *ResyncVolume) Execute() error {
 	req := &proto.ResyncVolumeRequest{
 		SecretName:      rep.secretName,
 		SecretNamespace: rep.secretNamespace,
-		VolumeId:        rep.volumeID,
 	}
-
-	_, err := rs.ResyncVolume(context.TODO(), req)
+	err := rep.setReplicationSource(req.ReplicationSource)
+	if err != nil {
+		return err
+	}
+	_, err = rs.ResyncVolume(context.TODO(), req)
 	if err != nil {
 		return err
 	}
@@ -231,7 +287,13 @@ func (rep *GetVolumeReplicationInfo) Execute() error {
 	req := &proto.GetVolumeReplicationInfoRequest{
 		SecretName:      rep.secretName,
 		SecretNamespace: rep.secretNamespace,
-		VolumeId:        rep.volumeID,
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_Volume{
+				Volume: &proto.ReplicationSource_VolumeSource{
+					VolumeId: rep.volumeID,
+				},
+			},
+		},
 	}
 
 	res, err := rs.GetVolumeReplicationInfo(context.TODO(), req)

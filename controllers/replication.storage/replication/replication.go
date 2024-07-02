@@ -17,6 +17,8 @@ limitations under the License.
 package replication
 
 import (
+	"fmt"
+
 	"github.com/csi-addons/kubernetes-csi-addons/internal/client"
 
 	"google.golang.org/grpc/codes"
@@ -38,6 +40,7 @@ type Response struct {
 // CommonRequestParameters holds the common parameters across replication operations.
 type CommonRequestParameters struct {
 	VolumeID        string
+	GroupID         string
 	ReplicationID   string
 	Parameters      map[string]string
 	SecretName      string
@@ -45,9 +48,23 @@ type CommonRequestParameters struct {
 	Replication     client.VolumeReplication
 }
 
+func (r *Replication) getID() (string, error) {
+	if r.Params.VolumeID != "" {
+		return r.Params.VolumeID, nil
+	}
+	if r.Params.GroupID != "" {
+		return r.Params.GroupID, nil
+	}
+	return "", fmt.Errorf("VolumeID or GroupID must be provided")
+}
+
 func (r *Replication) Enable() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
 	resp, err := r.Params.Replication.EnableVolumeReplication(
-		r.Params.VolumeID,
+		id,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
@@ -58,8 +75,12 @@ func (r *Replication) Enable() *Response {
 }
 
 func (r *Replication) Disable() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
 	resp, err := r.Params.Replication.DisableVolumeReplication(
-		r.Params.VolumeID,
+		id,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
@@ -70,8 +91,12 @@ func (r *Replication) Disable() *Response {
 }
 
 func (r *Replication) Promote() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
 	resp, err := r.Params.Replication.PromoteVolume(
-		r.Params.VolumeID,
+		id,
 		r.Params.ReplicationID,
 		r.Force,
 		r.Params.SecretName,
@@ -83,8 +108,12 @@ func (r *Replication) Promote() *Response {
 }
 
 func (r *Replication) Demote() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
 	resp, err := r.Params.Replication.DemoteVolume(
-		r.Params.VolumeID,
+		id,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
@@ -95,8 +124,12 @@ func (r *Replication) Demote() *Response {
 }
 
 func (r *Replication) Resync() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
 	resp, err := r.Params.Replication.ResyncVolume(
-		r.Params.VolumeID,
+		id,
 		r.Params.ReplicationID,
 		r.Force,
 		r.Params.SecretName,
@@ -108,8 +141,12 @@ func (r *Replication) Resync() *Response {
 }
 
 func (r *Replication) GetInfo() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
 	resp, err := r.Params.Replication.GetVolumeReplicationInfo(
-		r.Params.VolumeID,
+		id,
 		r.Params.ReplicationID,
 		r.Params.SecretName,
 		r.Params.SecretNamespace,
