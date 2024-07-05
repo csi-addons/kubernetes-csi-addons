@@ -37,9 +37,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -288,6 +290,46 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 	return "", ErrScheduleNotFound
 }
 
+// storageClassEventHandler returns an EventHandler that responds to changes
+// in StorageClass objects and generates reconciliation requests for all
+// PVCs associated with the changed StorageClass.
+// PVCs with rsCronJobScheduleTimeAnnotation are not enqueued.
+func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(
+		func(ctx context.Context, obj client.Object) []reconcile.Request {
+			ok := false
+			obj, ok = obj.(*storagev1.StorageClass)
+			if !ok {
+				return nil
+			}
+
+			// get all PVCs with the same storageclass.
+			pvcList := &corev1.PersistentVolumeClaimList{}
+			err := r.List(ctx, pvcList, client.MatchingFields{"spec.storageClassName": obj.GetName()})
+			if err != nil {
+				log.FromContext(ctx).Error(err, "Failed to list PVCs")
+
+				return nil
+			}
+
+			var requests []reconcile.Request
+			for _, pvc := range pvcList.Items {
+				if _, ok := pvc.GetAnnotations()[rsCronJobScheduleTimeAnnotation]; ok {
+					continue
+				}
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      pvc.Name,
+						Namespace: pvc.Namespace,
+					},
+				})
+			}
+
+			return requests
+		},
+	)
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	err := mgr.GetFieldIndexer().IndexField(
@@ -295,6 +337,21 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 		&csiaddonsv1alpha1.ReclaimSpaceCronJob{},
 		jobOwnerKey,
 		extractOwnerNameFromPVCObj)
+	if err != nil {
+		return err
+	}
+
+	err = mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&corev1.PersistentVolumeClaim{},
+		"spec.storageClassName",
+		func(rawObj client.Object) []string {
+			pvc, ok := rawObj.(*corev1.PersistentVolumeClaim)
+			if !ok {
+				return nil
+			}
+			return []string{*pvc.Spec.StorageClassName}
+		})
 	if err != nil {
 		return err
 	}
@@ -338,8 +395,29 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 		},
 	}
 
+	scPred := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectNew == nil || e.ObjectOld == nil {
+				return false
+			}
+			// reconcile only if reclaimspace annotation between old and new objects have changed.
+			oldSchdeule, oldOk := e.ObjectOld.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
+			newSchdeule, newOk := e.ObjectNew.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
+
+			krcOldSchdeule, krcOldOk := e.ObjectOld.GetAnnotations()[krcJobScheduleTimeAnnotation]
+			krcNewSchdeule, krcNewOk := e.ObjectNew.GetAnnotations()[krcJobScheduleTimeAnnotation]
+
+			return (oldOk != newOk || oldSchdeule != newSchdeule) || (krcOldOk != krcNewOk || krcOldSchdeule != krcNewSchdeule)
+		},
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.PersistentVolumeClaim{}).
+		Watches(
+			&storagev1.StorageClass{},
+			r.storageClassEventHandler(),
+			builder.WithPredicates(scPred),
+		).
 		Owns(&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).
 		Owns(&csiaddonsv1alpha1.EncryptionKeyRotationCronJob{}).
 		WithEventFilter(pred).
