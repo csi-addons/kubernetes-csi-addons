@@ -4,7 +4,7 @@
 # More info: https://book.kubebuilder.io/reference/project-config.html
 domain: openshift.io
 layout:
-- go.kubebuilder.io/v3
+- go.kubebuilder.io/v4
 multigroup: true
 projectName: kubernetes-csi-addons
 repo: github.com/csi-addons/kubernetes-csi-addons
@@ -16,7 +16,7 @@ resources:
   domain: openshift.io
   group: csiaddons
   kind: CSIAddonsNode
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -25,7 +25,7 @@ resources:
   domain: openshift.io
   group: csiaddons
   kind: ReclaimSpaceJob
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -33,13 +33,13 @@ resources:
   domain: openshift.io
   group: csiaddons
   kind: NetworkFence
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
   version: v1alpha1
 - controller: true
   domain: openshift.io
   group: csiaddons
   kind: ReclaimSpaceCronJob
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
   version: v1alpha1
 - controller: true
   group: core
@@ -52,7 +52,7 @@ resources:
   domain: openshift.io
   group: replication.storage
   kind: VolumeReplication
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -60,7 +60,7 @@ resources:
   domain: openshift.io
   group: replication.storage
   kind: VolumeReplicationClass
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -68,7 +68,7 @@ resources:
   domain: openshift.io
   group: replication.storage
   kind: VolumeGroupReplicationClass
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -77,7 +77,7 @@ resources:
   domain: openshift.io
   group: replication.storage
   kind: VolumeGroupReplication
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -85,6 +85,6 @@ resources:
   domain: openshift.io
   group: replication.storage
   kind: VolumeGroupReplicationContent
-  path: github.com/csi-addons/kubernetes-csi-addons/apis/replication.storage/v1alpha1
+  path: github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1
   version: v1alpha1
 version: "3"

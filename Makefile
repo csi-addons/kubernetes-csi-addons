@@ -119,7 +119,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./apis/...,./cmd/...,./controllers/...,./internal/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./api/...,./cmd/...,./internal/controller/...,./internal/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG} rbac-proxy=${RBAC_PROXY_IMG}
 	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
 	$(KUSTOMIZE) build config/rbac > deploy/controller/rbac.yaml
@@ -136,7 +136,7 @@ bundle: gen-csv-base manifests operator-sdk
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
 
 .PHONY: generate-protobuf
 generate-protobuf: protoc-gen-go protoc-gen-go-grpc
@@ -219,7 +219,7 @@ uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd deploy/controller && kubectl apply -f crds.yaml -f rbac.yaml -f setup-controller.yaml
+	cd deploy/controller && kubectl apply -f setup-controller.yaml -f crds.yaml -f rbac.yaml
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
