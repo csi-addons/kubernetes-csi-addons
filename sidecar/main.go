@@ -115,6 +115,7 @@ func main() {
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))
 	sidecarServer.RegisterService(service.NewReplicationServer(csiClient.GetGRPCClient(), kubeClient))
 	sidecarServer.RegisterService(service.NewEncryptionKeyRotationServer(csiClient.GetGRPCClient(), kubeClient))
+	sidecarServer.RegisterService(service.NewVolumeGroupServer(csiClient.GetGRPCClient(), kubeClient))
 
 	isController, err := csiClient.HasControllerService()
 	if err != nil {
