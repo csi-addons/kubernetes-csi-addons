@@ -49,6 +49,16 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - persistentvolumeclaims
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims/finalizers
   verbs:
   - update
@@ -219,6 +229,14 @@ rules:
 - apiGroups:
   - replication.storage.openshift.io
   resources:
+  - volumegroupreplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
   - volumegroupreplicationcontents
   verbs:
   - create
@@ -247,8 +265,6 @@ rules:
   resources:
   - volumegroupreplications
   verbs:
-  - create
-  - delete
   - get
   - list
   - patch
@@ -281,6 +297,8 @@ rules:
   resources:
   - volumereplications
   verbs:
+  - create
+  - delete
   - get
   - list
   - update
@@ -296,6 +314,8 @@ rules:
   resources:
   - volumereplications/status
   verbs:
+  - get
+  - list
   - update
 - apiGroups:
   - storage.k8s.io
