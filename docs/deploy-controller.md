@@ -18,10 +18,10 @@ The CSI-Addons Controller can be deployed by different ways:
 
 ## Installation for versioned deployments
 
-The CSI-Addons Controller can also be installed  using the yaml files in `deploy/controller`.
-The versioned deployment is possible with the yaml files that get generated for the
+The CSI-Addons Controller can also be installed  using the YAML files in `deploy/controller`.
+The versioned deployment is possible with the YAML files that get generated for the
 [latest release](https://github.com/csi-addons/kubernetes-csi-addons/releases/latest).
-You can download the yaml files from there, or use them directly with kubectl.
+You can download the YAML files from there, or use them directly with kubectl.
 This is the recommended and easiest way to deploy the controller.
 
 ```console
