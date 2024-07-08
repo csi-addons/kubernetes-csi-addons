@@ -7,8 +7,14 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
   - namespaces
-  - persistentvolumes
   - pods
   verbs:
   - get
@@ -30,6 +36,15 @@ rules:
   - persistentvolumeclaims/finalizers
   verbs:
   - update
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -85,8 +100,16 @@ rules:
 - apiGroups:
   - replication.storage.openshift.io
   resources:
+  - volumegroupreplicationclasses
+  - volumereplicationclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
   - volumegroupreplicationcontents
-  - volumegroupreplications
   verbs:
   - create
   - delete
@@ -101,7 +124,6 @@ rules:
   - volumegroupreplicationcontents/finalizers
   - volumegroupreplications/finalizers
   - volumereplications/finalizers
-  - volumereplications/status
   verbs:
   - update
 - apiGroups:
@@ -116,20 +138,32 @@ rules:
 - apiGroups:
   - replication.storage.openshift.io
   resources:
-  - volumereplicationclasses
+  - volumegroupreplications
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - replication.storage.openshift.io
   resources:
   - volumereplications
   verbs:
+  - create
+  - delete
   - get
   - list
   - update
   - watch
+- apiGroups:
+  - replication.storage.openshift.io
+  resources:
+  - volumereplications/status
+  verbs:
+  - get
+  - list
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:
