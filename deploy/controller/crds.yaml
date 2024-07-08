@@ -1306,9 +1306,8 @@ spec:
                 type: string
               source:
                 description: |-
-                  Source specifies whether the snapshot is (or should be) dynamically provisioned
+                  Source specifies whether the volume is (or should be) dynamically provisioned
                   or already exists, and just requires a Kubernetes object representation.
-                  This field is immutable after creation.
                   Required.
                 properties:
                   volumeHandles:
@@ -1400,7 +1399,7 @@ spec:
             properties:
               persistentVolumeRefList:
                 description: |-
-                  PersistentVolumeRefList is the list of of PV for the group replication
+                  PersistentVolumeRefList is the list of PV for the group replication
                   The maximum number of allowed PV in the group is 100.
                 items:
                   description: |-
@@ -1558,11 +1557,12 @@ spec:
                 - message: volumeGroupReplicationContentName is immutable
                   rule: self == oldSelf
               volumeReplicationClassName:
-                description: volumeReplicationClassName is the volumeReplicationClass
-                  name for VolumeReplication object
+                description: |-
+                  volumeReplicationClassName is the volumeReplicationClass name for the VolumeReplication object
+                  created for this volumeGroupReplication
                 type: string
                 x-kubernetes-validations:
-                - message: volumReplicationClassName is immutable
+                - message: volumeReplicationClassName is immutable
                   rule: self == oldSelf
               volumeReplicationName:
                 description: Name of the VolumeReplication object created for this
