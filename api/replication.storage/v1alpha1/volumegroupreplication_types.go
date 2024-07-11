@@ -21,6 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	VolumeGroupReplicationNameAnnotation = "replication.storage.openshift.io/volume-group-replication-name"
+)
+
 // VolumeGroupReplicationSpec defines the desired state of VolumeGroupReplication
 type VolumeGroupReplicationSpec struct {
 	// volumeGroupReplicationClassName is the volumeGroupReplicationClass name for this VolumeGroupReplication resource
@@ -28,9 +32,10 @@ type VolumeGroupReplicationSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeGroupReplicationClassName is immutable"
 	VolumeGroupReplicationClassName string `json:"volumeGroupReplicationClassName"`
 
-	// volumeReplicationClassName is the volumeReplicationClass name for VolumeReplication object
+	// volumeReplicationClassName is the volumeReplicationClass name for the VolumeReplication object
+	// created for this volumeGroupReplication
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumReplicationClassName is immutable"
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="volumeReplicationClassName is immutable"
 	VolumeReplicationClassName string `json:"volumeReplicationClassName"`
 
 	// Name of the VolumeReplication object created for this volumeGroupReplication
