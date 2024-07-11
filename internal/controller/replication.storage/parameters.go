@@ -29,8 +29,10 @@ const (
 	// Driver.
 	replicationParameterPrefix = "replication.storage.openshift.io/"
 
-	prefixedReplicationSecretNameKey      = replicationParameterPrefix + "replication-secret-name"      // name key for secret
-	prefixedReplicationSecretNamespaceKey = replicationParameterPrefix + "replication-secret-namespace" // namespace key secret
+	prefixedReplicationSecretNameKey           = replicationParameterPrefix + "replication-secret-name"            // name key for secret
+	prefixedReplicationSecretNamespaceKey      = replicationParameterPrefix + "replication-secret-namespace"       // namespace key secret
+	prefixedGroupReplicationSecretNameKey      = replicationParameterPrefix + "group-replication-secret-name"      // name key for secret
+	prefixedGroupReplicationSecretNamespaceKey = replicationParameterPrefix + "group-replication-secret-namespace" // namespace key secret
 )
 
 // filterPrefixedParameters removes all the reserved keys from the
@@ -53,10 +55,14 @@ func validatePrefixedParameters(param map[string]string) error {
 		if strings.HasPrefix(k, replicationParameterPrefix) {
 			switch k {
 			case prefixedReplicationSecretNameKey:
+				fallthrough
+			case prefixedGroupReplicationSecretNameKey:
 				if v == "" {
 					return errors.New("secret name cannot be empty")
 				}
 			case prefixedReplicationSecretNamespaceKey:
+				fallthrough
+			case prefixedGroupReplicationSecretNamespaceKey:
 				if v == "" {
 					return errors.New("secret namespace cannot be empty")
 				}

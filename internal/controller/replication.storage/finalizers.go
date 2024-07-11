@@ -26,6 +26,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -65,43 +66,44 @@ func (r *VolumeReplicationReconciler) removeFinalizerFromVR(logger logr.Logger, 
 	return nil
 }
 
-// addFinalizerToPVC adds the VR finalizer on the PersistentVolumeClaim.
-func (r *VolumeReplicationReconciler) addFinalizerToPVC(logger logr.Logger, pvc *corev1.PersistentVolumeClaim) error {
-	if !slices.Contains(pvc.Finalizers, pvcReplicationFinalizer) {
-		logger.Info("adding finalizer to PersistentVolumeClaim object", "Finalizer", pvcReplicationFinalizer)
-		pvc.Finalizers = append(pvc.Finalizers, pvcReplicationFinalizer)
-		if err := r.Update(context.TODO(), pvc); err != nil {
+// addFinalizerToPVC adds the VR, VGR finalizer on the PersistentVolumeClaim.
+func addFinalizerToPVC(client client.Client, logger logr.Logger, pvc *corev1.PersistentVolumeClaim,
+	replicationFinalizer string) error {
+	if !slices.Contains(pvc.Finalizers, replicationFinalizer) {
+		logger.Info("adding finalizer to PersistentVolumeClaim object", "Finalizer", replicationFinalizer)
+		pvc.Finalizers = append(pvc.Finalizers, replicationFinalizer)
+		if err := client.Update(context.TODO(), pvc); err != nil {
 			return fmt.Errorf("failed to add finalizer (%s) to PersistentVolumeClaim resource"+
 				" (%s/%s) %w",
-				pvcReplicationFinalizer, pvc.Namespace, pvc.Name, err)
+				replicationFinalizer, pvc.Namespace, pvc.Name, err)
 		}
 	}
 
 	return nil
 }
 
-// removeFinalizerFromPVC removes the VR finalizer on PersistentVolumeClaim.
-func (r *VolumeReplicationReconciler) removeFinalizerFromPVC(logger logr.Logger, pvc *corev1.PersistentVolumeClaim,
-) error {
-	if slices.Contains(pvc.Finalizers, pvcReplicationFinalizer) {
-		logger.Info("removing finalizer from PersistentVolumeClaim object", "Finalizer", pvcReplicationFinalizer)
-		pvc.Finalizers = util.RemoveFromSlice(pvc.Finalizers, pvcReplicationFinalizer)
-		if err := r.Update(context.TODO(), pvc); err != nil {
+// removeFinalizerFromPVC removes the VR, VGR finalizer on PersistentVolumeClaim.
+func removeFinalizerFromPVC(client client.Client, logger logr.Logger, pvc *corev1.PersistentVolumeClaim,
+	replicationFinalizer string) error {
+	if slices.Contains(pvc.Finalizers, replicationFinalizer) {
+		logger.Info("removing finalizer from PersistentVolumeClaim object", "Finalizer", replicationFinalizer)
+		pvc.Finalizers = util.RemoveFromSlice(pvc.Finalizers, replicationFinalizer)
+		if err := client.Update(context.TODO(), pvc); err != nil {
 			return fmt.Errorf("failed to remove finalizer (%s) from PersistentVolumeClaim resource"+
 				" (%s/%s), %w",
-				pvcReplicationFinalizer, pvc.Namespace, pvc.Name, err)
+				replicationFinalizer, pvc.Namespace, pvc.Name, err)
 		}
 	}
 
 	return nil
 }
 
-// addFinalizerToVGR adds the VR finalizer on the VolumeGroupReplication.
-func (r *VolumeReplicationReconciler) addFinalizerToVGR(logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication) error {
+// addFinalizerToVGR adds the VGR finalizer on the VolumeGroupReplication resource
+func addFinalizerToVGR(client client.Client, logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication) error {
 	if !slices.Contains(vgr.Finalizers, vgrReplicationFinalizer) {
-		logger.Info("adding finalizer to VolumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
+		logger.Info("adding finalizer to volumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
 		vgr.Finalizers = append(vgr.Finalizers, vgrReplicationFinalizer)
-		if err := r.Update(context.TODO(), vgr); err != nil {
+		if err := client.Update(context.TODO(), vgr); err != nil {
 			return fmt.Errorf("failed to add finalizer (%s) to VolumeGroupReplication resource"+
 				" (%s/%s) %w",
 				vgrReplicationFinalizer, vgr.Namespace, vgr.Name, err)
@@ -111,16 +113,53 @@ func (r *VolumeReplicationReconciler) addFinalizerToVGR(logger logr.Logger, vgr 
 	return nil
 }
 
-// removeFinalizerFromVGR removes the VR finalizer on VolumeGroupReplication.
-func (r *VolumeReplicationReconciler) removeFinalizerFromVGR(logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication,
-) error {
+// removeFinalizerFromVGR removes the VGR finalizer from the VolumeGroupReplication instance.
+func removeFinalizerFromVGR(client client.Client, logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication) error {
 	if slices.Contains(vgr.Finalizers, vgrReplicationFinalizer) {
-		logger.Info("removing finalizer from VolumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
+		logger.Info("removing finalizer from volumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
+		// Check if owner annotations are removed from the VGR resource
+		if vgr.Annotations[replicationv1alpha1.VolumeGroupReplicationContentNameAnnotation] != "" ||
+			vgr.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] != "" {
+			return fmt.Errorf("failed to remove finalizer from volumeGroupReplication object"+
+				",dependent resources are not yet deleted (%s/%s)", vgr.Namespace, vgr.Name)
+		}
 		vgr.Finalizers = util.RemoveFromSlice(vgr.Finalizers, vgrReplicationFinalizer)
-		if err := r.Update(context.TODO(), vgr); err != nil {
+		if err := client.Update(context.TODO(), vgr); err != nil {
 			return fmt.Errorf("failed to remove finalizer (%s) from VolumeGroupReplication resource"+
 				" (%s/%s), %w",
 				vgrReplicationFinalizer, vgr.Namespace, vgr.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// addFinalizerToVGRContent adds the VGR finalizer on the VolumeGroupReplicationContent resource
+func addFinalizerToVGRContent(client client.Client, logger logr.Logger, vgrContent *replicationv1alpha1.VolumeGroupReplicationContent,
+	replicationFinalizer string) error {
+	if !slices.Contains(vgrContent.Finalizers, replicationFinalizer) {
+		logger.Info("adding finalizer to volumeGroupReplicationContent object", "Finalizer", replicationFinalizer)
+		vgrContent.Finalizers = append(vgrContent.Finalizers, replicationFinalizer)
+		if err := client.Update(context.TODO(), vgrContent); err != nil {
+			return fmt.Errorf("failed to add finalizer (%s) to VolumeGroupReplicationContent resource"+
+				" (%s) %w",
+				replicationFinalizer, vgrContent.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// removeFinalizerFromVGRContent removes the VGR finalizer from the VolumeGroupReplicationContent instance.
+func removeFinalizerFromVGRContent(client client.Client, logger logr.Logger, vgrContent *replicationv1alpha1.VolumeGroupReplicationContent,
+	replicationFinalizer string) error {
+	if slices.Contains(vgrContent.Finalizers, replicationFinalizer) {
+		logger.Info("removing finalizer from volumeGroupReplicationContent object", "Finalizer", replicationFinalizer)
+		vgrContent.Finalizers = util.RemoveFromSlice(vgrContent.Finalizers, replicationFinalizer)
+		if err := client.Update(context.TODO(), vgrContent); err != nil {
+			return fmt.Errorf("failed to remove finalizer (%s) from VolumeGroupReplicationContent resource"+
+				" (%s), %w",
+				replicationFinalizer, vgrContent.Name, err)
 		}
 	}
 

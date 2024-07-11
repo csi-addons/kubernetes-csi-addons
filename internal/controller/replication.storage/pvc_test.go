@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
@@ -162,8 +163,10 @@ func TestGetVolumeHandle(t *testing.T) {
 			Namespace: volumeReplication.Namespace,
 		}
 
+		ctx := context.TODO()
+		logger := log.FromContext(ctx)
 		reconciler := createFakeVolumeReplicationReconciler(t, testPV, testPVC, volumeReplication)
-		resultPVC, resultPV, err := reconciler.getPVCDataSource(log.FromContext(context.TODO()), namespacedName)
+		resultPVC, resultPV, err := reconciler.getPVCDataSource(ctx, logger, namespacedName)
 		if tc.errorExpected {
 			assert.Error(t, err)
 		} else {
@@ -178,6 +181,7 @@ func TestGetVolumeHandle(t *testing.T) {
 func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 	t.Parallel()
 	vrName := "test-vr"
+	vrNamespace := "test-ns"
 
 	testcases := []struct {
 		name          string
@@ -196,7 +200,7 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 					Name:      "pvc-name",
 					Namespace: mockNamespace,
 					Annotations: map[string]string{
-						replicationv1alpha1.VolumeReplicationNameAnnotation: vrName,
+						replicationv1alpha1.VolumeReplicationNameAnnotation: fmt.Sprintf("%s/%s", vrNamespace, vrName),
 					},
 				},
 			},
@@ -220,13 +224,16 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 	for _, tc := range testcases {
 		volumeReplication := &replicationv1alpha1.VolumeReplication{}
 		mockVolumeReplicationObj.DeepCopyInto(volumeReplication)
+		volumeReplication.Name = vrName
 
 		testPVC := &corev1.PersistentVolumeClaim{}
 		tc.pvc.DeepCopyInto(testPVC)
 
 		ctx := context.TODO()
+		logger := log.FromContext(ctx)
 		reconciler := createFakeVolumeReplicationReconciler(t, testPVC, volumeReplication)
-		err := reconciler.annotatePVCWithOwner(ctx, log.FromContext(context.TODO()), vrName, testPVC)
+		reqOwner := fmt.Sprintf("%s/%s", volumeReplication.Namespace, volumeReplication.Name)
+		err := annotatePVCWithOwner(reconciler.Client, ctx, logger, reqOwner, testPVC, replicationv1alpha1.VolumeReplicationNameAnnotation)
 		if tc.errorExpected {
 			assert.Error(t, err)
 		} else {
@@ -241,14 +248,14 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 			err = reconciler.Get(ctx, pvcNamespacedName, testPVC)
 			assert.NoError(t, err)
 
-			assert.Equal(t, testPVC.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], vrName)
+			assert.Equal(t, testPVC.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], reqOwner)
 		}
 
-		err = reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), testPVC)
+		err = removeOwnerFromPVCAnnotation(reconciler.Client, ctx, log.FromContext(context.TODO()), testPVC, replicationv1alpha1.VolumeReplicationNameAnnotation)
 		assert.NoError(t, err)
 
 		// try calling delete again, it should not fail
-		err = reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), testPVC)
+		err = removeOwnerFromPVCAnnotation(reconciler.Client, ctx, log.FromContext(context.TODO()), testPVC, replicationv1alpha1.VolumeReplicationNameAnnotation)
 		assert.NoError(t, err)
 
 	}
@@ -262,6 +269,6 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 	}
 	volumeReplication := &replicationv1alpha1.VolumeReplication{}
 	reconciler := createFakeVolumeReplicationReconciler(t, pvc, volumeReplication)
-	err := reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), pvc)
+	err := removeOwnerFromPVCAnnotation(reconciler.Client, context.TODO(), log.FromContext(context.TODO()), pvc, replicationv1alpha1.VolumeReplicationNameAnnotation)
 	assert.NoError(t, err)
 }
