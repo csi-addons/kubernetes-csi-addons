@@ -130,10 +130,6 @@ they must perform the same action on all the PersistentVolumeClaims within that 
 
 You can create `ReclaimSpaceCronJob` CR automatically by adding the
 `reclaimspace.csiaddons.openshift.io/schedule: "@midnight"` annotations to the StorageClass object.
-This will only affect new PersistentVolumeClaims created from this StorageClass for ReclaimSpace
-operations. To include existing PersistentVolumeClaims for ReclaimSpace operations, you must restart
-the controller. This will ensure that reclaimspace annotations are added to the existing
-PersistentVolumeClaims and `ReclaimSpaceCronJob` resources are created for them.
 
 ```console
 $ kubectl get storageclass rbd-sc
