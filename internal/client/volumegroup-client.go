@@ -35,7 +35,7 @@ type VolumeGroup interface {
 	// CreateVolumeGroup RPC call to create a volume group.
 	CreateVolumeGroup(volumeGroupName string, volumeIDs []string, secretName, secretNamespace string, parameters map[string]string) (*proto.CreateVolumeGroupResponse, error)
 	// ModifyVolumeGroupMembership RPC call to modify the volume group.
-	ModifyVolumeGroupMembership(volumeGroupID string, volumeIDs []string, secretName, secretNamespace string) (*proto.ModifyVolumeGroupMembershipResponse, error)
+	ModifyVolumeGroupMembership(volumeGroupID string, volumeIDs []string, secretName, secretNamespace string, parameters map[string]string) (*proto.ModifyVolumeGroupMembershipResponse, error)
 	// DeleteVolumeGroup RPC call to delete the volume group.
 	DeleteVolumeGroup(volumeGroupID string, secretName, secretNamespace string) (*proto.DeleteVolumeGroupResponse, error)
 	// ControllerGetVolumeGroup RPC call to fetch the volume group.
@@ -64,12 +64,13 @@ func (vg *volumeGroupClient) CreateVolumeGroup(volumeGroupName string, volumeIDs
 }
 
 func (vg *volumeGroupClient) ModifyVolumeGroupMembership(volumeGroupID string, volumeIDs []string,
-	secretName, secretNamespace string) (*proto.ModifyVolumeGroupMembershipResponse, error) {
+	secretName, secretNamespace string, parameters map[string]string) (*proto.ModifyVolumeGroupMembershipResponse, error) {
 	req := &proto.ModifyVolumeGroupMembershipRequest{
 		VolumeGroupId:   volumeGroupID,
 		VolumeIds:       volumeIDs,
 		SecretName:      secretName,
 		SecretNamespace: secretNamespace,
+		Parameters:      parameters,
 	}
 
 	createCtx, cancel := context.WithTimeout(context.Background(), vg.timeout)

@@ -157,7 +157,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	nameSpacedName := types.NamespacedName{Name: instance.Spec.DataSource.Name, Namespace: req.Namespace}
 	switch instance.Spec.DataSource.Kind {
 	case pvcDataSource:
-		pvc, pv, pvErr = r.getPVCDataSource(logger, nameSpacedName)
+		pvc, pv, pvErr = r.getPVCDataSource(ctx, logger, nameSpacedName)
 		if pvErr != nil {
 			logger.Error(pvErr, "failed to get PVC", "PVCName", instance.Spec.DataSource.Name)
 			setFailureCondition(instance, "failed to find PVC", pvErr.Error(), instance.Spec.DataSource.Name)
@@ -231,13 +231,14 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 		switch instance.Spec.DataSource.Kind {
 		case pvcDataSource:
-			err = r.annotatePVCWithOwner(ctx, logger, req.Name, pvc)
+			reqOwner := fmt.Sprintf("%s/%s", instance.Namespace, instance.Name)
+			err = annotatePVCWithOwner(r.Client, ctx, logger, reqOwner, pvc, replicationv1alpha1.VolumeReplicationNameAnnotation)
 			if err != nil {
 				logger.Error(err, "Failed to annotate PVC owner")
 				return ctrl.Result{}, err
 			}
 
-			if err = r.addFinalizerToPVC(logger, pvc); err != nil {
+			if err = addFinalizerToPVC(r.Client, logger, pvc, pvcReplicationFinalizer); err != nil {
 				logger.Error(err, "Failed to add PersistentVolumeClaim finalizer")
 
 				return reconcile.Result{}, err
@@ -246,47 +247,44 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			err = r.annotateVolumeGroupReplicationWithOwner(ctx, logger, req.Name, vgr)
 			if err != nil {
 				logger.Error(err, "Failed to annotate VolumeGroupReplication owner")
-
 				return ctrl.Result{}, err
 			}
 
-			if err = r.addFinalizerToVGR(logger, vgr); err != nil {
-				logger.Error(err, "Failed to add VolumeGroupReplication finalizer")
-
+			if err = addFinalizerToVGRContent(r.Client, logger, vgrc, volumeReplicationFinalizer); err != nil {
+				logger.Error(err, "Failed to add VolumeReplication finalizer to VolumeGroupReplicationContent")
 				return reconcile.Result{}, err
 			}
 		}
 	} else {
 		if slices.Contains(instance.GetFinalizers(), volumeReplicationFinalizer) {
-			err = r.disableVolumeReplication(vr)
-			if err != nil {
-				logger.Error(err, "failed to disable replication")
-
-				return ctrl.Result{}, err
+			// The image/group doesn't exist, so we shouldn't bother disabling mirroring for it
+			if vr.commonRequestParameters.VolumeID != "" || vr.commonRequestParameters.GroupID != "" {
+				err = r.disableVolumeReplication(vr)
+				if err != nil {
+					logger.Error(err, "failed to disable replication")
+					return ctrl.Result{}, err
+				}
 			}
 			switch instance.Spec.DataSource.Kind {
 			case pvcDataSource:
-				if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
+				if err = removeOwnerFromPVCAnnotation(r.Client, ctx, logger, pvc, replicationv1alpha1.VolumeReplicationNameAnnotation); err != nil {
 					logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
-
 					return reconcile.Result{}, err
 				}
 
-				if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
+				if err = removeFinalizerFromPVC(r.Client, logger, pvc, pvcReplicationFinalizer); err != nil {
 					logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
-
 					return reconcile.Result{}, err
 				}
 			case volumeGroupReplicationDataSource:
-				if err = r.removeOwnerFromVGRAnnotation(ctx, logger, vgr); err != nil {
-					logger.Error(err, "Failed to remove VolumeReplication annotation from VolumeGroupReplication")
-
+				if err = removeFinalizerFromVGRContent(r.Client, logger, vgrc, volumeReplicationFinalizer); err != nil {
+					logger.Error(err, "Failed to remove VolumeReplication finalizer from VolumeGroupReplicationContent resource")
 					return reconcile.Result{}, err
 				}
 
-				if err = r.removeFinalizerFromVGR(logger, vgr); err != nil {
-					logger.Error(err, "Failed to remove VolumeGroupReplication finalizer")
-
+				err = r.removeOwnerFromVGRAnnotation(ctx, logger, vgr)
+				if err != nil {
+					logger.Error(err, "Failed to remove VolumeReplication owner annotation from VolumeGroupReplication resource")
 					return reconcile.Result{}, err
 				}
 			}
