@@ -246,7 +246,7 @@ func TestGetScheduleFromAnnotation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getScheduleFromAnnotation(tt.args.logger, tt.args.annotations)
+			got, got1 := getScheduleFromAnnotation(rsCronJobScheduleTimeAnnotation, tt.args.logger, tt.args.annotations)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
 		})
@@ -339,7 +339,7 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 			err = r.Client.Update(ctx, pvc)
 			assert.NoError(t, err)
 
-			schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName)
+			schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
 			assert.NoError(t, error)
 			assert.Equal(t, tt.want, schedule)
 		})
@@ -349,7 +349,7 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		emptyScName := ""
 		pvc.Spec.StorageClassName = &emptyScName
 		pvc.Annotations = nil
-		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName)
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
 		assert.ErrorIs(t, error, ErrScheduleNotFound)
 		assert.Equal(t, "", schedule)
 	})
@@ -359,7 +359,7 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		sc.Name = "non-existent-sc"
 		pvc.Spec.StorageClassName = &sc.Name
 		pvc.Annotations = nil
-		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName)
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
 		assert.ErrorIs(t, error, ErrScheduleNotFound)
 		assert.Equal(t, "", schedule)
 	})
