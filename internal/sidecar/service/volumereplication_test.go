@@ -43,12 +43,26 @@ func Test_setReplicationSource(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "set replication source when request is not set",
+			name: "set replication source when request is nil",
 			args: args{
-				src: &csiReplication.ReplicationSource{},
-				req: &proto.ReplicationSource{},
+				src: nil,
+				req: nil,
 			},
 			wantErr: true,
+		},
+		{
+			name: "set replication source is nil but request is not nil",
+			args: args{
+				src: nil,
+				req: &proto.ReplicationSource{
+					Type: &proto.ReplicationSource_Volume{
+						Volume: &proto.ReplicationSource_VolumeSource{
+							VolumeId: volID,
+						},
+					},
+				},
+			},
+			wantErr: false,
 		},
 		{
 			name: "set replication source when volume is set",
@@ -81,16 +95,16 @@ func Test_setReplicationSource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := setReplicationSource(tt.args.src, tt.args.req); (err != nil) != tt.wantErr {
+			if err := setReplicationSource(&tt.args.src, tt.args.req); (err != nil) != tt.wantErr {
 				t.Errorf("setReplicationSource() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.args.req.GetVolume() != nil {
-				if tt.args.req.GetVolume().GetVolumeId() != volID {
+				if tt.args.src.GetVolume().GetVolumeId() != volID {
 					t.Errorf("setReplicationSource() got = %v volumeID, expected = %v volumeID", tt.args.req.GetVolume().GetVolumeId(), volID)
 				}
 			}
 			if tt.args.req.GetVolumeGroup() != nil {
-				if tt.args.req.GetVolumeGroup().GetVolumeGroupId() != groupID {
+				if tt.args.src.GetVolumegroup().GetVolumeGroupId() != groupID {
 					t.Errorf("setReplicationSource() got = %v groupID, expected = %v volumeID", tt.args.req.GetVolumeGroup().GetVolumeGroupId(), groupID)
 				}
 			}

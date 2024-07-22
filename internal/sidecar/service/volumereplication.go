@@ -69,7 +69,7 @@ func (rs *ReplicationServer) EnableVolumeReplication(
 		Parameters:    req.GetParameters(),
 		Secrets:       data,
 	}
-	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
 		klog.Errorf("Failed to set replication source: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -102,7 +102,7 @@ func (rs *ReplicationServer) DisableVolumeReplication(
 		Parameters:    req.GetParameters(),
 		Secrets:       data,
 	}
-	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
 		klog.Errorf("Failed to set replication source: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -135,7 +135,7 @@ func (rs *ReplicationServer) PromoteVolume(
 		Force:         req.GetForce(),
 		Secrets:       data,
 	}
-	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
 		klog.Errorf("Failed to set replication source: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -168,7 +168,7 @@ func (rs *ReplicationServer) DemoteVolume(
 		Force:         req.GetForce(),
 		Secrets:       data,
 	}
-	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
 		klog.Errorf("Failed to set replication source: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -201,7 +201,7 @@ func (rs *ReplicationServer) ResyncVolume(
 		Force:         req.GetForce(),
 		Secrets:       data,
 	}
-	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
 		klog.Errorf("Failed to set replication source: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -234,7 +234,7 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 		ReplicationId: req.GetReplicationId(),
 		Secrets:       data,
 	}
-	err = setReplicationSource(repReq.ReplicationSource, req.GetReplicationSource())
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
 		klog.Errorf("Failed to set replication source: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -259,9 +259,9 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 }
 
 // setReplicationSource sets the replication source for the given ReplicationSource.
-func setReplicationSource(src *csiReplication.ReplicationSource, req *proto.ReplicationSource) error {
-	if src == nil {
-		src = &csiReplication.ReplicationSource{}
+func setReplicationSource(src **csiReplication.ReplicationSource, req *proto.ReplicationSource) error {
+	if *src == nil {
+		*src = &csiReplication.ReplicationSource{}
 	}
 
 	switch {
@@ -270,12 +270,12 @@ func setReplicationSource(src *csiReplication.ReplicationSource, req *proto.Repl
 	case req.GetVolume() == nil && req.GetVolumeGroup() == nil:
 		return errors.New("either volume or volume group is required")
 	case req.GetVolume() != nil:
-		src.Type = &csiReplication.ReplicationSource_Volume{Volume: &csiReplication.ReplicationSource_VolumeSource{
+		(*src).Type = &csiReplication.ReplicationSource_Volume{Volume: &csiReplication.ReplicationSource_VolumeSource{
 			VolumeId: req.GetVolume().GetVolumeId(),
 		}}
 		return nil
 	case req.GetVolumeGroup() != nil:
-		src.Type = &csiReplication.ReplicationSource_Volumegroup{Volumegroup: &csiReplication.ReplicationSource_VolumeGroupSource{
+		(*src).Type = &csiReplication.ReplicationSource_Volumegroup{Volumegroup: &csiReplication.ReplicationSource_VolumeGroupSource{
 			VolumeGroupId: req.GetVolumeGroup().GetVolumeGroupId(),
 		}}
 		return nil
