@@ -9,4 +9,6 @@ resources:
 - replication.storage_v1alpha1_volumegroupreplication.yaml
 - replication.storage_v1alpha1_volumereplicationclass.yaml
 - replication.storage_v1alpha1_volumereplication.yaml
+- csiaddons_v1alpha1_encryptionkeyrotationjob.yaml
+- csiaddons_v1alpha1_encryptionkeyrotationcronjob.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
