@@ -1,0 +1,23 @@
+# permissions for end users to view encryptionkeyrotationcronjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kubernetes-csi-addons
+    app.kubernetes.io/managed-by: kustomize
+  name: csiaddons-encryptionkeyrotationcronjob-viewer-role
+rules:
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - encryptionkeyrotationcronjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - encryptionkeyrotationcronjobs/status
+  verbs:
+  - get

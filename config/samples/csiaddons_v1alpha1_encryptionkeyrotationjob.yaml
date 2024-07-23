@@ -1,0 +1,10 @@
+apiVersion: csiaddons.openshift.io/v1alpha1
+kind: EncryptionKeyRotationJob
+metadata:
+  labels:
+    app.kubernetes.io/name: kubernetes-csi-addons
+    app.kubernetes.io/managed-by: kustomize
+  name: encryptionkeyrotationjob-sample
+spec:
+  target:
+    persistentVolumeClaim: example-pvc

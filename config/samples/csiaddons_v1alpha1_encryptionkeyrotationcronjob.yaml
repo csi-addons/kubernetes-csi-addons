@@ -1,0 +1,13 @@
+apiVersion: csiaddons.openshift.io/v1alpha1
+kind: EncryptionKeyRotationCronJob
+metadata:
+  labels:
+    app.kubernetes.io/name: kubernetes-csi-addons
+    app.kubernetes.io/managed-by: kustomize
+  name: encryptionkeyrotationcronjob-sample
+spec:
+  schedule: "@weekly"
+  jobTemplate:
+    spec:
+      target:
+        persistentVolumeClaim: example-pvc
