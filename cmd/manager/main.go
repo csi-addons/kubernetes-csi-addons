@@ -211,6 +211,22 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroupReplicationContent")
 		os.Exit(1)
 	}
+	if err = (&controllers.EncryptionKeyRotationJobReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		ConnPool: connPool,
+		Timeout:  defaultTimeout,
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EncryptionKeyRotationJob")
+		os.Exit(1)
+	}
+	if err = (&controllers.EncryptionKeyRotationCronJobReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr, ctrlOptions); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EncryptionKeyRotationCronJob")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
