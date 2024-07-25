@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"path/filepath"
-	"strconv"
 
 	kube "github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
@@ -144,11 +143,7 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	stPath, err := rs.getStagingTargetPath(pv)
-	if err != nil {
-		klog.Errorf("Failed to get staging target path: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	stPath := rs.getStagingTargetPath(pv)
 
 	accessType := csi.VolumeCapability_Mount{
 		Mount: &csi.VolumeCapability_MountVolume{},
@@ -200,34 +195,10 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 }
 
 // getStagingTargetPath returns the path where the volume is expected to be
-// mounted (or the block-device is attached/mapped). Different Kubernetes
-// version use different paths.
-func (rs *ReclaimSpaceServer) getStagingTargetPath(pv *corev1.PersistentVolume) (string, error) {
+// mounted (or the block-device is attached/mapped).
+func (rs *ReclaimSpaceServer) getStagingTargetPath(pv *corev1.PersistentVolume) string {
 	// Kubernetes 1.24+ uses a hash of the volume-id in the path name
 	unique := sha256.Sum256([]byte(pv.Spec.CSI.VolumeHandle))
 	targetPath := filepath.Join(rs.stagingPath, pv.Spec.CSI.Driver, fmt.Sprintf("%x", unique), "globalmount")
-
-	version, err := rs.kubeClient.Discovery().ServerVersion()
-	if err != nil {
-		return "", fmt.Errorf("failed to detect Kubernetes version: %w", err)
-	}
-
-	major, err := strconv.Atoi(version.Major)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert Kubernetes major version %q to int: %w", version.Major, err)
-	}
-
-	minor, err := strconv.Atoi(version.Minor)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert Kubernetes minor version %q to int: %w", version.Minor, err)
-	}
-
-	// 'encode' major/minor in a single integer
-	legacyVersion := 1024 // Kubernetes 1.24 => 1 * 1000 + 24
-	if ((major * 1000) + minor) < (legacyVersion) {
-		// path in Kubernetes < 1.24
-		targetPath = filepath.Join(rs.stagingPath, "pv", pv.Name, "globalmount")
-	}
-
-	return targetPath, nil
+	return targetPath
 }
