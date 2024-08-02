@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/container-storage-interface/spec v1.10.0
-	github.com/csi-addons/spec v0.2.1-0.20240718113938-dc98b454ba65
+	github.com/csi-addons/spec v0.2.1-0.20240730084235-3958a5b17d24
 	github.com/go-logr/logr v1.4.2
 	github.com/kubernetes-csi/csi-lib-utils v0.18.1
 	github.com/onsi/ginkgo/v2 v2.20.0
