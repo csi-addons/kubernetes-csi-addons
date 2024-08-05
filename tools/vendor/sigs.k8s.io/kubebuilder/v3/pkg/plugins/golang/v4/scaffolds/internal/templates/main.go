@@ -251,7 +251,7 @@ func main() {
 {{ if not .ComponentConfig }}
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancelation and 
+	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and 
 	// Rapid Reset CVEs. For more information see:
 	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
 	// - https://github.com/advisories/GHSA-4374-p667-p6c8
@@ -279,7 +279,11 @@ func main() {
 		WebhookServer: webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "{{ hashFNV .Repo }}.{{ .Domain }}",
+		{{- if not .Domain }}
+		LeaderElectionID:        "{{ hashFNV .Repo }}",
+		{{- else }}
+		LeaderElectionID:        "{{ hashFNV .Repo }}.{{ .Domain }}",
+		{{- end }}
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
