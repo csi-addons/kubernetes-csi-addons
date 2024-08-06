@@ -293,7 +293,8 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 // storageClassEventHandler returns an EventHandler that responds to changes
 // in StorageClass objects and generates reconciliation requests for all
 // PVCs associated with the changed StorageClass.
-// PVCs with rsCronJobScheduleTimeAnnotation are not enqueued.
+// PVCs with either rsCronJobScheduleTimeAnnotation or
+// krcJobScheduleTimeAnnotation are not enqueued.
 func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -315,6 +316,9 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 			var requests []reconcile.Request
 			for _, pvc := range pvcList.Items {
 				if _, ok := pvc.GetAnnotations()[rsCronJobScheduleTimeAnnotation]; ok {
+					continue
+				}
+				if _, ok := pvc.GetAnnotations()[krcJobScheduleTimeAnnotation]; ok {
 					continue
 				}
 				requests = append(requests, reconcile.Request{
