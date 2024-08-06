@@ -74,6 +74,9 @@ type CSIAddonsNodeStatus struct {
 	// for machine parsing and tidy display in the CLI.
 	// +optional
 	Reason string `json:"reason,omitempty"`
+
+	// A list of capabilities advertised by the sidecar
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 //+kubebuilder:object:root=true
