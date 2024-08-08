@@ -93,6 +93,11 @@ spec:
           status:
             description: CSIAddonsNodeStatus defines the observed state of CSIAddonsNode
             properties:
+              capabilities:
+                description: A list of capabilities advertised by the sidecar
+                items:
+                  type: string
+                type: array
               message:
                 description: |-
                   Message is a human-readable message indicating details about why the CSIAddonsNode

@@ -27,6 +27,7 @@ import (
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
+	"github.com/csi-addons/spec/lib/go/identity"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -142,6 +143,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateConnected
 	csiAddonsNode.Status.Message = "Successfully established connection with sidecar"
+	csiAddonsNode.Status.Capabilities = parseCapabilities(newConn.Capabilities)
 	err = r.Client.Status().Update(ctx, csiAddonsNode)
 	if err != nil {
 		logger.Error(err, "Failed to update status")
@@ -270,4 +272,24 @@ func validateCSIAddonsNodeSpec(csiaddonsnode *csiaddonsv1alpha1.CSIAddonsNode) e
 	}
 
 	return nil
+}
+
+// parseCapabilities returns a list of capabilities in the format
+// capability.Type
+// e.g. A cap.String with value "service:{type:NODE_SERVICE}"
+// Will be parsed and returned as "service.NODE_SERVICE"
+func parseCapabilities(caps []*identity.Capability) []string {
+	if len(caps) == 0 {
+		return []string{}
+	}
+
+	capabilities := make([]string, len(caps))
+
+	for i, cap := range caps {
+		capStr := strings.ReplaceAll(cap.String(), ":{type:", ".")
+		capStr = strings.ReplaceAll(capStr, "}", "")
+		capabilities[i] = capStr
+	}
+
+	return capabilities
 }
