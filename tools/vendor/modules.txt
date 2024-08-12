@@ -714,7 +714,7 @@ github.com/operator-framework/operator-registry/pkg/prettyunmarshaler
 github.com/operator-framework/operator-registry/pkg/registry
 github.com/operator-framework/operator-registry/pkg/sqlite
 github.com/operator-framework/operator-registry/pkg/sqlite/migrations
-# github.com/operator-framework/operator-sdk v1.36.0
+# github.com/operator-framework/operator-sdk v1.36.1
 ## explicit; go 1.21
 github.com/operator-framework/operator-sdk/cmd/operator-sdk
 github.com/operator-framework/operator-sdk/internal/annotations/metrics
@@ -1706,7 +1706,7 @@ sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client/metrics
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/common/metrics
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/proto/client
-# sigs.k8s.io/controller-runtime v0.17.3
+# sigs.k8s.io/controller-runtime v0.17.4
 ## explicit; go 1.21
 sigs.k8s.io/controller-runtime/pkg/client
 sigs.k8s.io/controller-runtime/pkg/client/apiutil

@@ -3,7 +3,7 @@ module github.com/csi-addons/kubernetes-csi-addons/tools
 go 1.22.0
 
 require (
-	github.com/operator-framework/operator-sdk v1.36.0
+	github.com/operator-framework/operator-sdk v1.36.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.34.2
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240102165319-7f316f1309b1
@@ -227,7 +227,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e // indirect
 	oras.land/oras-go v1.2.5 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.29.0 // indirect
-	sigs.k8s.io/controller-runtime v0.17.3 // indirect
+	sigs.k8s.io/controller-runtime v0.17.4 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kubebuilder/v3 v3.14.2 // indirect
 	sigs.k8s.io/kustomize/api v0.17.3 // indirect
