@@ -293,7 +293,12 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 // storageClassEventHandler returns an EventHandler that responds to changes
 // in StorageClass objects and generates reconciliation requests for all
 // PVCs associated with the changed StorageClass.
-// PVCs with rsCronJobScheduleTimeAnnotation are not enqueued.
+//
+// PVCs are enqueued for reconciliation if one of the following is true -
+//   - If the StorageClass has ReclaimSpace annotation,
+//     PVCs without ReclaimSpace annotations will be enqueued.
+//   - If the StorageClass has KeyRotation annotation,
+//     PVCs without the KeyRotation annotation will be enqueued.
 func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -312,17 +317,32 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 				return nil
 			}
 
+			_, scHasReclaimSpaceAnnotation := obj.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
+			_, scHasKeyRotationAnnotation := obj.GetAnnotations()[krcJobScheduleTimeAnnotation]
+
 			var requests []reconcile.Request
 			for _, pvc := range pvcList.Items {
-				if _, ok := pvc.GetAnnotations()[rsCronJobScheduleTimeAnnotation]; ok {
-					continue
+
+				_, pvcHasReclaimSpaceAnnotation := pvc.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
+				_, pvcHasKeyRotationAnnotation := pvc.GetAnnotations()[krcJobScheduleTimeAnnotation]
+
+				needToEnqueue := false
+
+				if scHasReclaimSpaceAnnotation && !pvcHasReclaimSpaceAnnotation {
+					needToEnqueue = true
 				}
-				requests = append(requests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      pvc.Name,
-						Namespace: pvc.Namespace,
-					},
-				})
+				if scHasKeyRotationAnnotation && !pvcHasKeyRotationAnnotation {
+					needToEnqueue = true
+				}
+
+				if needToEnqueue {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      pvc.Name,
+							Namespace: pvc.Namespace,
+						},
+					})
+				}
 			}
 
 			return requests
@@ -753,7 +773,8 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	logger *logr.Logger,
 	req *reconcile.Request,
 	pvc *corev1.PersistentVolumeClaim,
-	pv *corev1.PersistentVolume) error {
+	pv *corev1.PersistentVolume,
+) error {
 	krcJob, err := r.findChildEncryptionKeyRotationCronJob(ctx, logger, req)
 	if err != nil {
 		return err
@@ -796,7 +817,7 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 		err = r.Client.Update(ctx, krcJob)
 		if err != nil {
 			logger.Error(err, "failed to update encryptionkeyrotationcronjob")
-			return err //ctr.Result
+			return err // ctr.Result
 		}
 
 		logger.Info("successfully updated encryptionkeyrotationcronjob")
