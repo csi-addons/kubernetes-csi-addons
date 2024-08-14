@@ -16,25 +16,27 @@ The CSI-Addons Controller can be deployed by different ways:
 
 > Note: Some of the above configuration options can also be configured using [`"csi-addons-config"` configmap](./csi-addons-config.md).
 
+## Installation for latest deployments
+
+The latest CSI-Addons Controller can be installed using the YAML files in `deploy/controller` from `main` branch.
+
 ## Installation for versioned deployments
 
-The CSI-Addons Controller can also be installed  using the YAML files in `deploy/controller`.
-The versioned deployment is possible with the YAML files that get generated for the
-[latest release](https://github.com/csi-addons/kubernetes-csi-addons/releases/latest).
-You can download the YAML files from there, or use them directly with kubectl.
-This is the recommended and easiest way to deploy the controller.
+The versioned deployment of the CSI-Addons Controller can be installed using the specific version's YAML files as shown below:
+
+>Note: set the `RELEASE` variable to the required version.
 
 ```console
-$ cd deploy/controller
+$ export RELEASE="v0.8.0"
 
-$ kubectl create -f crds.yaml
+$ kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/${RELEASE}/crds.yaml
 ...
 customresourcedefinition.apiextensions.k8s.io/csiaddonsnodes.csiaddons.openshift.io created
 customresourcedefinition.apiextensions.k8s.io/networkfences.csiaddons.openshift.io created
 customresourcedefinition.apiextensions.k8s.io/reclaimspacecronjobs.csiaddons.openshift.io created
 customresourcedefinition.apiextensions.k8s.io/reclaimspacejobs.csiaddons.openshift.io created
 
-$ kubectl create -f rbac.yaml
+$ kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/${RELEASE}/rbac.yaml
 ...
 serviceaccount/csi-addons-controller-manager created
 role.rbac.authorization.k8s.io/csi-addons-leader-election-role created
@@ -47,12 +49,14 @@ clusterrolebinding.rbac.authorization.k8s.io/csi-addons-proxy-rolebinding create
 configmap/csi-addons-manager-config created
 service/csi-addons-controller-manager-metrics-service created
 
-$ kubectl create -f setup-controller.yaml
+$ kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/${RELEASE}/setup-controller.yaml
 ...
 deployment.apps/csi-addons-controller-manager created
 ```
 
-* The "crds.yaml" create the required crds for reclaimspace operation.
+This is the recommended and easiest way to deploy the controller.
+
+* The "crds.yaml" create the required crds for csi-addons operations.
 
 * The "rbac.yaml" creates the required rbac.
 
