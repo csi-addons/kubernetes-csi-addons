@@ -90,7 +90,7 @@ func (ekrs *EncryptionKeyRotationServer) EncryptionKeyRotate(
 	if pv.Spec.CSI.NodeStageSecretRef != nil {
 		ekrRequest.Secrets, err = kube.GetSecret(ctx, ekrs.kubeClient, pv.Spec.CSI.NodeStageSecretRef.Name, pv.Spec.CSI.NodeStageSecretRef.Namespace)
 		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
 
