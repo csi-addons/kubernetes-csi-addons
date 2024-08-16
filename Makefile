@@ -47,7 +47,7 @@ SKIP_RANGE ?=
 # the kube-rbac-proxy can easily be tested. Products that include CSI-Addons
 # may want to provide a different location of the container-image.
 # The default value is set in config/default/kustomization.yaml
-RBAC_PROXY_IMG ?= gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+RBAC_PROXY_IMG ?= quay.io/brancz/kube-rbac-proxy:v0.18.0
 
 # The default version of the bundle (CSV) can be found in
 # config/manifests/bases/csi-addons.clusterserviceversion.yaml . When tagging a
