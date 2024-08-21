@@ -8,10 +8,10 @@
 
 ## Reserved parameter keys
 
-+ `replication.storage.openshift.io/replication-secret-name`
-+ `replication.storage.openshift.io/replication-secret-namespace`
+- `replication.storage.openshift.io/replication-secret-name`
+- `replication.storage.openshift.io/replication-secret-namespace`
 
-``` yaml
+```yaml
 apiVersion: replication.storage.openshift.io/v1alpha1
 kind: VolumeReplicationClass
 metadata:

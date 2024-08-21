@@ -8,12 +8,13 @@ kind: CSIAddonsNode
 metadata:
   name: csiaddonsnode-sample
 spec:
-    driver:
-        name: driver.csi.example.io
-        endpoint: pod://csiaddonsnode-sample.csi-addons-system:9070
-        nodeID: node-1
+  driver:
+    name: driver.csi.example.io
+    endpoint: pod://csiaddonsnode-sample.csi-addons-system:9070
+    nodeID: node-1
 ```
-+ `driver` contains the required information about the CSI driver.
-  + `name` contains the name of the driver. The name of the driver is in the format: `driver.csi.example.io`
-  + `endpoint` contains the URL that contains the name of the Pod and its Namespace that can be used by the controller to connect to.
-  + `nodeID` contains the ID of node to identify on which node the side-car is running.
+
+- `driver` contains the required information about the CSI driver.
+  - `name` contains the name of the driver. The name of the driver is in the format: `driver.csi.example.io`
+  - `endpoint` contains the URL that contains the name of the Pod and its Namespace that can be used by the controller to connect to.
+  - `nodeID` contains the ID of node to identify on which node the side-car is running.

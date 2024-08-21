@@ -6,20 +6,19 @@ VolumeReplication is a namespaced resource that contains references to storage o
 
 `replicationState` is the state of the volume being referenced. Possible values are `primary`, `secondary` and `resync`.
 
-+ `primary` denotes that the volume is primary
-+ `secondary` denotes that the volume is secondary
-+ `resync` denotes that the volume needs to be resynced
+- `primary` denotes that the volume is primary
+- `secondary` denotes that the volume is secondary
+- `resync` denotes that the volume needs to be resynced
 
 `dataSource` contains typed reference to the source being replicated.
 
-+ `apiGroup` is the group for the resource being referenced. If apiGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, apiGroup is required.
-+ `kind` is the kind of resource being replicated. For eg. PersistentVolumeClaim
-+ `name` is the name of the resource
+- `apiGroup` is the group for the resource being referenced. If apiGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, apiGroup is required.
+- `kind` is the kind of resource being replicated. For eg. PersistentVolumeClaim
+- `name` is the name of the resource
 
 `replicationHandle` (optional) is an existing (but new) replication ID.
 
-
-``` yaml
+```yaml
 apiVersion: replication.storage.openshift.io/v1alpha1
 kind: VolumeReplication
 metadata:

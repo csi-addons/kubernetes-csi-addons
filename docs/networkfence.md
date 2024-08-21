@@ -26,9 +26,9 @@ spec:
 
 > **Note**: Creation of a NetworkFence CR blocks access to the corresponding CIDR block; which is then unblocked the CR deletion.
 
-+ `provisioner`: specifies the name of storage provisioner.
-+ `cidrs`: refers to the CIDR blocks on which the mentioned fence/unfence operation is to be performed.
-+ `secret`: refers to the kubernetes secret required for network fencing operation.
-  + `name`: specifies the name of the secret
-  + `namespace`: specifies the namespace in which the secret is located.
-+ `parameters`: specifies storage provider specific parameters.
+- `provisioner`: specifies the name of storage provisioner.
+- `cidrs`: refers to the CIDR blocks on which the mentioned fence/unfence operation is to be performed.
+- `secret`: refers to the kubernetes secret required for network fencing operation.
+  - `name`: specifies the name of the secret
+  - `namespace`: specifies the namespace in which the secret is located.
+- `parameters`: specifies storage provider specific parameters.
