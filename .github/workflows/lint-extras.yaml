@@ -34,3 +34,4 @@ jobs:
           VALIDATE_KUBERNETES_KUBECONFORM: false
           VALIDATE_PROTOBUF: false
           VALIDATE_YAML: false
+          VALIDATE_YAML_PRETTIER: false
