@@ -6,13 +6,13 @@ The CSI-Addons Controller can be deployed by different ways:
 
 **Available command-line arguments:**
 
-| Option                        | Default value   | Description                 |
-| ----------------------------- | --------------- | --------------------------------------------- |
-| `--metrics-bind-address`      | `:8080`         | The address the metric endpoint binds to.     |
-| `--health-probe-bind-address` | `:8081`         | The address the probe endpoint binds to.      |
-| `--leader-elect`              | `false`         | Enable leader election for controller manager.|
-| `--reclaim-space-timeout`     | `3m`            | Timeout for reclaimspace operation            |
-| `--max-concurrent-reconciles` | 100             | Maximum number of concurrent reconciles       |
+| Option                        | Default value | Description                                    |
+| ----------------------------- | ------------- | ---------------------------------------------- |
+| `--metrics-bind-address`      | `:8080`       | The address the metric endpoint binds to.      |
+| `--health-probe-bind-address` | `:8081`       | The address the probe endpoint binds to.       |
+| `--leader-elect`              | `false`       | Enable leader election for controller manager. |
+| `--reclaim-space-timeout`     | `3m`          | Timeout for reclaimspace operation             |
+| `--max-concurrent-reconciles` | 100           | Maximum number of concurrent reconciles        |
 
 > Note: Some of the above configuration options can also be configured using [`"csi-addons-config"` configmap](./csi-addons-config.md).
 
@@ -24,7 +24,7 @@ The latest CSI-Addons Controller can be installed using the YAML files in `deplo
 
 The versioned deployment of the CSI-Addons Controller can be installed using the specific version's YAML files as shown below:
 
->Note: set the `RELEASE` variable to the required version.
+> Note: set the `RELEASE` variable to the required version.
 
 ```console
 $ export RELEASE="v0.8.0"
@@ -56,11 +56,11 @@ deployment.apps/csi-addons-controller-manager created
 
 This is the recommended and easiest way to deploy the controller.
 
-* The "crds.yaml" create the required crds for csi-addons operations.
+- The "crds.yaml" create the required crds for csi-addons operations.
 
-* The "rbac.yaml" creates the required rbac.
+- The "rbac.yaml" creates the required rbac.
 
-* The "setup-controller.yaml" creates the csi-addons-controller-manager.
+- The "setup-controller.yaml" creates the csi-addons-controller-manager.
 
 ## Installation by operator-sdk
 
@@ -126,11 +126,11 @@ requirements of the cluster after observation. The default resource requirements
 for the CSI-Addons Controller are as follows:
 
 ```yaml
-        resources:
-          limits:
-            cpu: 1000m
-            memory: 512Mi
-          requests:
-            cpu: 10m
-            memory: 64Mi
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
 ```

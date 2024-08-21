@@ -20,9 +20,9 @@ regularly participate in the project. There are two GitHub teams that contain
 members who can approve changes:
 
 - @csi-addons/kubernetes-csi-addons-contributors: regular contributors,
-   sending Pull-Requests, designing new features
+  sending Pull-Requests, designing new features
 - @csi-addons/kubernetes-csi-addons-reviewers: contributors to the general
-   CSI-Addons project, sharing expertise and domain knowledge
+  CSI-Addons project, sharing expertise and domain knowledge
 
 For changes that are related to the integration with other components or affect
 the user interface (Pull-Requests with the `api` label), an approval from
