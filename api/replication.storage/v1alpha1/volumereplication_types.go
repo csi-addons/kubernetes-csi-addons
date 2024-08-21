@@ -25,6 +25,43 @@ const (
 	VolumeReplicationNameAnnotation = "replication.storage.openshift.io/volume-replication-name"
 )
 
+// These are valid condition statuses.
+// "ConditionCompleted" means the condition is fulfilled.
+// "ConditionDegraded" means the condition is not fulfilled.
+// "ConditionResyncing" means the condition is resyncing.
+const (
+	ConditionCompleted = "Completed"
+	ConditionDegraded  = "Degraded"
+	ConditionResyncing = "Resyncing"
+)
+
+// These are valid conditions.
+
+const (
+	// Success condition represents the successful completion of the operation.
+	Success = "Success"
+	// Promoted condition represents the successful promotion of the volume.
+	Promoted = "Promoted"
+	// Demoted condition represents the successful demotion of the volume.
+	Demoted = "Demoted"
+	// FailedToPromote condition represents the failure to promote the volume.
+	FailedToPromote = "FailedToPromote"
+	// FailedToDemote condition represents the failure to demote the volume.
+	FailedToDemote = "FailedToDemote"
+	// Error condition represents the error in the operation.
+	Error = "Error"
+	// VolumeDegraded condition represents the volume is degraded.
+	VolumeDegraded = "VolumeDegraded"
+	// Healthy condition represents the volume is healthy.
+	Healthy = "Healthy"
+	// ResyncTriggered condition represents the resync operation is triggered.
+	ResyncTriggered = "ResyncTriggered"
+	// FailedToResync condition represents the failure to resync the volume.
+	FailedToResync = "FailedToResync"
+	// NotResyncing condition represents the volume is not resyncing.
+	NotResyncing = "NotResyncing"
+)
+
 // ReplicationState represents the replication operations to be performed on the volume.
 // +kubebuilder:validation:Enum=primary;secondary;resync
 type ReplicationState string
