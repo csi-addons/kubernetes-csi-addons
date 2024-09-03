@@ -65,6 +65,7 @@ var (
 	rsCSIAddonsDriverAnnotation     = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
 
 	krcJobScheduleTimeAnnotation = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
+	krcJobDisableAnnotation      = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/enable"
 	krcJobNameAnnotation         = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
 	krCSIAddonsDriverAnnotation  = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
 
@@ -308,8 +309,12 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 // PVCs associated with the changed StorageClass.
 //
 // PVCs are enqueued for reconciliation if one of the following is true -
-//   - If the StorageClass has an annotation,
-//     PVCs without that annotation will be enqueued.
+//   - If the StorageClass has ReclaimSpace annotation,
+//     PVCs without ReclaimSpace annotations will be enqueued.
+//   - If the StorageClass has KeyRotation annotation,
+//     PVCs without the KeyRotation annotation will be enqueued.
+//   - If the StorageClass has KeyRotation disable annotation,
+//     PVCs without the KeyRotation disable annotation will be enqueued.
 func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -331,6 +336,7 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 			annotationsToWatch := []string{
 				rsCronJobScheduleTimeAnnotation,
 				krcJobScheduleTimeAnnotation,
+				krcJobDisableAnnotation,
 			}
 
 			var requests []reconcile.Request
@@ -717,6 +723,62 @@ func (r *PersistentVolumeClaimReconciler) findChildEncryptionKeyRotationCronJob(
 	return activeJob, nil
 }
 
+// checkDisabledAnnotation checks if the annotation is set in the
+// PVC, namespace or the storage class. It returns true if the
+// annotation is set to `false`.
+func (r *PersistentVolumeClaimReconciler) checkDisabledAnnotation(
+	ctx context.Context,
+	logger *logr.Logger,
+	pvc *corev1.PersistentVolumeClaim,
+	annotation string,
+) (bool, error) {
+	isFalsy := func(val string) bool {
+		return strings.ToLower(val) == "false"
+	}
+	// Check PVC for the annotation
+	val, ok := pvc.GetAnnotations()[annotation]
+	if ok {
+		return isFalsy(val), nil
+	}
+
+	// Check Namespace
+	ns := &corev1.Namespace{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
+	if err != nil {
+		logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
+		return false, err
+	}
+	val, ok = ns.GetAnnotations()[annotation]
+	if ok {
+		return isFalsy(val), nil
+	}
+
+	// Static PVs
+	if len(*pvc.Spec.StorageClassName) == 0 {
+		return false, nil
+	}
+
+	// Check StorageClass
+	sc := &storagev1.StorageClass{}
+	err = r.Client.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, sc)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Error(err, "StorageClass not found", "StorageClass", *pvc.Spec.StorageClassName)
+			return false, err
+		}
+
+		logger.Error(err, "Failed to get StorageClass", "StorageClass", *pvc.Spec.StorageClassName)
+		return false, err
+	}
+	val, ok = sc.GetAnnotations()[annotation]
+	if ok {
+		return isFalsy(val), nil
+	}
+
+	// Not disabled, not an error
+	return false, nil
+}
+
 // processKeyRotation reconciles EncryptionKeyRotation based on annotations
 func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	ctx context.Context,
@@ -731,6 +793,27 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	}
 	if krcJob != nil {
 		*logger = logger.WithValues("EncryptionKeyrotationCronJobName", krcJob.Name)
+	}
+
+	// Check if key rotation disable annotation is present
+	disabled, err := r.checkDisabledAnnotation(ctx, logger, pvc, krcJobDisableAnnotation)
+	if err != nil {
+		return err
+	}
+
+	if disabled {
+		if krcJob != nil {
+			err = r.Delete(ctx, krcJob)
+			if client.IgnoreNotFound(err) != nil {
+				errMsg := "failed to delete child encryptionkeyrotationcronjob"
+
+				logger.Error(err, errMsg)
+				return fmt.Errorf("%s: %w", errMsg, err)
+			}
+		}
+
+		logger.Info("key rotation is disabled, exiting reconcile")
+		return nil
 	}
 
 	// Determine schedule
