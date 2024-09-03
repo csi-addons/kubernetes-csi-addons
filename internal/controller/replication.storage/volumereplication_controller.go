@@ -35,11 +35,8 @@ import (
 	"google.golang.org/grpc/codes"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -111,25 +108,16 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Get VolumeReplicationClass
 	vrcObj, err := r.getVolumeReplicationClass(logger, instance.Spec.VolumeReplicationClass)
 	if err != nil {
-		setFailureCondition(instance)
-		uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), err.Error())
-		if uErr != nil {
-			logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
-
-		return ctrl.Result{}, err
+		logger.Error(err, "failed to get volumeReplicationClass", "VRClassName", instance.Spec.VolumeReplicationClass)
+		_ = r.setReplicationFailure(instance, logger, err, true)
+		return reconcile.Result{}, err
 	}
 
 	err = validatePrefixedParameters(vrcObj.Spec.Parameters)
 	if err != nil {
 		logger.Error(err, "failed to validate parameters of volumeReplicationClass", "VRCName", instance.Spec.VolumeReplicationClass)
-		setFailureCondition(instance)
-		uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), err.Error())
-		if uErr != nil {
-			logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
-
-		return ctrl.Result{}, err
+		_ = r.setReplicationFailure(instance, logger, err, true)
+		return reconcile.Result{}, err
 	}
 	// remove the prefix keys in volume replication class parameters
 	parameters := filterPrefixedParameters(replicationParameterPrefix, vrcObj.Spec.Parameters)
@@ -159,13 +147,8 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		pvc, pv, pvErr = r.getPVCDataSource(logger, nameSpacedName)
 		if pvErr != nil {
 			logger.Error(pvErr, "failed to get PVC", "PVCName", instance.Spec.DataSource.Name)
-			setFailureCondition(instance)
-			uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), pvErr.Error())
-			if uErr != nil {
-				logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-			}
-
-			return ctrl.Result{}, pvErr
+			_ = r.setReplicationFailure(instance, logger, pvErr, true)
+			return reconcile.Result{}, pvErr
 		}
 
 		volumeHandle = pv.Spec.CSI.VolumeHandle
@@ -174,11 +157,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		vgr, vgrc, vgrErr = r.getVolumeGroupReplicationDataSource(logger, nameSpacedName)
 		if vgrErr != nil {
 			logger.Error(vgrErr, "failed to get VolumeGroupReplication", "VGRName", instance.Spec.DataSource.Name)
-			setFailureCondition(instance)
-			uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), vgrErr.Error())
-			if uErr != nil {
-				logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-			}
+			_ = r.setReplicationFailure(instance, logger, vgrErr, true)
 			return ctrl.Result{}, vgrErr
 		}
 		groupHandle = vgrc.Spec.VolumeGroupReplicationHandle
@@ -186,13 +165,8 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	default:
 		err = fmt.Errorf("unsupported datasource kind")
 		logger.Error(err, "given kind not supported", "Kind", instance.Spec.DataSource.Kind)
-		setFailureCondition(instance)
-		uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), err.Error())
-		if uErr != nil {
-			logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
-
-		return ctrl.Result{}, nil
+		_ = r.setReplicationFailure(instance, logger, err, true)
+		return reconcile.Result{}, err
 	}
 
 	if replicationHandle != "" {
@@ -230,26 +204,25 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 		switch instance.Spec.DataSource.Kind {
 		case pvcDataSource:
-			err = r.annotatePVCWithOwner(ctx, logger, req.Name, pvc)
+			reqOwner := fmt.Sprintf("%s/%s", instance.Name, instance.Namespace)
+			err = AnnotatePVCWithOwner(r.Client, logger, reqOwner, pvc, replicationv1alpha1.VolumeReplicationNameAnnotation)
 			if err != nil {
 				logger.Error(err, "Failed to annotate PVC owner")
 				return ctrl.Result{}, err
 			}
 
-			if err = r.addFinalizerToPVC(logger, pvc); err != nil {
+			if err = AddFinalizerToPVC(r.Client, logger, pvc, pvcReplicationFinalizer); err != nil {
 				logger.Error(err, "Failed to add PersistentVolumeClaim finalizer")
-
-				return reconcile.Result{}, err
+				return ctrl.Result{}, err
 			}
 		case volumeGroupReplicationDataSource:
 			err = r.annotateVolumeGroupReplicationWithOwner(ctx, logger, req.Name, vgr)
 			if err != nil {
 				logger.Error(err, "Failed to annotate VolumeGroupReplication owner")
-
 				return ctrl.Result{}, err
 			}
 
-			if err = r.addFinalizerToVGR(logger, vgr); err != nil {
+			if err = AddFinalizerToVGR(r.Client, logger, vgr); err != nil {
 				logger.Error(err, "Failed to add VolumeGroupReplication finalizer")
 
 				return reconcile.Result{}, err
@@ -265,27 +238,18 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			}
 			switch instance.Spec.DataSource.Kind {
 			case pvcDataSource:
-				if err = r.removeOwnerFromPVCAnnotation(ctx, logger, pvc); err != nil {
+				if err = RemoveOwnerFromPVCAnnotation(r.Client, logger, pvc, replicationv1alpha1.VolumeReplicationNameAnnotation); err != nil {
 					logger.Error(err, "Failed to remove VolumeReplication annotation from PersistentVolumeClaim")
-
 					return reconcile.Result{}, err
 				}
 
-				if err = r.removeFinalizerFromPVC(logger, pvc); err != nil {
+				if err = RemoveFinalizerFromPVC(r.Client, logger, pvc, pvcReplicationFinalizer); err != nil {
 					logger.Error(err, "Failed to remove PersistentVolumeClaim finalizer")
-
 					return reconcile.Result{}, err
 				}
 			case volumeGroupReplicationDataSource:
 				if err = r.removeOwnerFromVGRAnnotation(ctx, logger, vgr); err != nil {
 					logger.Error(err, "Failed to remove VolumeReplication annotation from VolumeGroupReplication")
-
-					return reconcile.Result{}, err
-				}
-
-				if err = r.removeFinalizerFromVGR(logger, vgr); err != nil {
-					logger.Error(err, "Failed to remove VolumeGroupReplication finalizer")
-
 					return reconcile.Result{}, err
 				}
 			}
@@ -322,13 +286,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			// enable replication only if its not primary
 			if err = r.enableReplication(vr); err != nil {
 				logger.Error(err, "failed to enable replication")
-				setFailureCondition(instance)
-				msg := replication.GetMessageFromError(err)
-				uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), msg)
-				if uErr != nil {
-					logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-				}
-
+				_ = r.setReplicationFailure(instance, logger, err, true)
 				return reconcile.Result{}, err
 			}
 			replicationErr = r.markVolumeAsPrimary(vr)
@@ -344,16 +302,13 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				logger.Info("volume is not ready to use")
 				// set the status.State to secondary as the
 				// instance.Status.State is primary for the first time.
-				err = r.updateReplicationStatus(instance, logger, getReplicationState(instance), "volume is marked secondary and is degraded")
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-
+				errMsg := fmt.Errorf("volume is marked secondary and is degraded")
+				_ = r.setReplicationFailure(instance, logger, errMsg, false)
 				return ctrl.Result{
 					Requeue: true,
 					// Setting Requeue time for 15 seconds
 					RequeueAfter: time.Second * 15,
-				}, nil
+				}, errMsg
 			}
 		} else {
 			replicationErr = r.markVolumeAsSecondary(vr)
@@ -371,41 +326,29 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	default:
 		replicationErr = fmt.Errorf("unsupported volume state")
 		logger.Error(replicationErr, "given volume state is not supported", "ReplicationState", instance.Spec.ReplicationState)
-		setFailureCondition(instance)
-		err = r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), replicationErr.Error())
-		if err != nil {
-			logger.Error(err, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
-
-		return ctrl.Result{}, nil
+		_ = r.setReplicationFailure(instance, logger, replicationErr, true)
+		return reconcile.Result{}, replicationErr
 	}
 
 	if replicationErr != nil {
-		msg := replication.GetMessageFromError(replicationErr)
 		logger.Error(replicationErr, "failed to Replicate", "ReplicationState", instance.Spec.ReplicationState)
-		err = r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), msg)
-		if err != nil {
-			logger.Error(err, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
+		_ = r.setReplicationFailure(instance, logger, replicationErr, false)
 
 		if instance.Status.State == replicationv1alpha1.SecondaryState {
 			return ctrl.Result{
 				Requeue: true,
 				// in case of any error during secondary state, requeue for every 15 seconds.
 				RequeueAfter: time.Second * 15,
-			}, nil
+			}, replicationErr
 		}
 
-		return ctrl.Result{}, replicationErr
+		return reconcile.Result{}, replicationErr
 	}
 
 	if requeueForResync {
 		logger.Info("volume is not ready to use, requeuing for resync")
-
-		err = r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), "volume is degraded")
-		if err != nil {
-			logger.Error(err, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
+		msg := fmt.Errorf("volume is degraded")
+		_ = r.setReplicationFailure(instance, logger, msg, false)
 
 		return ctrl.Result{
 			Requeue: true,
@@ -413,7 +356,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			// and having default Requeue exponential backoff time can affect
 			// the RTO time.
 			RequeueAfter: time.Second * 30,
-		}, nil
+		}, msg
 	}
 
 	var msg string
@@ -455,7 +398,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if instance.Spec.ReplicationState == replicationv1alpha1.Secondary {
 		instance.Status.LastSyncTime = nil
 	}
-	err = r.updateReplicationStatus(instance, logger, getReplicationState(instance), msg)
+	err = r.setReplicationFailure(instance, logger, fmt.Errorf("%s", msg), false)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -533,17 +476,19 @@ func (r *VolumeReplicationReconciler) getReplicationClient(ctx context.Context, 
 
 }
 
-func (r *VolumeReplicationReconciler) updateReplicationStatus(
+// setReplicationFailure sets the failure replication status on the VolumeReplication resource
+func (r *VolumeReplicationReconciler) setReplicationFailure(
 	instance *replicationv1alpha1.VolumeReplication,
-	logger logr.Logger,
-	state replicationv1alpha1.State,
-	message string) error {
-	instance.Status.State = state
-	instance.Status.Message = message
+	logger logr.Logger, err error, updateCondtion bool) error {
+
+	if updateCondtion {
+		SetFailureCondition(instance.Spec.ReplicationState, &instance.Status, instance.Generation)
+	}
+	instance.Status.State = GetCurrentReplicationState(instance.Status.State)
+	instance.Status.Message = replication.GetMessageFromError(err)
 	instance.Status.ObservedGeneration = instance.Generation
 	if err := r.Client.Status().Update(context.TODO(), instance); err != nil {
-		logger.Error(err, "failed to update status")
-
+		logger.Error(err, "failed to update volumeReplication status", "VRName", instance.Name)
 		return err
 	}
 
@@ -554,7 +499,6 @@ func (r *VolumeReplicationReconciler) updateReplicationStatus(
 func (r *VolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	err := r.waitForCrds()
 	if err != nil {
-
 		return err
 	}
 
@@ -570,44 +514,19 @@ func (r *VolumeReplicationReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOpt
 func (r *VolumeReplicationReconciler) waitForCrds() error {
 	logger := log.FromContext(context.TODO(), "Name", "checkingDependencies")
 
-	err := r.waitForVolumeReplicationResource(logger, volumeReplicationClass)
+	err := WaitForVolumeReplicationResource(r.Client, logger, volumeReplicationClass)
 	if err != nil {
 		logger.Error(err, "failed to wait for VolumeReplicationClass CRD")
-
 		return err
 	}
 
-	err = r.waitForVolumeReplicationResource(logger, volumeReplication)
+	err = WaitForVolumeReplicationResource(r.Client, logger, volumeReplication)
 	if err != nil {
 		logger.Error(err, "failed to wait for VolumeReplication CRD")
-
 		return err
 	}
 
 	return nil
-}
-
-func (r *VolumeReplicationReconciler) waitForVolumeReplicationResource(logger logr.Logger, resourceName string) error {
-	unstructuredResource := &unstructured.UnstructuredList{}
-	unstructuredResource.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   replicationv1alpha1.GroupVersion.Group,
-		Kind:    resourceName,
-		Version: replicationv1alpha1.GroupVersion.Version,
-	})
-	for {
-		err := r.Client.List(context.TODO(), unstructuredResource)
-		if err == nil {
-			return nil
-		}
-		// return errors other than NoMatch
-		if !meta.IsNoMatchError(err) {
-			logger.Error(err, "got an unexpected error while waiting for resource", "Resource", resourceName)
-
-			return err
-		}
-		logger.Info("resource does not exist", "Resource", resourceName)
-		time.Sleep(5 * time.Second)
-	}
 }
 
 // volumeReplicationInstance contains the attributes
@@ -776,38 +695,6 @@ func (r *VolumeReplicationReconciler) getVolumeReplicationInfo(vr *volumeReplica
 	}
 
 	return infoResponse, nil
-}
-
-func getReplicationState(instance *replicationv1alpha1.VolumeReplication) replicationv1alpha1.State {
-	switch instance.Spec.ReplicationState {
-	case replicationv1alpha1.Primary:
-		return replicationv1alpha1.PrimaryState
-	case replicationv1alpha1.Secondary:
-		return replicationv1alpha1.SecondaryState
-	case replicationv1alpha1.Resync:
-		return replicationv1alpha1.SecondaryState
-	}
-
-	return replicationv1alpha1.UnknownState
-}
-
-func getCurrentReplicationState(instance *replicationv1alpha1.VolumeReplication) replicationv1alpha1.State {
-	if instance.Status.State == "" {
-		return replicationv1alpha1.UnknownState
-	}
-
-	return instance.Status.State
-}
-
-func setFailureCondition(instance *replicationv1alpha1.VolumeReplication) {
-	switch instance.Spec.ReplicationState {
-	case replicationv1alpha1.Primary:
-		setFailedPromotionCondition(&instance.Status.Conditions, instance.Generation)
-	case replicationv1alpha1.Secondary:
-		setFailedDemotionCondition(&instance.Status.Conditions, instance.Generation)
-	case replicationv1alpha1.Resync:
-		setFailedResyncCondition(&instance.Status.Conditions, instance.Generation)
-	}
 }
 
 func getCurrentTime() *metav1.Time {

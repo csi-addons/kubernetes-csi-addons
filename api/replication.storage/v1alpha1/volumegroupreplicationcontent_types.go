@@ -21,6 +21,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	VolumeGroupReplicationContentNameAnnotation = "replication.storage.openshift.io/volumegroupreplication-content-name"
+)
+
 // VolumeGroupReplicationContentSpec defines the desired state of VolumeGroupReplicationContent
 type VolumeGroupReplicationContentSpec struct {
 	// VolumeGroupreplicationRef specifies the VolumeGroupReplication object to which this
@@ -52,9 +56,8 @@ type VolumeGroupReplicationContentSpec struct {
 	// +optional
 	VolumeGroupReplicationClassName string `json:"volumeGroupReplicationClassName"`
 
-	// Source specifies whether the snapshot is (or should be) dynamically provisioned
+	// Source specifies whether the volume is (or should be) dynamically provisioned
 	// or already exists, and just requires a Kubernetes object representation.
-	// This field is immutable after creation.
 	// Required.
 	Source VolumeGroupReplicationContentSource `json:"source"`
 }
@@ -68,7 +71,7 @@ type VolumeGroupReplicationContentSource struct {
 
 // VolumeGroupReplicationContentStatus defines the status of VolumeGroupReplicationContent
 type VolumeGroupReplicationContentStatus struct {
-	// PersistentVolumeRefList is the list of of PV for the group replication
+	// PersistentVolumeRefList is the list of PV for the group replication
 	// The maximum number of allowed PV in the group is 100.
 	// +optional
 	PersistentVolumeRefList []corev1.LocalObjectReference `json:"persistentVolumeRefList,omitempty"`
