@@ -30,58 +30,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func TestConstructRSCronJob(t *testing.T) {
-	type args struct {
-		name      string
-		namespace string
-		schedule  string
-		pvcName   string
-	}
+type mockObject struct {
+	client.Object
+	annotations map[string]string
+}
 
-	failedJobsHistoryLimit := defaultFailedJobsHistoryLimit
-	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
-	tests := []struct {
-		name string
-		args args
-		want *csiaddonsv1alpha1.ReclaimSpaceCronJob
-	}{
-		{
-			name: "check output",
-			args: args{
-				name:      "hello",
-				namespace: "default",
-				schedule:  "@yearly",
-				pvcName:   "pvc-1",
-			},
-			want: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "hello",
-					Namespace: "default",
-				},
-				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
-					Schedule: "@yearly",
-					JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
-						Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
-							Target:               csiaddonsv1alpha1.TargetSpec{PersistentVolumeClaim: "pvc-1"},
-							BackoffLimit:         defaultBackoffLimit,
-							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
-						},
-					},
-					FailedJobsHistoryLimit:     &failedJobsHistoryLimit,
-					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := constructRSCronJob(tt.args.name, tt.args.namespace, tt.args.schedule, tt.args.pvcName)
-			assert.Equal(t, tt.want, got)
-		})
-	}
+func (m *mockObject) GetAnnotations() map[string]string {
+	return m.annotations
 }
 
 func TestExtractOwnerNameFromPVCObj(t *testing.T) {
@@ -169,7 +128,7 @@ func TestExtractOwnerNameFromPVCObj(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractOwnerNameFromPVCObj(tt.args.rawObj)
+			got := extractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob](tt.args.rawObj)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -364,4 +323,404 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		assert.Equal(t, "", schedule)
 	})
 
+}
+
+func TestAnnotationValueMissing(t *testing.T) {
+	tests := []struct {
+		name           string
+		scAnnotations  map[string]string
+		pvcAnnotations map[string]string
+		keys           []string
+		expected       bool
+	}{
+		{
+			name:           "No annotations",
+			scAnnotations:  map[string]string{},
+			pvcAnnotations: map[string]string{},
+			keys:           []string{"key1", "key2"},
+			expected:       false,
+		},
+		{
+			name:           "SC has annotation, PVC doesn't",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{},
+			keys:           []string{"key1"},
+			expected:       true,
+		},
+		{
+			name:           "Both SC and PVC have annotation",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key1"},
+			expected:       false,
+		},
+		{
+			name:           "SC has multiple annotations, PVC missing one",
+			scAnnotations:  map[string]string{"key1": "value1", "key2": "value2"},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "SC has annotation not in keys",
+			scAnnotations:  map[string]string{"key3": "value3"},
+			pvcAnnotations: map[string]string{},
+			keys:           []string{"key1", "key2"},
+			expected:       false,
+		},
+		{
+			name:           "Empty keys slice",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{},
+			keys:           []string{},
+			expected:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := annotationValueMissing(tt.scAnnotations, tt.pvcAnnotations, tt.keys)
+			if result != tt.expected {
+				t.Errorf("AnnotationValueMissing() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestAnnotationValueChanged(t *testing.T) {
+	tests := []struct {
+		name           string
+		oldAnnotations map[string]string
+		newAnnotations map[string]string
+		keys           []string
+		expected       bool
+	}{
+		{
+			name:           "No changes",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			keys:           []string{"key1", "key2"},
+			expected:       false,
+		},
+		{
+			name:           "Value changed",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "newvalue2"},
+			keys:           []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Key added",
+			oldAnnotations: map[string]string{"key1": "value1"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			keys:           []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Key removed",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Change in non-specified key",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "value2", "key3": "newvalue3"},
+			keys:           []string{"key1", "key2"},
+			expected:       false,
+		},
+		{
+			name:           "Empty keys slice",
+			oldAnnotations: map[string]string{"key1": "value1"},
+			newAnnotations: map[string]string{"key1": "newvalue1"},
+			keys:           []string{},
+			expected:       false,
+		},
+		{
+			name:           "Nil maps",
+			oldAnnotations: nil,
+			newAnnotations: nil,
+			keys:           []string{"key1"},
+			expected:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := annotationValueChanged(tt.oldAnnotations, tt.newAnnotations, tt.keys)
+			if result != tt.expected {
+				t.Errorf("AnnotationValueChanged() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCreateAnnotationPredicate(t *testing.T) {
+	tests := []struct {
+		name           string
+		oldAnnotations map[string]string
+		newAnnotations map[string]string
+		annotations    []string
+		expected       bool
+	}{
+		{
+			name:           "No change in specified annotations",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			annotations:    []string{"key1", "key2"},
+			expected:       false,
+		},
+		{
+			name:           "Change in specified annotation",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "newvalue1", "key2": "value2"},
+			annotations:    []string{"key1"},
+			expected:       true,
+		},
+		{
+			name:           "Change in unspecified annotation",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "newvalue2"},
+			annotations:    []string{"key1"},
+			expected:       false,
+		},
+		{
+			name:           "New annotation added",
+			oldAnnotations: map[string]string{"key1": "value1"},
+			newAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			annotations:    []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Specified annotation removed",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "value1"},
+			annotations:    []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Empty annotations list",
+			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
+			newAnnotations: map[string]string{"key1": "newvalue1", "key2": "newvalue2"},
+			annotations:    []string{},
+			expected:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			predicate := createAnnotationPredicate(tt.annotations...)
+			result := predicate.UpdateFunc(event.UpdateEvent{
+				ObjectOld: &mockObject{annotations: tt.oldAnnotations},
+				ObjectNew: &mockObject{annotations: tt.newAnnotations},
+			})
+			if result != tt.expected {
+				t.Errorf("CreateAnnotationPredicate() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConstructKRCronJob(t *testing.T) {
+	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+	tests := []struct {
+		name      string
+		cronName  string
+		namespace string
+		schedule  string
+		pvcName   string
+		expected  *csiaddonsv1alpha1.EncryptionKeyRotationCronJob
+	}{
+		{
+			name:      "Basic KR CronJob",
+			cronName:  "test-kr-cron",
+			namespace: "default",
+			schedule:  "0 1 * * *",
+			pvcName:   "test-pvc",
+			expected: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-kr-cron",
+					Namespace: "default",
+				},
+				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
+					Schedule: "0 1 * * *",
+					JobSpec: csiaddonsv1alpha1.EncryptionKeyRotationJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.EncryptionKeyRotationJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: "test-pvc",
+							},
+							BackoffLimit:         defaultBackoffLimit,
+							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+						},
+					},
+					FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+				},
+			},
+		},
+		{
+			name:      "KR CronJob with empty schedule",
+			cronName:  "empty-schedule-cron",
+			namespace: "kube-system",
+			schedule:  "",
+			pvcName:   "data-pvc",
+			expected: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "empty-schedule-cron",
+					Namespace: "kube-system",
+				},
+				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
+					Schedule: "",
+					JobSpec: csiaddonsv1alpha1.EncryptionKeyRotationJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.EncryptionKeyRotationJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: "data-pvc",
+							},
+							BackoffLimit:         defaultBackoffLimit,
+							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+						},
+					},
+					FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+				},
+			},
+		},
+		{
+			name:      "KR CronJob with special characters",
+			cronName:  "special-!@#$%^&*()-cron",
+			namespace: "test-ns",
+			schedule:  "*/5 * * * *",
+			pvcName:   "pvc-with-special-chars-!@#$%^&*()",
+			expected: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "special-!@#$%^&*()-cron",
+					Namespace: "test-ns",
+				},
+				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
+					Schedule: "*/5 * * * *",
+					JobSpec: csiaddonsv1alpha1.EncryptionKeyRotationJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.EncryptionKeyRotationJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: "pvc-with-special-chars-!@#$%^&*()",
+							},
+							BackoffLimit:         defaultBackoffLimit,
+							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+						},
+					},
+					FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := constructKRCronJob(tt.cronName, tt.namespace, tt.schedule, tt.pvcName)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+func TestConstructRSCronJob(t *testing.T) {
+	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+	tests := []struct {
+		name      string
+		cronName  string
+		namespace string
+		schedule  string
+		pvcName   string
+		expected  *csiaddonsv1alpha1.ReclaimSpaceCronJob
+	}{
+		{
+			name:      "Basic RS CronJob",
+			cronName:  "test-rs-cron",
+			namespace: "default",
+			schedule:  "0 2 * * *",
+			pvcName:   "test-pvc",
+			expected: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rs-cron",
+					Namespace: "default",
+				},
+				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+					Schedule: "0 2 * * *",
+					JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: "test-pvc",
+							},
+							BackoffLimit:         defaultBackoffLimit,
+							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+						},
+					},
+					FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+				},
+			},
+		},
+		{
+			name:      "RS CronJob with empty schedule",
+			cronName:  "empty-schedule-cron",
+			namespace: "kube-system",
+			schedule:  "",
+			pvcName:   "data-pvc",
+			expected: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "empty-schedule-cron",
+					Namespace: "kube-system",
+				},
+				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+					Schedule: "",
+					JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: "data-pvc",
+							},
+							BackoffLimit:         defaultBackoffLimit,
+							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+						},
+					},
+					FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+				},
+			},
+		},
+		{
+			name:      "RS CronJob with special characters",
+			cronName:  "special-!@#$%^&*()-cron",
+			namespace: "test-ns",
+			schedule:  "*/10 * * * *",
+			pvcName:   "pvc-with-special-chars-!@#$%^&*()",
+			expected: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "special-!@#$%^&*()-cron",
+					Namespace: "test-ns",
+				},
+				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+					Schedule: "*/10 * * * *",
+					JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: "pvc-with-special-chars-!@#$%^&*()",
+							},
+							BackoffLimit:         defaultBackoffLimit,
+							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+						},
+					},
+					FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+					SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := constructRSCronJob(tt.cronName, tt.namespace, tt.schedule, tt.pvcName)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

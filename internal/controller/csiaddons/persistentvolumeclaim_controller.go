@@ -55,6 +55,10 @@ type PersistentVolumeClaimReconciler struct {
 	ConnPool *connection.ConnectionPool
 }
 
+// Operation defines the sub operation to be performed
+// on the PVC. e.g. reclaimspace, keyrotation
+type Operation string
+
 var (
 	rsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
 	rsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
@@ -70,6 +74,9 @@ var (
 
 const (
 	defaultSchedule = "@weekly"
+
+	relciamSpaceOp Operation = "reclaimspace"
+	keyRotationOp  Operation = "keyrotation"
 )
 
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;patch
@@ -146,59 +153,61 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 	return ctrl.Result{}, keyRotationErr
 }
 
-// checkDriverSupportReclaimsSpace checks if the driver supports space
-// reclamation or not. If the driver does not support space reclamation, it
-// returns false and if the driver supports space reclamation, it returns true.
-// If the driver name is not registered in the connection pool, it returns
-// false and requeues the request.
-func (r *PersistentVolumeClaimReconciler) checkDriverSupportReclaimsSpace(logger *logr.Logger, annotations map[string]string, driver string) (bool, bool) {
-	reclaimSpaceSupportedByDriver := false
-
-	if drivers, ok := annotations[rsCSIAddonsDriverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driver) {
-		reclaimSpaceSupportedByDriver = true
-	}
-
-	ok := r.supportsReclaimSpace(driver)
-	if reclaimSpaceSupportedByDriver && !ok {
-		logger.Info("Driver supports spacereclamation but driver is not registered in the connection pool, Reqeueing request", "DriverName", driver)
-		return true, false
-	}
-
-	if !ok {
-		logger.Info("Driver does not support spacereclamation, skip Requeue", "DriverName", driver)
-		return false, false
-	}
-
-	return false, true
-}
-
-// checkDriverSupportsEncryptionKeyRotate checks if the driver supports key
-// rotation or not. If the driver does not support key rotation, it
-// returns false and if the driver supports key rotation, it returns true.
-// If the driver name is not registered in the connection pool, it returns
-// false and requeues the request.
-func (r *PersistentVolumeClaimReconciler) checkDriverSupportsEncryptionKeyRotate(
+// checkDriverSupportCapability checks if the given driver supports the specified capability.
+// It is also used to determine the requeue in case the driver supports the capability
+// but the capability is not found in connection pool.
+// The first return value is true when a requeue is needed.
+// The second return value is true when the capability is registered.
+func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 	logger *logr.Logger,
 	annotations map[string]string,
-	driver string) (bool, bool) {
-	keyRotationSupportedByDriver := false
+	driverName string,
+	cap Operation) (bool, bool) {
+	driverSupportsCap := false
+	capFound := false
 
-	if drivers, ok := annotations[krCSIAddonsDriverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driver) {
-		keyRotationSupportedByDriver = true
-	}
-
-	ok := r.supportsEncryptionKeyRotation(driver)
-	if keyRotationSupportedByDriver && !ok {
-		logger.Info("Driver supports key rotation but driver is not registered in the connection pool, Reqeueing request", "DriverName", driver)
-		return true, false
-	}
-
-	if !ok {
-		logger.Info("Driver does not support encryptionkeyrotation, skip Requeue", "DriverName", driver)
+	var driverAnnotation string
+	switch cap {
+	case relciamSpaceOp:
+		driverAnnotation = rsCSIAddonsDriverAnnotation
+	case keyRotationOp:
+		driverAnnotation = krCSIAddonsDriverAnnotation
+	default:
+		logger.Info("Unknown capability", "Capability", cap)
 		return false, false
 	}
 
-	return false, true
+	if drivers, ok := annotations[driverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driverAnnotation) {
+		driverSupportsCap = true
+	}
+
+	conns := r.ConnPool.GetByNodeID(driverName, "")
+	for _, conn := range conns {
+		for _, c := range conn.Capabilities {
+			switch cap {
+			case relciamSpaceOp:
+				capFound = c.GetReclaimSpace() != nil
+			case keyRotationOp:
+				capFound = c.GetEncryptionKeyRotation() != nil
+			default:
+				continue
+			}
+
+			if capFound {
+				return false, true
+			}
+		}
+	}
+
+	// If the driver supports the capability but the capability is not found in connection pool,
+	if driverSupportsCap {
+		logger.Info(fmt.Sprintf("Driver supports %s but driver is not registered in the connection pool, Requeuing request", cap), "DriverName", driverName)
+		return true, false
+	}
+
+	// If the driver does not support the capability, skip requeue
+	logger.Info(fmt.Sprintf("Driver does not support %s, skip Requeue", cap), "DriverName", driverName)
+	return false, false
 }
 
 // determineScheduleAndRequeue determines the schedule using the following steps
@@ -241,16 +250,17 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 		// the driver is registered in the connection pool and if not we are not
 		// requeuing the request.
 		// Depending on requeue value, it will return ErrorConnNotFoundRequeueNeeded.
-		if annotationKey == krcJobScheduleTimeAnnotation {
-			requeue, keyRotationSupported := r.checkDriverSupportsEncryptionKeyRotate(logger, ns.Annotations, driverName)
+		switch annotationKey {
+		case krcJobScheduleTimeAnnotation:
+			requeue, keyRotationSupported := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, keyRotationOp)
 			if keyRotationSupported {
 				return schedule, nil
 			}
 			if requeue {
 				return "", ErrConnNotFoundRequeueNeeded
 			}
-		} else if annotationKey == rsCronJobScheduleTimeAnnotation {
-			requeue, supportReclaimspace := r.checkDriverSupportReclaimsSpace(logger, ns.Annotations, driverName)
+		case rsCronJobScheduleTimeAnnotation:
+			requeue, supportReclaimspace := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, relciamSpaceOp)
 			if supportReclaimspace {
 				// if driver supports space reclamation,
 				// return schedule from ns annotation.
@@ -261,6 +271,9 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 				// driver support again.
 				return "", ErrConnNotFoundRequeueNeeded
 			}
+		default:
+			logger.Info("Unknown annotation key", "AnnotationKey", annotationKey)
+			return "", fmt.Errorf("unknown annotation key: %s", annotationKey)
 		}
 	}
 
@@ -295,10 +308,8 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 // PVCs associated with the changed StorageClass.
 //
 // PVCs are enqueued for reconciliation if one of the following is true -
-//   - If the StorageClass has ReclaimSpace annotation,
-//     PVCs without ReclaimSpace annotations will be enqueued.
-//   - If the StorageClass has KeyRotation annotation,
-//     PVCs without the KeyRotation annotation will be enqueued.
+//   - If the StorageClass has an annotation,
+//     PVCs without that annotation will be enqueued.
 func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(
 		func(ctx context.Context, obj client.Object) []reconcile.Request {
@@ -317,25 +328,14 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 				return nil
 			}
 
-			_, scHasReclaimSpaceAnnotation := obj.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-			_, scHasKeyRotationAnnotation := obj.GetAnnotations()[krcJobScheduleTimeAnnotation]
+			annotationsToWatch := []string{
+				rsCronJobScheduleTimeAnnotation,
+				krcJobScheduleTimeAnnotation,
+			}
 
 			var requests []reconcile.Request
 			for _, pvc := range pvcList.Items {
-
-				_, pvcHasReclaimSpaceAnnotation := pvc.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-				_, pvcHasKeyRotationAnnotation := pvc.GetAnnotations()[krcJobScheduleTimeAnnotation]
-
-				needToEnqueue := false
-
-				if scHasReclaimSpaceAnnotation && !pvcHasReclaimSpaceAnnotation {
-					needToEnqueue = true
-				}
-				if scHasKeyRotationAnnotation && !pvcHasKeyRotationAnnotation {
-					needToEnqueue = true
-				}
-
-				if needToEnqueue {
+				if annotationValueMissing(obj.GetAnnotations(), pvc.GetAnnotations(), annotationsToWatch) {
 					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name:      pvc.Name,
@@ -350,86 +350,63 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 	)
 }
 
+// setupIndexers sets up the necessary indexers for the PersistentVolumeClaimReconciler.
+// It creates indexers for the following objects:
+// - ReclaimSpaceCronJob: indexed by the job owner key
+// - EncryptionKeyRotationCronJob: indexed by the job owner key
+// - PersistentVolumeClaim: indexed by the storage class names
+func (r *PersistentVolumeClaimReconciler) setupIndexers(mgr ctrl.Manager) error {
+	indices := []struct {
+		obj     client.Object
+		field   string
+		indexFn client.IndexerFunc
+	}{
+		{
+			obj:     &csiaddonsv1alpha1.ReclaimSpaceCronJob{},
+			field:   jobOwnerKey,
+			indexFn: extractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob],
+		},
+		{
+			obj:     &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{},
+			field:   jobOwnerKey,
+			indexFn: extractOwnerNameFromPVCObj[*csiaddonsv1alpha1.EncryptionKeyRotationCronJob],
+		},
+		{
+			obj:   &corev1.PersistentVolumeClaim{},
+			field: "spec.storageClassName",
+			indexFn: func(rawObj client.Object) []string {
+				pvc, ok := rawObj.(*corev1.PersistentVolumeClaim)
+				if !ok {
+					return nil
+				}
+				return []string{*pvc.Spec.StorageClassName}
+			},
+		},
+	}
+
+	// Add the indexers to the manager
+	for _, index := range indices {
+		if err := mgr.GetFieldIndexer().IndexField(
+			context.Background(),
+			index.obj,
+			index.field,
+			index.indexFn,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
-	err := mgr.GetFieldIndexer().IndexField(
-		context.Background(),
-		&csiaddonsv1alpha1.ReclaimSpaceCronJob{},
-		jobOwnerKey,
-		extractOwnerNameFromPVCObj)
-	if err != nil {
+	if err := r.setupIndexers(mgr); err != nil {
 		return err
 	}
 
-	err = mgr.GetFieldIndexer().IndexField(
-		context.Background(),
-		&corev1.PersistentVolumeClaim{},
-		"spec.storageClassName",
-		func(rawObj client.Object) []string {
-			pvc, ok := rawObj.(*corev1.PersistentVolumeClaim)
-			if !ok {
-				return nil
-			}
-			return []string{*pvc.Spec.StorageClassName}
-		})
-	if err != nil {
-		return err
-	}
-
-	err = mgr.GetFieldIndexer().IndexField(
-		context.Background(),
-		&csiaddonsv1alpha1.EncryptionKeyRotationCronJob{},
-		jobOwnerKey,
-		func(rawObj client.Object) []string {
-			job, ok := rawObj.(*csiaddonsv1alpha1.EncryptionKeyRotationCronJob)
-			if !ok {
-				return nil
-			}
-			owner := metav1.GetControllerOf(job)
-			if owner == nil {
-				return nil
-			}
-			if owner.APIVersion != "v1" || owner.Kind != "PersistentVolumeClaim" {
-				return nil
-			}
-
-			return []string{owner.Name}
-		})
-	if err != nil {
-		return err
-	}
-
-	pred := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectNew == nil || e.ObjectOld == nil {
-				return false
-			}
-			// reconcile only if schedule annotation between old and new objects have changed.
-			oldSchdeule, oldOk := e.ObjectOld.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-			newSchdeule, newOk := e.ObjectNew.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-
-			krcOldSchdeule, krcOldOk := e.ObjectOld.GetAnnotations()[krcJobScheduleTimeAnnotation]
-			krcNewSchdeule, krcNewOk := e.ObjectNew.GetAnnotations()[krcJobScheduleTimeAnnotation]
-
-			return (oldOk != newOk || oldSchdeule != newSchdeule) || (krcOldOk != krcNewOk || krcOldSchdeule != krcNewSchdeule)
-		},
-	}
-
-	scPred := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectNew == nil || e.ObjectOld == nil {
-				return false
-			}
-			// reconcile only if reclaimspace annotation between old and new objects have changed.
-			oldSchdeule, oldOk := e.ObjectOld.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-			newSchdeule, newOk := e.ObjectNew.GetAnnotations()[rsCronJobScheduleTimeAnnotation]
-
-			krcOldSchdeule, krcOldOk := e.ObjectOld.GetAnnotations()[krcJobScheduleTimeAnnotation]
-			krcNewSchdeule, krcNewOk := e.ObjectNew.GetAnnotations()[krcJobScheduleTimeAnnotation]
-
-			return (oldOk != newOk || oldSchdeule != newSchdeule) || (krcOldOk != krcNewOk || krcOldSchdeule != krcNewSchdeule)
-		},
-	}
+	pvcPred := createAnnotationPredicate(rsCronJobScheduleTimeAnnotation, krcJobScheduleTimeAnnotation)
+	scPred := createAnnotationPredicate(rsCronJobScheduleTimeAnnotation, krcJobScheduleTimeAnnotation)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.PersistentVolumeClaim{}).
@@ -440,7 +417,7 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 		).
 		Owns(&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).
 		Owns(&csiaddonsv1alpha1.EncryptionKeyRotationCronJob{}).
-		WithEventFilter(pred).
+		WithEventFilter(pvcPred).
 		WithOptions(ctrlOptions).
 		Complete(r)
 }
@@ -521,10 +498,38 @@ func getScheduleFromAnnotation(
 	return schedule, true
 }
 
-// constructRSCronJob constructs and returns ReclaimSpaceCronJob.
+// constructKRCronJob constructs an EncryptionKeyRotationCronJob object
+func constructKRCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1alpha1.EncryptionKeyRotationCronJob {
+	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+
+	return &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
+			Schedule: schedule,
+			JobSpec: csiaddonsv1alpha1.EncryptionKeyRotationJobTemplateSpec{
+				Spec: csiaddonsv1alpha1.EncryptionKeyRotationJobSpec{
+					Target: csiaddonsv1alpha1.TargetSpec{
+						PersistentVolumeClaim: pvcName,
+					},
+					BackoffLimit:         defaultBackoffLimit,
+					RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
+				},
+			},
+			FailedJobsHistoryLimit:     &failedJobHistoryLimit,
+			SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
+		},
+	}
+}
+
+// constructRSCronJob constructs a ReclaimSpaceCronJob object
 func constructRSCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1alpha1.ReclaimSpaceCronJob {
 	failedJobsHistoryLimit := defaultFailedJobsHistoryLimit
 	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+
 	return &csiaddonsv1alpha1.ReclaimSpaceCronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -546,10 +551,10 @@ func constructRSCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1a
 }
 
 // extractOwnerNameFromPVCObj extracts owner.Name from the object if it is
-// of type ReclaimSpaceCronJob and has a PVC as its owner.
-func extractOwnerNameFromPVCObj(rawObj client.Object) []string {
+// of type `T` and has a PVC as its owner.
+func extractOwnerNameFromPVCObj[T client.Object](rawObj client.Object) []string {
 	// extract the owner from job object.
-	job, ok := rawObj.(*csiaddonsv1alpha1.ReclaimSpaceCronJob)
+	job, ok := rawObj.(T)
 	if !ok {
 		return nil
 	}
@@ -568,34 +573,6 @@ func extractOwnerNameFromPVCObj(rawObj client.Object) []string {
 // with time hash.
 func generateCronJobName(parentName string) string {
 	return fmt.Sprintf("%s-%d", parentName, time.Now().Unix())
-}
-
-// supportsReclaimSpace checks if the CSI driver supports ReclaimSpace.
-func (r PersistentVolumeClaimReconciler) supportsReclaimSpace(driverName string) bool {
-	conns := r.ConnPool.GetByNodeID(driverName, "")
-	for _, v := range conns {
-		for _, cap := range v.Capabilities {
-			if cap.GetReclaimSpace() != nil {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// supportsEncryptionKeyRotation checks if the CSI driver supports EncryptionKeyRotation.
-func (r PersistentVolumeClaimReconciler) supportsEncryptionKeyRotation(driverName string) bool {
-	conns := r.ConnPool.GetByNodeID(driverName, "")
-	for _, v := range conns {
-		for _, cap := range v.Capabilities {
-			if cap.GetEncryptionKeyRotation() != nil {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // processReclaimSpace reconciles ReclaimSpace based on annotations
@@ -740,33 +717,6 @@ func (r *PersistentVolumeClaimReconciler) findChildEncryptionKeyRotationCronJob(
 	return activeJob, nil
 }
 
-// constructKRCronJob constructs an EncryptionKeyRotationCronJob object
-func constructKRCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1alpha1.EncryptionKeyRotationCronJob {
-	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
-	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
-
-	return &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
-			Schedule: schedule,
-			JobSpec: csiaddonsv1alpha1.EncryptionKeyRotationJobTemplateSpec{
-				Spec: csiaddonsv1alpha1.EncryptionKeyRotationJobSpec{
-					Target: csiaddonsv1alpha1.TargetSpec{
-						PersistentVolumeClaim: pvcName,
-					},
-					BackoffLimit:         defaultBackoffLimit,
-					RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
-				},
-			},
-			FailedJobsHistoryLimit:     &failedJobHistoryLimit,
-			SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
-		},
-	}
-}
-
 // processKeyRotation reconciles EncryptionKeyRotation based on annotations
 func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	ctx context.Context,
@@ -859,4 +809,49 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 
 	logger.Info("successfully created new encryptionkeyrotationcronjob")
 	return nil
+}
+
+// AnnotationValueMissing checks if any of the specified keys are missing
+// from the PVC annotations when they are present in the StorageClass annotations.
+func annotationValueMissing(scAnnotations, pvcAnnotations map[string]string, keys []string) bool {
+	for _, key := range keys {
+		if _, scHasAnnotation := scAnnotations[key]; scHasAnnotation {
+			if _, pvcHasAnnotation := pvcAnnotations[key]; !pvcHasAnnotation {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// AnnotationValueChanged checks if any of the specified keys have different values
+// between the old and new annotations maps.
+func annotationValueChanged(oldAnnotations, newAnnotations map[string]string, keys []string) bool {
+	for _, key := range keys {
+		oldVal, oldExists := oldAnnotations[key]
+		newVal, newExists := newAnnotations[key]
+
+		if oldExists != newExists || oldVal != newVal {
+			return true
+		}
+	}
+	return false
+}
+
+// CreateAnnotationPredicate returns a predicate.Funcs that checks if any of the specified
+// annotation keys have different values between the old and new annotations maps.
+func createAnnotationPredicate(annotations ...string) predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectNew == nil || e.ObjectOld == nil {
+				return false
+			}
+
+			oldAnnotations := e.ObjectOld.GetAnnotations()
+			newAnnotations := e.ObjectNew.GetAnnotations()
+
+			return annotationValueChanged(oldAnnotations, newAnnotations, annotations)
+		},
+	}
 }
