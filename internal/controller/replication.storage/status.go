@@ -65,6 +65,40 @@ func setFailedPromotionCondition(conditions *[]metav1.Condition, observedGenerat
 		ObservedGeneration: observedGeneration,
 		Status:             metav1.ConditionFalse,
 	})
+	setStatusCondition(conditions, &metav1.Condition{
+		Type:               v1alpha1.ConditionValidated,
+		Reason:             v1alpha1.PrerequisiteMet,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionTrue,
+	})
+}
+
+// sets conditions when volume promotion was failed due to failed validation.
+func setFailedValidationCondition(conditions *[]metav1.Condition, observedGeneration int64) {
+	setStatusCondition(conditions, &metav1.Condition{
+		Type:               v1alpha1.ConditionCompleted,
+		Reason:             v1alpha1.FailedToPromote,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionFalse,
+	})
+	setStatusCondition(conditions, &metav1.Condition{
+		Type:               v1alpha1.ConditionDegraded,
+		Reason:             v1alpha1.Error,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionTrue,
+	})
+	setStatusCondition(conditions, &metav1.Condition{
+		Type:               v1alpha1.ConditionResyncing,
+		Reason:             v1alpha1.NotResyncing,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionFalse,
+	})
+	setStatusCondition(conditions, &metav1.Condition{
+		Type:               v1alpha1.ConditionValidated,
+		Reason:             v1alpha1.PrerequisiteNotMet,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionFalse,
+	})
 }
 
 // sets conditions when volume is demoted and ready to use (resync completed).

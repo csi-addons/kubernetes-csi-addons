@@ -60,6 +60,7 @@ const (
 var (
 	volumePromotionKnownErrors    = []codes.Code{codes.FailedPrecondition}
 	disableReplicationKnownErrors = []codes.Code{codes.NotFound}
+	enableReplicationKnownErrors  = []codes.Code{codes.FailedPrecondition}
 	getReplicationInfoKnownErrors = []codes.Code{codes.NotFound}
 )
 
@@ -322,7 +323,6 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			// enable replication only if its not primary
 			if err = r.enableReplication(vr); err != nil {
 				logger.Error(err, "failed to enable replication")
-				setFailureCondition(instance)
 				msg := replication.GetMessageFromError(err)
 				uErr := r.updateReplicationStatus(instance, logger, getCurrentReplicationState(instance), msg)
 				if uErr != nil {
@@ -741,13 +741,19 @@ func (r *VolumeReplicationReconciler) enableReplication(vr *volumeReplicationIns
 
 	resp := volumeReplication.Enable()
 
-	if resp.Error != nil {
-		vr.logger.Error(resp.Error, "failed to enable volume replication")
-
-		return resp.Error
+	if resp.Error == nil {
+		return nil
 	}
 
-	return nil
+	vr.logger.Error(resp.Error, "failed to enable volume replication")
+
+	if resp.HasKnownGRPCError(enableReplicationKnownErrors) {
+		setFailedValidationCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
+	} else {
+		setFailedPromotionCondition(&vr.instance.Status.Conditions, vr.instance.Generation)
+	}
+
+	return resp.Error
 }
 
 // getVolumeReplicationInfo gets volume replication info.

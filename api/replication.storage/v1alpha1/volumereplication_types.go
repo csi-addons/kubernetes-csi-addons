@@ -33,6 +33,7 @@ const (
 	ConditionCompleted = "Completed"
 	ConditionDegraded  = "Degraded"
 	ConditionResyncing = "Resyncing"
+	ConditionValidated = "Validated"
 )
 
 // These are valid conditions.
@@ -60,6 +61,10 @@ const (
 	FailedToResync = "FailedToResync"
 	// NotResyncing condition represents the volume is not resyncing.
 	NotResyncing = "NotResyncing"
+	// PrerequisiteMet condition represents that the prerequisite is met.
+	PrerequisiteMet = "PrerequisiteMet"
+	// PrerequisiteNotMet condition represents that the prerequisite is not met.
+	PrerequisiteNotMet = "PrerequisiteNotMet"
 )
 
 // ReplicationState represents the replication operations to be performed on the volume.
