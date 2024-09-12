@@ -3,7 +3,7 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: '[]'
-    capabilities: Basic Install
+    capabilities: Seamless Upgrades
     olm.skipRange: @SKIP_RANGE@
   name: @PACKAGE_NAME@.v0.1.1
   namespace: placeholder
