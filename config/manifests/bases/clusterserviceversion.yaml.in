@@ -31,6 +31,16 @@ spec:
       kind: ReclaimSpaceJob
       name: reclaimspacejobs.csiaddons.openshift.io
       version: v1alpha1
+    - description: EncryptionKeyRotationCronJob is the Schema for the encryptionkeyrotationcronjobs API
+      displayName: EncryptionKeyRotation CronJob
+      kind: EncryptionKeyRotationCronJob
+      name: encryptionkeyrotationcronjobs.csiaddons.openshift.io
+      version: v1alpha1
+    - description: EncryptionKeyRotationJob is the Schema for the encryptionkeyrotationjobs API
+      displayName: EncryptionKeyRotation Job
+      kind: EncryptionKeyRotationJob
+      name: encryptionkeyrotationjobs.csiaddons.openshift.io
+      version: v1alpha1
     - description: VolumeReplicationClass is the Schema for the volumereplicationclasses API
       displayName: Volume Replication Class
       kind: VolumeReplicationClass
@@ -40,6 +50,21 @@ spec:
       displayName: Volume Replication
       kind: VolumeReplication
       name: volumereplications.replication.storage.openshift.io
+      version: v1alpha1
+    - description: VolumeGroupReplication is the Schema for the volumegroupreplications API
+      displayName: Volume Group Replication
+      kind: VolumeGroupReplication
+      name: volumegroupreplication.replication.storage.openshift.io
+      version: v1alpha1
+    - description: VolumeGroupReplicationClass is the Schema for the volumegroupreplicationclasses API
+      displayName: Volume Group Replication Class
+      kind: VolumeGroupReplicationClass
+      name: volumegroupreplicationclasses.replication.storage.openshift.io
+      version: v1alpha1
+    - description: VolumeGroupReplicationContent is the Schema for the volumegroupreplicationcontents API
+      displayName: Volume Group Replication Content
+      kind: VolumeGroupReplicationContent
+      name: volumegroupreplicationcontents.replication.storage.openshift.io
       version: v1alpha1
   description: CSI Addons provides the CSI Addons Controller that enables advanced
     storage operations for CSI-drivers.
