@@ -25,6 +25,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -121,6 +122,8 @@ func getKubernetesClient() *kubernetes.Clientset {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	config.ContentType = runtime.ContentTypeProtobuf
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
