@@ -91,12 +91,18 @@ func main() {
 	flag.StringVar(&cfg.Namespace, "namespace", cfg.Namespace, "Namespace where the CSIAddons pod is deployed")
 	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", false, "[DEPRECATED] Enable the admission webhooks")
 	flag.BoolVar(&showVersion, "version", false, "Print Version details")
+	flag.StringVar(&cfg.SchedulePrecedence, "schedule-precedence", "", "The order of precedence in which schedule of reclaimspace and keyrotation is considered. Possible values are sc-only")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	if cfg.SchedulePrecedence != "" && cfg.SchedulePrecedence != util.ScheduleSCOnly {
+		setupLog.Error(nil, "invalid value for schedule-precedence", "schedule-precedence", cfg.SchedulePrecedence)
+		os.Exit(1)
+	}
 
 	if showVersion {
 		version.PrintVersion()
@@ -180,9 +186,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.PersistentVolumeClaimReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		ConnPool: connPool,
+		Client:             mgr.GetClient(),
+		Scheme:             mgr.GetScheme(),
+		ConnPool:           connPool,
+		SchedulePrecedence: cfg.SchedulePrecedence,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
 		os.Exit(1)
