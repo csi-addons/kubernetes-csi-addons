@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -27,6 +28,7 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -52,7 +54,8 @@ type PersistentVolumeClaimReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	// ConnectionPool consists of map of Connection objects.
-	ConnPool *connection.ConnectionPool
+	ConnPool           *connection.ConnectionPool
+	SchedulePrecedence string
 }
 
 // Operation defines the sub operation to be performed
@@ -210,12 +213,7 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 	return false, false
 }
 
-// determineScheduleAndRequeue determines the schedule using the following steps
-//   - Check if the schedule is present in the PVC annotations. If yes, use that.
-//   - Check if the schedule is present in the namespace annotations. If yes,
-//     use that.
-//   - Check if the schedule is present in the storageclass annotations. If yes,
-//     use that.
+// determineScheduleAndRequeue determines the schedule from annotations.
 func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 	ctx context.Context,
 	logger *logr.Logger,
@@ -223,84 +221,45 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 	driverName string,
 	annotationKey string,
 ) (string, error) {
-	annotations := pvc.GetAnnotations()
-	schedule, scheduleFound := getScheduleFromAnnotation(annotationKey, logger, annotations)
-	if scheduleFound {
-		return schedule, nil
-	}
+	var schedule string
+	var err error
 
-	// check for namespace schedule annotation.
-	ns := &corev1.Namespace{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
-	if err != nil {
-		logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
-		return "", err
-	}
-	schedule, scheduleFound = getScheduleFromAnnotation(annotationKey, logger, ns.Annotations)
+	logger.Info("Determining schedule using precedence", "SchedulePrecedence", r.SchedulePrecedence)
 
-	// If the schedule is found, check whether driver supports the
-	// space reclamation using annotation on namespace and registered driver
-	// capability for decision on requeue.
-	if scheduleFound {
-		// We cannot have a generic solution for all CSI drivers to get the driver
-		// name from PV and check if driver supports reclaimspace/keyrotation or not and
-		// requeue the request if the driver is not registered in the connection
-		// pool. This can put the controller in a requeue loop. Hence we are
-		// reading the driver name from the namespace annotation and checking if
-		// the driver is registered in the connection pool and if not we are not
-		// requeuing the request.
-		// Depending on requeue value, it will return ErrorConnNotFoundRequeueNeeded.
-		switch annotationKey {
-		case krcJobScheduleTimeAnnotation:
-			requeue, keyRotationSupported := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, keyRotationOp)
-			if keyRotationSupported {
-				return schedule, nil
-			}
-			if requeue {
-				return "", ErrConnNotFoundRequeueNeeded
-			}
-		case rsCronJobScheduleTimeAnnotation:
-			requeue, supportReclaimspace := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, relciamSpaceOp)
-			if supportReclaimspace {
-				// if driver supports space reclamation,
-				// return schedule from ns annotation.
-				return schedule, nil
-			}
-			if requeue {
-				// The request needs to be requeued for checking
-				// driver support again.
-				return "", ErrConnNotFoundRequeueNeeded
-			}
-		default:
-			logger.Info("Unknown annotation key", "AnnotationKey", annotationKey)
-			return "", fmt.Errorf("unknown annotation key: %s", annotationKey)
+	if r.SchedulePrecedence == util.ScheduleSCOnly {
+		if schedule, err = r.getScheduleFromSC(ctx, pvc, logger, annotationKey); schedule != "" {
+			return schedule, nil
 		}
-	}
+		if err != nil {
+			return "", err
+		}
 
-	// For static provisioned PVs, StorageClassName is nil or empty.
-	if pvc.Spec.StorageClassName == nil || len(*pvc.Spec.StorageClassName) == 0 {
-		logger.Info("StorageClassName is empty")
 		return "", ErrScheduleNotFound
 	}
-	storageClassName := *pvc.Spec.StorageClassName
 
-	// check for storageclass schedule annotation.
-	sc := &storagev1.StorageClass{}
-	err = r.Client.Get(ctx, types.NamespacedName{Name: storageClassName}, sc)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Error(err, "StorageClass not found", "StorageClass", storageClassName)
-			return "", ErrScheduleNotFound
-		}
-
-		logger.Error(err, "Failed to get StorageClass", "StorageClass", storageClassName)
-		return "", err
-	}
-	schedule, scheduleFound = getScheduleFromAnnotation(annotationKey, logger, sc.Annotations)
-	if scheduleFound {
+	// Check on PVC
+	if schedule = r.getScheduleFromPVC(pvc, logger, annotationKey); schedule != "" {
 		return schedule, nil
 	}
 
+	// Check on NS, might get ErrConnNotFoundRequeueNeeded
+	// If so, return the error
+	if schedule, err = r.getScheduleFromNS(ctx, pvc, logger, driverName, annotationKey); schedule != "" {
+		return schedule, nil
+	}
+	if !errors.Is(err, ErrScheduleNotFound) {
+		return "", err
+	}
+
+	// Check SC
+	if schedule, err = r.getScheduleFromSC(ctx, pvc, logger, annotationKey); schedule != "" {
+		return schedule, nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	// If nothing matched, we did not find schedule
 	return "", ErrScheduleNotFound
 }
 
@@ -336,7 +295,7 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 
 			var requests []reconcile.Request
 			for _, pvc := range pvcList.Items {
-				if annotationValueMissing(obj.GetAnnotations(), pvc.GetAnnotations(), annotationsToWatch) {
+				if annotationValueMissingOrDiff(obj.GetAnnotations(), pvc.GetAnnotations(), annotationsToWatch) {
 					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name:      pvc.Name,
@@ -576,6 +535,46 @@ func generateCronJobName(parentName string) string {
 	return fmt.Sprintf("%s-%d", parentName, time.Now().Unix())
 }
 
+// createPatchBytesForAnnotations creates JSON marshalled patch bytes for annotations.
+func createPatchBytesForAnnotations(annotations map[string]string) ([]byte, error) {
+	patch := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": annotations,
+		},
+	}
+
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return nil, err
+	}
+
+	return patchBytes, nil
+}
+
+// addAnnotationsToResource adds annotations to the specified resource's metadata.
+func (r *PersistentVolumeClaimReconciler) patchAnnotationsToResource(
+	ctx context.Context,
+	logger *logr.Logger,
+	annotations map[string]string,
+	resource client.Object) error {
+	patch, err := createPatchBytesForAnnotations(annotations)
+	if err != nil {
+		logger.Error(err, "Failed to create patch bytes for annotations")
+
+		return err
+	}
+	logger.Info("Adding annotation", "Annotation", string(patch))
+
+	err = r.Client.Patch(ctx, resource, client.RawPatch(types.StrategicMergePatchType, patch))
+	if err != nil {
+		logger.Error(err, "Failed to update annotation")
+
+		return err
+	}
+
+	return nil
+}
+
 // processReclaimSpace reconciles ReclaimSpace based on annotations
 func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 	ctx context.Context,
@@ -643,6 +642,14 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 		}
 		logger.Info("Successfully updated reclaimSpaceCronJob")
 
+		// Update schedule on the pvc
+		err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
+			rsCronJobScheduleTimeAnnotation: schedule,
+		}, pvc)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
 		return ctrl.Result{}, nil
 	}
 
@@ -651,17 +658,11 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 	// add cronjob name and schedule in annotations.
 	// adding annotation is required for the case when pvc does not have
 	// have schedule annotation but namespace has.
-	patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q:%q,%q:%q}}}`,
-		rsCronJobNameAnnotation,
-		rsCronJobName,
-		rsCronJobScheduleTimeAnnotation,
-		schedule,
-	))
-	logger.Info("Adding annotation", "Annotation", string(patch))
-	err = r.Client.Patch(ctx, pvc, client.RawPatch(types.StrategicMergePatchType, patch))
+	err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
+		rsCronJobNameAnnotation:         rsCronJobName,
+		rsCronJobScheduleTimeAnnotation: schedule,
+	}, pvc)
 	if err != nil {
-		logger.Error(err, "Failed to update annotation")
-
 		return ctrl.Result{}, err
 	}
 
@@ -770,24 +771,25 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 			logger.Error(err, "failed to update encryptionkeyrotationcronjob")
 			return err // ctr.Result
 		}
-
 		logger.Info("successfully updated encryptionkeyrotationcronjob")
+
+		// update the schedule on the pvc
+		err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
+			krcJobScheduleTimeAnnotation: sched,
+		}, pvc)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
 	// Add the annotation to the pvc, this will help us optimize reconciles
 	krcJobName := generateCronJobName(req.Name)
-	patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q:%q,%q:%q}}}`,
-		krcJobNameAnnotation,
-		krcJobName,
-		krcJobScheduleTimeAnnotation,
-		sched,
-	))
-	logger.Info("Adding keyrotation annotation to the pvc", "annotation", string(patch))
-	err = r.Client.Patch(ctx, pvc, client.RawPatch(types.StrategicMergePatchType, patch))
+	err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
+		krcJobNameAnnotation:         krcJobName,
+		krcJobScheduleTimeAnnotation: sched,
+	}, pvc)
 	if err != nil {
-		logger.Error(err, "Failed to set annotation for keyrotation on the pvc")
-
 		return err
 	}
 
@@ -812,12 +814,12 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	return nil
 }
 
-// AnnotationValueMissing checks if any of the specified keys are missing
-// from the PVC annotations when they are present in the StorageClass annotations.
-func annotationValueMissing(scAnnotations, pvcAnnotations map[string]string, keys []string) bool {
+// annotationValueMissingOrDiff checks if any of the specified keys are missing
+// or differ from the PVC annotations when they are present in the StorageClass annotations.
+func annotationValueMissingOrDiff(scAnnotations, pvcAnnotations map[string]string, keys []string) bool {
 	for _, key := range keys {
-		if _, scHasAnnotation := scAnnotations[key]; scHasAnnotation {
-			if _, pvcHasAnnotation := pvcAnnotations[key]; !pvcHasAnnotation {
+		if scValue, scHasAnnotation := scAnnotations[key]; scHasAnnotation {
+			if pvcValue, pvcHasAnnotation := pvcAnnotations[key]; !pvcHasAnnotation || scValue != pvcValue {
 				return true
 			}
 		}
@@ -855,4 +857,103 @@ func createAnnotationPredicate(annotations ...string) predicate.Funcs {
 			return annotationValueChanged(oldAnnotations, newAnnotations, annotations)
 		},
 	}
+}
+
+func (r *PersistentVolumeClaimReconciler) getScheduleFromSC(
+	ctx context.Context,
+	pvc *corev1.PersistentVolumeClaim,
+	logger *logr.Logger,
+	annotationKey string) (string, error) {
+	// For static provisioned PVs, StorageClassName is empty.
+	// Read SC schedule only when not statically provisioned.
+	if pvc.Spec.StorageClassName != nil && len(*pvc.Spec.StorageClassName) != 0 {
+		storageClassName := *pvc.Spec.StorageClassName
+		sc := &storagev1.StorageClass{}
+		err := r.Client.Get(ctx, types.NamespacedName{Name: storageClassName}, sc)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.Error(err, "StorageClass not found", "StorageClass", storageClassName)
+				return "", ErrScheduleNotFound
+			}
+
+			logger.Error(err, "Failed to get StorageClass", "StorageClass", storageClassName)
+			return "", err
+		}
+		schedule, scheduleFound := getScheduleFromAnnotation(annotationKey, logger, sc.GetAnnotations())
+		if scheduleFound {
+			return schedule, nil
+		}
+	}
+
+	return "", ErrScheduleNotFound
+}
+
+func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
+	ctx context.Context,
+	pvc *corev1.PersistentVolumeClaim,
+	logger *logr.Logger,
+	driverName string,
+	annotationKey string) (string, error) {
+	// check for namespace schedule annotation.
+	ns := &corev1.Namespace{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
+	if err != nil {
+		logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
+		return "", err
+	}
+	schedule, scheduleFound := getScheduleFromAnnotation(annotationKey, logger, ns.GetAnnotations())
+
+	// If the schedule is found, check whether driver supports the
+	// space reclamation using annotation on namespace and registered driver
+	// capability for decision on requeue.
+	if scheduleFound {
+		// We cannot have a generic solution for all CSI drivers to get the driver
+		// name from PV and check if driver supports reclaimspace/keyrotation or not and
+		// requeue the request if the driver is not registered in the connection
+		// pool. This can put the controller in a requeue loop. Hence we are
+		// reading the driver name from the namespace annotation and checking if
+		// the driver is registered in the connection pool and if not we are not
+		// requeuing the request.
+		// Depending on requeue value, it will return ErrorConnNotFoundRequeueNeeded.
+		switch annotationKey {
+		case krcJobScheduleTimeAnnotation:
+			requeue, keyRotationSupported := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, keyRotationOp)
+			if keyRotationSupported {
+				return schedule, nil
+			}
+			if requeue {
+				return "", ErrConnNotFoundRequeueNeeded
+			}
+		case rsCronJobScheduleTimeAnnotation:
+			requeue, supportReclaimspace := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, relciamSpaceOp)
+			if supportReclaimspace {
+				// if driver supports space reclamation,
+				// return schedule from ns annotation.
+				return schedule, nil
+			}
+			if requeue {
+				// The request needs to be requeued for checking
+				// driver support again.
+				return "", ErrConnNotFoundRequeueNeeded
+			}
+		default:
+			logger.Info("Unknown annotation key", "AnnotationKey", annotationKey)
+			return "", fmt.Errorf("unknown annotation key: %s", annotationKey)
+		}
+	}
+
+	return "", ErrScheduleNotFound
+}
+
+func (r *PersistentVolumeClaimReconciler) getScheduleFromPVC(
+	pvc *corev1.PersistentVolumeClaim,
+	logger *logr.Logger,
+	annotationKey string) string {
+	// Check for PVC annotation.
+	schedule, scheduleFound := getScheduleFromAnnotation(annotationKey, logger, pvc.GetAnnotations())
+	if scheduleFound {
+		return schedule
+	}
+
+	return ""
 }
