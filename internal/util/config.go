@@ -33,6 +33,7 @@ type Config struct {
 	Namespace               string
 	ReclaimSpaceTimeout     time.Duration
 	MaxConcurrentReconciles int
+	SchedulePrecedence      string
 }
 
 const (
@@ -42,6 +43,9 @@ const (
 	defaultNamespace               = "csi-addons-system"
 	defaultMaxConcurrentReconciles = 100
 	defaultReclaimSpaceTimeout     = time.Minute * 3
+	SchedulePrecedenceKey          = "schedule-precedence"
+	SchedulePVCFirst               = "pvc-first"
+	ScheduleSCFirst                = "sc-first"
 )
 
 // NewConfig returns a new Config object with default values.
@@ -50,6 +54,7 @@ func NewConfig() Config {
 		Namespace:               defaultNamespace,
 		ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
 		MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
+		SchedulePrecedence:      SchedulePVCFirst,
 	}
 }
 
@@ -88,6 +93,12 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 					MaxConcurrentReconcilesKey, val, err)
 			}
 			cfg.MaxConcurrentReconciles = maxConcurrentReconciles
+
+		case SchedulePrecedenceKey:
+			if val != SchedulePVCFirst && val != ScheduleSCFirst {
+				return fmt.Errorf("unknown value: %q for schedule precedence", val)
+			}
+			cfg.SchedulePrecedence = val
 
 		default:
 			return fmt.Errorf("unknown config key %q", key)
