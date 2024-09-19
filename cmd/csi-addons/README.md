@@ -21,6 +21,8 @@ $ kubectl exec -c csi-addons csi-backend-nodeplugin -- csi-addons -h
         use legacy format for old Kubernetes versions
   -operation string
         csi-addons operation
+  -parameters string
+        parameters in key=value format separated by commas(Eg:- k1=v1,k2=v2...)
   -persistentvolume string
         name of the PersistentVolume
   -secret namespace/name
@@ -29,6 +31,12 @@ $ kubectl exec -c csi-addons csi-backend-nodeplugin -- csi-addons -h
         staging path (default "/var/lib/kubelet/plugins/kubernetes.io/csi/")
   -version
         print Version details
+  -volumeids string
+        comma separated list of VolumeIDs
+  -volumegroupid string
+        ID of the volume group
+  -volumegroupname string
+        name of the Volume Group to be created
 
 The following operations are supported:
  - ControllerReclaimSpace
@@ -44,6 +52,10 @@ The following operations are supported:
  - DemoteVolume
  - ResyncVolume
  - GetVolumeReplicationInfo
+ - CreateVolumeGroup
+ - ModifyVolumeGroupMembership
+ - DeleteVolumeGroup
+ - ControllerGetVolumeGroup
 ```
 
 The above command assumes the running `csi-backend-nodeplugin` Pod has the
