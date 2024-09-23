@@ -3,7 +3,7 @@ module github.com/csi-addons/kubernetes-csi-addons/tools
 go 1.22.0
 
 require (
-	github.com/operator-framework/operator-sdk v1.36.1
+	github.com/operator-framework/operator-sdk v1.37.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.34.2
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240102165319-7f316f1309b1
@@ -44,9 +44,9 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v25.0.5+incompatible // indirect
+	github.com/docker/cli v27.2.0+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
-	github.com/docker/docker v25.0.5+incompatible // indirect
+	github.com/docker/docker v27.2.0+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
@@ -138,12 +138,10 @@ require (
 	github.com/onsi/gomega v1.34.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc6 // indirect
-	github.com/opencontainers/runc v1.1.12 // indirect
+	github.com/opencontainers/runc v1.1.14 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
 	github.com/operator-framework/ansible-operator-plugins v1.35.0 // indirect
 	github.com/operator-framework/api v0.23.0 // indirect
-	github.com/operator-framework/helm-operator-plugins v0.2.2 // indirect
-	github.com/operator-framework/java-operator-plugins v0.10.0 // indirect
 	github.com/operator-framework/operator-manifest-tools v0.6.0 // indirect
 	github.com/operator-framework/operator-registry v1.39.0 // indirect
 	github.com/otiai10/copy v1.14.0 // indirect

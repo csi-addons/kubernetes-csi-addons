@@ -15,8 +15,6 @@
 package cli
 
 import (
-	hybrid "github.com/operator-framework/helm-operator-plugins/pkg/plugins/hybrid/v1alpha"
-	quarkusv1 "github.com/operator-framework/java-operator-plugins/pkg/quarkus/v1beta"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -139,17 +137,6 @@ func GetPluginsCLIAndRoot() (*cli.CLI, *cobra.Command) {
 		),
 	)
 
-	hybridBundle, _ := plugin.NewBundleWithOptions(
-		plugin.WithName("hybrid.helm"+plugins.DefaultNameQualifier),
-		plugin.WithVersion(plugin.Version{Number: 1, Stage: stage.Alpha}),
-		plugin.WithPlugins(
-			kustomizev2.Plugin{},
-			hybrid.Plugin{},
-			manifestsv2.Plugin{},
-			scorecardv2.Plugin{},
-		),
-	)
-
 	deployImageBundle, _ := plugin.NewBundleWithOptions(
 		plugin.WithName("deploy-image."+golang.DefaultNameQualifier),
 		plugin.WithVersion(plugin.Version{Number: 1, Stage: stage.Alpha}),
@@ -167,11 +154,9 @@ func GetPluginsCLIAndRoot() (*cli.CLI, *cobra.Command) {
 			gov3Bundle, // Deprecated
 			gov4Bundle,
 			helmBundle,
-			hybridBundle,
 			grafanav1alpha.Plugin{},
 			deployImageBundle,
 			declarativev1.Plugin{},
-			&quarkusv1.Plugin{},
 		),
 		cli.WithDefaultPlugins(cfgv2.Version, gov2Bundle),
 		cli.WithDefaultPlugins(cfgv3.Version, gov4Bundle),
