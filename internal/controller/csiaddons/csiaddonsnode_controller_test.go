@@ -29,20 +29,30 @@ func TestParseEndpoint(t *testing.T) {
 	_, _, _, err := parseEndpoint("1.2.3.4:5678")
 	assert.True(t, errors.Is(err, errLegacyEndpoint))
 
-	namespace, podname, port, err := parseEndpoint("pod://pod-name:5678")
-	assert.NoError(t, err)
-	assert.Equal(t, namespace, "")
-	assert.Equal(t, podname, "pod-name")
-	assert.Equal(t, port, "5678")
+	// test empty namespace
+	_, _, _, err = parseEndpoint("pod://pod-name:5678")
+	assert.Error(t, err)
 
-	namespace, podname, port, err = parseEndpoint("pod://pod-name.csi-addons:5678")
+	// test empty namespace
+	_, _, _, err = parseEndpoint("pod://pod-name.:5678")
+	assert.Error(t, err)
+
+	namespace, podname, port, err := parseEndpoint("pod://pod-name.csi-addons:5678")
 	assert.NoError(t, err)
 	assert.Equal(t, namespace, "csi-addons")
 	assert.Equal(t, podname, "pod-name")
 	assert.Equal(t, port, "5678")
 
-	_, _, _, err = parseEndpoint("pod://pod.ns.cluster.local:5678")
+	namespace, podname, port, err = parseEndpoint("pod://csi.pod.ns-cluster.local:5678")
+	assert.NoError(t, err)
+	assert.Equal(t, namespace, "local")
+	assert.Equal(t, podname, "csi.pod.ns-cluster")
+	assert.Equal(t, port, "5678")
+
+	// test empty podname
+	_, _, _, err = parseEndpoint("pod://.local:5678")
 	assert.Error(t, err)
+
 }
 
 func TestParseCapabilities(t *testing.T) {
