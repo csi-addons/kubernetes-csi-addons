@@ -211,10 +211,6 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		return rawURL, nil
 	} else if err != nil {
 		return "", err
-	} else if namespace == "" {
-		return "", fmt.Errorf("failed to get namespace from endpoint %q", rawURL)
-	} else if podname == "" {
-		return "", fmt.Errorf("failed to get pod from endpoint %q", rawURL)
 	}
 
 	pod := &corev1.Pod{}
@@ -250,14 +246,16 @@ func parseEndpoint(rawURL string) (string, string, string, error) {
 	}
 
 	// split hostname -> pod.namespace
-	parts := strings.Split(endpoint.Hostname(), ".")
-	podname := parts[0]
-	namespace := ""
-	if len(parts) == 2 {
-		namespace = parts[1]
-	} else if len(parts) > 2 {
-		return "", "", "", fmt.Errorf("hostname %q is not in <pod>.<namespace> format", endpoint.Hostname())
+	hostName := endpoint.Hostname()
+	lastIndex := strings.LastIndex(hostName, ".")
+
+	// check for empty podname and namespace
+	if lastIndex <= 0 || lastIndex == len(hostName)-1 {
+		return "", "", "", fmt.Errorf("hostname %q is not in <pod>.<namespace> format", hostName)
 	}
+
+	podname := hostName[0:lastIndex]
+	namespace := hostName[lastIndex+1:]
 
 	return namespace, podname, endpoint.Port(), nil
 }
