@@ -323,6 +323,14 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		assert.Equal(t, "", schedule)
 	})
 
+	// test for StorageClassName is nil
+	t.Run("StorageClassName is nil", func(t *testing.T) {
+		pvc.Spec.StorageClassName = nil
+		pvc.Annotations = nil
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
+		assert.ErrorIs(t, error, ErrScheduleNotFound)
+		assert.Equal(t, "", schedule)
+	})
 }
 
 func TestAnnotationValueMissing(t *testing.T) {
