@@ -277,22 +277,23 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 		}
 	}
 
-	// For static provisioned PVs, StorageClassName is empty.
-	if len(*pvc.Spec.StorageClassName) == 0 {
+	// For static provisioned PVs, StorageClassName is nil or empty.
+	if pvc.Spec.StorageClassName == nil || len(*pvc.Spec.StorageClassName) == 0 {
 		logger.Info("StorageClassName is empty")
 		return "", ErrScheduleNotFound
 	}
+	storageClassName := *pvc.Spec.StorageClassName
 
 	// check for storageclass schedule annotation.
 	sc := &storagev1.StorageClass{}
-	err = r.Client.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, sc)
+	err = r.Client.Get(ctx, types.NamespacedName{Name: storageClassName}, sc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Error(err, "StorageClass not found", "StorageClass", *pvc.Spec.StorageClassName)
+			logger.Error(err, "StorageClass not found", "StorageClass", storageClassName)
 			return "", ErrScheduleNotFound
 		}
 
-		logger.Error(err, "Failed to get StorageClass", "StorageClass", *pvc.Spec.StorageClassName)
+		logger.Error(err, "Failed to get StorageClass", "StorageClass", storageClassName)
 		return "", err
 	}
 	schedule, scheduleFound = getScheduleFromAnnotation(annotationKey, logger, sc.Annotations)
@@ -376,7 +377,7 @@ func (r *PersistentVolumeClaimReconciler) setupIndexers(mgr ctrl.Manager) error 
 			field: "spec.storageClassName",
 			indexFn: func(rawObj client.Object) []string {
 				pvc, ok := rawObj.(*corev1.PersistentVolumeClaim)
-				if !ok {
+				if !ok || (pvc.Spec.StorageClassName == nil) || len(*pvc.Spec.StorageClassName) == 0 {
 					return nil
 				}
 				return []string{*pvc.Spec.StorageClassName}
