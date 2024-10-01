@@ -95,7 +95,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	nodeID := csiAddonsNode.Spec.Driver.NodeID
 	driverName := csiAddonsNode.Spec.Driver.Name
 
-	key := csiAddonsNode.Namespace + "/" + csiAddonsNode.Name
+	key := csiAddonsNode.Namespace + "/" + util.NormalizeLeaseName(csiAddonsNode.Name)
 	logger = logger.WithValues("NodeID", nodeID, "DriverName", driverName)
 
 	if !csiAddonsNode.DeletionTimestamp.IsZero() {
