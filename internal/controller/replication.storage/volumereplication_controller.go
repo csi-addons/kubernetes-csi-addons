@@ -510,7 +510,7 @@ func getInfoReconcileInterval(parameters map[string]string, logger logr.Logger) 
 func (r *VolumeReplicationReconciler) getReplicationClient(ctx context.Context, driverName, dataSource string) (grpcClient.VolumeReplication, error) {
 	conn, err := r.Connpool.GetLeaderByDriver(ctx, r.Client, driverName)
 	if err != nil {
-		return nil, fmt.Errorf("no leader for the ControllerService of driver %q", driverName)
+		return nil, fmt.Errorf("no leader for the ControllerService of driver %q: %w", driverName, err)
 	}
 
 	for _, cap := range conn.Capabilities {

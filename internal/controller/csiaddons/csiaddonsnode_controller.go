@@ -101,7 +101,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if !csiAddonsNode.DeletionTimestamp.IsZero() {
 		// if deletion timestamp is set, the CSIAddonsNode is getting deleted,
 		// delete connections and remove finalizer.
-		logger.Info("Deleting connection")
+		logger.Info("Deleting connection", "Key", key)
 		r.ConnPool.Delete(key)
 		err = r.removeFinalizer(ctx, &logger, csiAddonsNode)
 		return ctrl.Result{}, err
@@ -139,7 +139,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	logger.Info("Successfully connected to sidecar")
 	r.ConnPool.Put(key, newConn)
-	logger.Info("Added connection to connection pool")
+	logger.Info("Added connection to connection pool", "Key", key)
 
 	csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateConnected
 	csiAddonsNode.Status.Message = "Successfully established connection with sidecar"
