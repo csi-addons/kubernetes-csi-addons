@@ -48,6 +48,10 @@ type command struct {
 	cidrs                         string
 	clusterid                     string
 	legacy                        bool
+	volumeGroupName               string
+	volumeGroupID                 string
+	parameters                    string
+	volumeIDs                     string
 }
 
 // cmd is the single instance of the command struct, used inside main().
@@ -67,6 +71,10 @@ func init() {
 	flag.StringVar(&cmd.clusterid, "clusterid", "", "clusterID")
 	flag.BoolVar(&cmd.legacy, "legacy", false, "use legacy format for old Kubernetes versions")
 	flag.BoolVar(&showVersion, "version", false, "print Version details")
+	flag.StringVar(&cmd.volumeGroupName, "volumegroupname", "", "name of the Volume Group to be created")
+	flag.StringVar(&cmd.volumeGroupID, "volumegroupid", "", "ID of the volume group")
+	flag.StringVar(&cmd.parameters, "parameters", "", "parameters in key=value format separated by commas(Eg:- k1=v1,k2=v2...)")
+	flag.StringVar(&cmd.volumeIDs, "volumeids", "", "comma separated list of VolumeIds")
 
 	// output to show when --help is passed
 	flag.Usage = func() {
