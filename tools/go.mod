@@ -5,7 +5,7 @@ go 1.22.0
 require (
 	github.com/operator-framework/operator-sdk v1.37.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf v1.35.1
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240102165319-7f316f1309b1
 	sigs.k8s.io/controller-tools v0.16.3
 	sigs.k8s.io/kustomize/kustomize/v5 v5.4.3
