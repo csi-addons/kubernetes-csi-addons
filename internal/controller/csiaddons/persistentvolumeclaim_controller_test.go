@@ -273,8 +273,9 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 	}
 
 	r := &PersistentVolumeClaimReconciler{
-		Client:   client,
-		ConnPool: connection.NewConnectionPool(),
+		Client:             client,
+		ConnPool:           connection.NewConnectionPool(),
+		SchedulePrecedence: "pvc-first",
 	}
 
 	// Create the namespace, storage class, and PVC
@@ -331,68 +332,6 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		assert.ErrorIs(t, error, ErrScheduleNotFound)
 		assert.Equal(t, "", schedule)
 	})
-}
-
-func TestAnnotationValueMissing(t *testing.T) {
-	tests := []struct {
-		name           string
-		scAnnotations  map[string]string
-		pvcAnnotations map[string]string
-		keys           []string
-		expected       bool
-	}{
-		{
-			name:           "No annotations",
-			scAnnotations:  map[string]string{},
-			pvcAnnotations: map[string]string{},
-			keys:           []string{"key1", "key2"},
-			expected:       false,
-		},
-		{
-			name:           "SC has annotation, PVC doesn't",
-			scAnnotations:  map[string]string{"key1": "value1"},
-			pvcAnnotations: map[string]string{},
-			keys:           []string{"key1"},
-			expected:       true,
-		},
-		{
-			name:           "Both SC and PVC have annotation",
-			scAnnotations:  map[string]string{"key1": "value1"},
-			pvcAnnotations: map[string]string{"key1": "value1"},
-			keys:           []string{"key1"},
-			expected:       false,
-		},
-		{
-			name:           "SC has multiple annotations, PVC missing one",
-			scAnnotations:  map[string]string{"key1": "value1", "key2": "value2"},
-			pvcAnnotations: map[string]string{"key1": "value1"},
-			keys:           []string{"key1", "key2"},
-			expected:       true,
-		},
-		{
-			name:           "SC has annotation not in keys",
-			scAnnotations:  map[string]string{"key3": "value3"},
-			pvcAnnotations: map[string]string{},
-			keys:           []string{"key1", "key2"},
-			expected:       false,
-		},
-		{
-			name:           "Empty keys slice",
-			scAnnotations:  map[string]string{"key1": "value1"},
-			pvcAnnotations: map[string]string{},
-			keys:           []string{},
-			expected:       false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := annotationValueMissing(tt.scAnnotations, tt.pvcAnnotations, tt.keys)
-			if result != tt.expected {
-				t.Errorf("AnnotationValueMissing() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
 }
 
 func TestAnnotationValueChanged(t *testing.T) {
@@ -551,6 +490,9 @@ func TestConstructKRCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-kr-cron",
 					Namespace: "default",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 					Schedule: "0 1 * * *",
@@ -578,6 +520,9 @@ func TestConstructKRCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "empty-schedule-cron",
 					Namespace: "kube-system",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 					Schedule: "",
@@ -605,6 +550,9 @@ func TestConstructKRCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "special-!@#$%^&*()-cron",
 					Namespace: "test-ns",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 					Schedule: "*/5 * * * *",
@@ -652,6 +600,9 @@ func TestConstructRSCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-rs-cron",
 					Namespace: "default",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 					Schedule: "0 2 * * *",
@@ -679,6 +630,9 @@ func TestConstructRSCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "empty-schedule-cron",
 					Namespace: "kube-system",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 					Schedule: "",
@@ -706,6 +660,9 @@ func TestConstructRSCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "special-!@#$%^&*()-cron",
 					Namespace: "test-ns",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 					Schedule: "*/10 * * * *",
@@ -728,6 +685,146 @@ func TestConstructRSCronJob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := constructRSCronJob(tt.cronName, tt.namespace, tt.schedule, tt.pvcName)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCreatePatchBytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		expected    string
+		expectError bool
+	}{
+		{
+			name:        "Empty annotations",
+			annotations: map[string]string{},
+			expected:    `{"metadata":{"annotations":{}}}`,
+			expectError: false,
+		},
+		{
+			name: "Single annotation",
+			annotations: map[string]string{
+				"key1": "value1",
+			},
+			expected:    `{"metadata":{"annotations":{"key1":"value1"}}}`,
+			expectError: false,
+		},
+		{
+			name: "Multiple annotations",
+			annotations: map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			},
+			expected:    `{"metadata":{"annotations":{"key1":"value1","key2":"value2","key3":"value3"}}}`,
+			expectError: false,
+		},
+		{
+			name: "Annotations with special characters",
+			annotations: map[string]string{
+				"key-with-dash":       "value-with-dash",
+				"key_with_underscore": "value_with_underscore",
+				"key.with.dots":       "value.with.dots",
+			},
+			expected:    `{"metadata":{"annotations":{"key-with-dash":"value-with-dash","key.with.dots":"value.with.dots","key_with_underscore":"value_with_underscore"}}}`,
+			expectError: false,
+		},
+		{
+			name: "Annotations with empty values",
+			annotations: map[string]string{
+				"empty1": "",
+				"empty2": "",
+				"key3":   "value3",
+			},
+			expected:    `{"metadata":{"annotations":{"empty1":"","empty2":"","key3":"value3"}}}`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patch, err := createPatchBytesForAnnotations(tt.annotations)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.JSONEq(t, tt.expected, string(patch))
+			}
+		})
+	}
+}
+func TestAnnotationValueMissingOrDiff(t *testing.T) {
+	tests := []struct {
+		name           string
+		scAnnotations  map[string]string
+		pvcAnnotations map[string]string
+		keys           []string
+		expected       bool
+	}{
+		{
+			name:           "SC has annotation, PVC doesn't",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{},
+			keys:           []string{"key1"},
+			expected:       true,
+		},
+		{
+			name:           "SC and PVC have different values",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{"key1": "value2"},
+			keys:           []string{"key1"},
+			expected:       true,
+		},
+		{
+			name:           "SC and PVC have same values",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key1"},
+			expected:       false,
+		},
+		{
+			name:           "SC doesn't have annotation",
+			scAnnotations:  map[string]string{},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key1"},
+			expected:       false,
+		},
+		{
+			name:           "Multiple keys, one missing",
+			scAnnotations:  map[string]string{"key1": "value1", "key2": "value2"},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Multiple keys, all present but one different",
+			scAnnotations:  map[string]string{"key1": "value1", "key2": "value2"},
+			pvcAnnotations: map[string]string{"key1": "value1", "key2": "differentValue"},
+			keys:           []string{"key1", "key2"},
+			expected:       true,
+		},
+		{
+			name:           "Empty keys slice",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{},
+			expected:       false,
+		},
+		{
+			name:           "Key not in either annotation",
+			scAnnotations:  map[string]string{"key1": "value1"},
+			pvcAnnotations: map[string]string{"key1": "value1"},
+			keys:           []string{"key2"},
+			expected:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := annotationValueMissingOrDiff(tt.scAnnotations, tt.pvcAnnotations, tt.keys)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
