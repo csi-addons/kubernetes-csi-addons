@@ -144,3 +144,13 @@ over StorageClass annotation. The kubernetes-csi-addons only generate a `Reclaim
 if the annotation exists on the StorageClass. If an admin needs to modify or delete the
 annotation on the StorageClass, they must perform the same action on all the PersistentVolumeClaims
 created from this StorageClass.
+
+## Annotating ReclaimSpaceCronJob
+
+In cases where a certain `ReclaimSpaceCronJob` is to have a different schedule that the one present
+in Namespace, StorageClass or PersistentVolumeClaim annotations one could annotate the `ReclaimSpaceCronJob`
+itself by adding the `csiaddons.openshift.io/state: "unmanaged"` annotation.
+
+CSI Addons will not perform any further modifications on the `ReclaimSpaceCronJob` with the `unmanaged` state.
+
+To have a custom schedule the user can then modify the `schedule` field of the `ReclaimSpaceCronJob` spec.

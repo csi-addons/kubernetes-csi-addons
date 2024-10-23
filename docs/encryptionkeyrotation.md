@@ -147,3 +147,13 @@ over StorageClass annotation. The kubernetes-csi-addons only generate a `Encrypt
 if the annotation exists on the StorageClass. If an admin needs to modify or delete the
 annotation on the StorageClass, they must perform the same action on all the PersistentVolumeClaims
 created from this StorageClass.
+
+## Annotating EncrpytionKeyRotationCronJob
+
+In cases where a certain `EncrpytionKeyRotationCronJob` is to have a different schedule that the one present
+in Namespace, StorageClass or PersistentVolumeClaim annotations one could annotate the `EncryptionKeyRotationCronJob`
+itself by adding the `csiaddons.openshift.io/state: "unmanaged"` annotation.
+
+CSI Addons will not perform any further modifications on the `EncryptionKeyRotationCronJob` with the `unmanaged` state.
+
+To have a custom schedule the user can then modify the `schedule` field of the `EncryptionKeyRotationCronJob` spec.
