@@ -73,6 +73,8 @@ var (
 
 	ErrConnNotFoundRequeueNeeded = errors.New("connection not found, requeue needed")
 	ErrScheduleNotFound          = errors.New("schedule not found")
+
+	csiAddonsStateAnnotation = csiaddonsv1alpha1.GroupVersion.Group + "/state"
 )
 
 const (
@@ -80,6 +82,9 @@ const (
 
 	relciamSpaceOp Operation = "reclaimspace"
 	keyRotationOp  Operation = "keyrotation"
+
+	// Represents the CRs that are managed by the PVC controller
+	csiAddonsStateManaged = "managed"
 )
 
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;patch
@@ -467,6 +472,9 @@ func constructKRCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Annotations: map[string]string{
+				csiAddonsStateAnnotation: csiAddonsStateManaged,
+			},
 		},
 		Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 			Schedule: schedule,
@@ -494,6 +502,9 @@ func constructRSCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Annotations: map[string]string{
+				csiAddonsStateAnnotation: csiAddonsStateManaged,
+			},
 		},
 		Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 			Schedule: schedule,
@@ -588,6 +599,10 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 	}
 	if rsCronJob != nil {
 		*logger = logger.WithValues("ReclaimSpaceCronJobName", rsCronJob.Name)
+		if state, ok := rsCronJob.GetAnnotations()[csiAddonsStateAnnotation]; ok && state != csiAddonsStateManaged {
+			logger.Info("ReclaimSpaceCronJob is not managed, exiting reconcile")
+			return ctrl.Result{}, nil
+		}
 	}
 
 	schedule, err := r.determineScheduleAndRequeue(ctx, logger, pvc, pv.Spec.CSI.Driver, rsCronJobScheduleTimeAnnotation)
@@ -733,6 +748,10 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	}
 	if krcJob != nil {
 		*logger = logger.WithValues("EncryptionKeyrotationCronJobName", krcJob.Name)
+		if state, ok := krcJob.GetAnnotations()[csiAddonsStateAnnotation]; ok && state != csiAddonsStateManaged {
+			logger.Info("EncryptionKeyRotationCronJob is not managed, exiting reconcile")
+			return nil
+		}
 	}
 
 	// Determine schedule
