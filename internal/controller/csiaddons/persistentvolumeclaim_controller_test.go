@@ -490,6 +490,9 @@ func TestConstructKRCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-kr-cron",
 					Namespace: "default",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 					Schedule: "0 1 * * *",
@@ -517,6 +520,9 @@ func TestConstructKRCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "empty-schedule-cron",
 					Namespace: "kube-system",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 					Schedule: "",
@@ -544,6 +550,9 @@ func TestConstructKRCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "special-!@#$%^&*()-cron",
 					Namespace: "test-ns",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
 					Schedule: "*/5 * * * *",
@@ -591,6 +600,9 @@ func TestConstructRSCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-rs-cron",
 					Namespace: "default",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 					Schedule: "0 2 * * *",
@@ -618,6 +630,9 @@ func TestConstructRSCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "empty-schedule-cron",
 					Namespace: "kube-system",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 					Schedule: "",
@@ -645,6 +660,9 @@ func TestConstructRSCronJob(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "special-!@#$%^&*()-cron",
 					Namespace: "test-ns",
+					Annotations: map[string]string{
+						csiAddonsStateAnnotation: csiAddonsStateManaged,
+					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 					Schedule: "*/10 * * * *",
