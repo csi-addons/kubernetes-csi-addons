@@ -157,3 +157,29 @@ itself by adding the `csiaddons.openshift.io/state: "unmanaged"` annotation.
 CSI Addons will not perform any further modifications on the `EncryptionKeyRotationCronJob` with the `unmanaged` state.
 
 To have a custom schedule the user can then modify the `schedule` field of the `EncryptionKeyRotationCronJob` spec.
+
+## Disabling Key Rotation
+
+### Disabling Key Rotation for a Specific PersistentVolumeClaim
+
+To disable key rotation for a specific PersistentVolumeClaim (PVC), edit the `EncryptionKeyRotationCronJob` custom resource (CR) associated with that PVC. Follow these steps:
+
+1. **Identify the `EncryptionKeyRotationCronJob` CR**: Run the following command to retrieve the name of the `EncryptionKeyRotationCronJob` CR associated with the PVC:
+
+   ```bash
+   kubectl get encryptionkeyrotationcronjob -o jsonpath='{range .items[?(@.spec.jobTemplate.spec.target.persistentVolumeClaim=="<PVC_NAME>")]}{.metadata.name}{"\n"}{end}'
+   ```
+
+   Replace `<PVC_NAME>` with the name of your PVC.
+
+2. **Edit the `EncryptionKeyRotationCronJob` CR**: Use the following settings in the CR to disable key rotation for this specific PVC:
+   - Update the `csiaddons.openshift.io/state` annotation from `"managed"` to `"unmanaged"`.
+   - Add `suspend: true` under the `spec` field.
+
+These changes will disable key rotation for the specified PVC.
+
+### Disabling Key Rotation for All PersistentVolumeClaims in a StorageClass
+
+To disable key rotation for all PVCs in a particular StorageClass, annotate the StorageClass with `keyrotation.csiaddons.openshift.io/enable: "false"`.
+
+This action will disable key rotation across all PVCs in that StorageClass and remove any existing `EncryptionKeyRotationCronJob` CRs for PVCs within it.
