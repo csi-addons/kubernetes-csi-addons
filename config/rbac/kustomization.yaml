@@ -31,6 +31,8 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- csiaddons_networkfenceclass_editor_role.yaml
+- csiaddons_networkfenceclass_viewer_role.yaml
 # - csiaddons_encryptionkeyrotationcronjob_editor_role.yaml
 # - csiaddons_encryptionkeyrotationcronjob_viewer_role.yaml
 # - csiaddons_encryptionkeyrotationjob_editor_role.yaml

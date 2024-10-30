@@ -45,6 +45,56 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: kubernetes-csi-addons
+  name: csi-addons-csiaddons-networkfenceclass-editor-role
+rules:
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfenceclasses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfenceclasses/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: kubernetes-csi-addons
+  name: csi-addons-csiaddons-networkfenceclass-viewer-role
+rules:
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfenceclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csiaddons.openshift.io
+  resources:
+  - networkfenceclasses/status
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   name: csi-addons-manager-role
 rules:
 - apiGroups:
@@ -87,6 +137,7 @@ rules:
   - csiaddonsnodes
   - encryptionkeyrotationcronjobs
   - encryptionkeyrotationjobs
+  - networkfenceclasses
   - networkfences
   - reclaimspacecronjobs
   - reclaimspacejobs
@@ -104,6 +155,7 @@ rules:
   - csiaddonsnodes/finalizers
   - encryptionkeyrotationcronjobs/finalizers
   - encryptionkeyrotationjobs/finalizers
+  - networkfenceclasses/finalizers
   - networkfences/finalizers
   - reclaimspacecronjobs/finalizers
   - reclaimspacejobs/finalizers
@@ -115,6 +167,7 @@ rules:
   - csiaddonsnodes/status
   - encryptionkeyrotationcronjobs/status
   - encryptionkeyrotationjobs/status
+  - networkfenceclasses/status
   - networkfences/status
   - reclaimspacecronjobs/status
   - reclaimspacejobs/status

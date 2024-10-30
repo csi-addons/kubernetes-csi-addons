@@ -105,4 +105,12 @@ resources:
   kind: EncryptionKeyRotationCronJob
   path: github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: openshift.io
+  group: csiaddons
+  kind: NetworkFenceClass
+  path: github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1
+  version: v1alpha1
 version: "3"
