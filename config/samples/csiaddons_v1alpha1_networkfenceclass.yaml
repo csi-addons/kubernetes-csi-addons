@@ -1,0 +1,9 @@
+apiVersion: csiaddons.openshift.io/v1alpha1
+kind: NetworkFenceClass
+metadata:
+  labels:
+    app.kubernetes.io/name: kubernetes-csi-addons
+    app.kubernetes.io/managed-by: kustomize
+  name: networkfenceclass-sample
+spec:
+  # TODO(user): Add fields here

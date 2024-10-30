@@ -66,6 +66,11 @@ spec:
       kind: VolumeGroupReplicationContent
       name: volumegroupreplicationcontents.replication.storage.openshift.io
       version: v1alpha1
+    - description: NetworkFenceClass is the Schema for the networkfenceclasses API
+      displayName: Network Fence Class
+      kind: NetworkFenceClass
+      name: networkfenceclasses.csiaddons.openshift.io
+      version: v1alpha1
   description: CSI Addons provides the CSI Addons Controller that enables advanced
     storage operations for CSI-drivers.
   displayName: CSI Addons
