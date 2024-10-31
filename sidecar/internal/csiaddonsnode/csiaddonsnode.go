@@ -18,20 +18,24 @@ package csiaddonsnode
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	ctrlClient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -57,6 +61,9 @@ type Manager struct {
 
 	// Config is a ReST Config for the Kubernets API.
 	Config *rest.Config
+
+	// kubernetes client to interact with the Kubernetes API.
+	KubeClient kubernetes.Interface
 
 	// Node is the hostname of the system where the sidecar is running.
 	Node string
@@ -108,32 +115,35 @@ func (mgr *Manager) Deploy() error {
 // If the CSIAddonsNode object already exists, it will not be re-created or
 // modified, and the existing object is kept as-is.
 func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) error {
-	scheme, err := csiaddonsv1alpha1.SchemeBuilder.Build()
-	if err != nil {
-		return fmt.Errorf("failed to add scheme: %w", err)
+	s := runtime.NewScheme()
+	if err := csiaddonsv1alpha1.AddToScheme(s); err != nil {
+		return fmt.Errorf("failed to register scheme: %w", err)
 	}
 
-	crdConfig := *mgr.Config
-	crdConfig.GroupVersion = &csiaddonsv1alpha1.GroupVersion
-	crdConfig.APIPath = "/apis"
-	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme)
-	crdConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-
-	c, err := rest.UnversionedRESTClientFor(&crdConfig)
+	cli, err := ctrlClient.New(mgr.Config, ctrlClient.Options{Scheme: s})
 	if err != nil {
-		return fmt.Errorf("failed to get REST Client: %w", err)
+		return fmt.Errorf("failed to create controller-runtime client: %w", err)
 	}
+	ctx := context.TODO()
+	csiaddonNode := &csiaddonsv1alpha1.CSIAddonsNode{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      node.Name,
+			Namespace: node.Namespace,
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, cli, csiaddonNode, func() error {
+		// update the resourceVersion
+		resourceVersion := csiaddonNode.ResourceVersion
+		node.ObjectMeta.DeepCopyInto(&csiaddonNode.ObjectMeta)
+		if resourceVersion != "" {
+			csiaddonNode.ResourceVersion = resourceVersion
+		}
+		node.Spec.DeepCopyInto(&csiaddonNode.Spec)
+		return nil
+	})
 
-	err = c.Post().
-		Resource("csiaddonsnodes").
-		Namespace(node.Namespace).
-		Name(node.Name).
-		Body(node).
-		Do(context.TODO()).
-		Error()
-
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create csiaddonsnode object: %w", err)
+	if err != nil {
+		return fmt.Errorf("failed to create/update csiaddonsnode object: %w", err)
 	}
 
 	return nil
@@ -166,18 +176,46 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 			errInvalidConfig)
 	}
 
+	// Get the owner of the pod as we want to set the owner of the CSIAddonsNode
+	// so that it won't get deleted when the pod is deleted rather it will be deleted
+	// when the owner is deleted.
+
+	pod, err := mgr.KubeClient.CoreV1().Pods(mgr.PodNamespace).Get(context.TODO(), mgr.PodName, v1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pod: %w", err)
+	}
+
+	if len(pod.OwnerReferences) == 0 {
+		return nil, fmt.Errorf("%w: pod has no owner", errInvalidConfig)
+	}
+
+	ownerReferences := []v1.OwnerReference{}
+	if pod.OwnerReferences[0].Kind == "ReplicaSet" {
+		// If the pod is owned by a ReplicaSet, we need to get the owner of the ReplicaSet i.e. Deployment
+		rs, err := mgr.KubeClient.AppsV1().ReplicaSets(mgr.PodNamespace).Get(context.TODO(), pod.OwnerReferences[0].Name, v1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get replicaset: %w", err)
+		}
+		if len(rs.OwnerReferences) == 0 {
+			return nil, fmt.Errorf("%w: replicaset has no owner", errInvalidConfig)
+		}
+		ownerReferences = append(ownerReferences, rs.OwnerReferences[0])
+	} else {
+		// If the pod is owned by DeamonSet or StatefulSet get the owner of the pod.
+		ownerReferences = append(ownerReferences, pod.OwnerReferences[0])
+	}
+	// we need to have the constant name for the CSIAddonsNode object.
+	// We will use the nodeID and the ownerName for the CSIAddonsNode object name.
+	name, err := generateName(mgr.Node, mgr.PodNamespace, ownerReferences[0].Kind, ownerReferences[0].Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate name: %w", err)
+	}
+
 	return &csiaddonsv1alpha1.CSIAddonsNode{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      mgr.PodName,
-			Namespace: mgr.PodNamespace,
-			OwnerReferences: []v1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "Pod",
-					Name:       mgr.PodName,
-					UID:        types.UID(mgr.PodUID),
-				},
-			},
+			Name:            name,
+			Namespace:       mgr.PodNamespace,
+			OwnerReferences: ownerReferences,
 		},
 		Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
 			Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{
@@ -187,4 +225,33 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 			},
 		},
 	}, nil
+}
+
+func generateName(nodeID, namespace, ownerKind, ownerName string) (string, error) {
+	if nodeID == "" {
+		return "", fmt.Errorf("nodeID is required")
+	}
+	if ownerKind == "" {
+		return "", fmt.Errorf("ownerKind is required")
+	}
+	if ownerName == "" {
+		return "", fmt.Errorf("ownerName is required")
+	}
+
+	if namespace == "" {
+		return "", fmt.Errorf("namespace is required")
+	}
+	// convert ownerKind to lowercase as the name should be case-insensitive
+	ownerKind = strings.ToLower(ownerKind)
+	base := fmt.Sprintf("%s-%s-%s-%s", nodeID, namespace, ownerKind, ownerName)
+	if len(base) > 253 {
+		// Generate a UUID based on nodeID, ownerKind, and ownerName
+		data := nodeID + namespace + ownerKind + ownerName
+		hash := sha256.Sum256([]byte(data))
+		uuid := hex.EncodeToString(hash[:8])                            // Use the first 8 characters of the hash as a UUID-like string
+		finalName := fmt.Sprintf("%s-%s", base[:251-len(uuid)-1], uuid) // Ensure total length is within 253
+		return finalName, nil
+	}
+
+	return base, nil
 }

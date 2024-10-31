@@ -98,6 +98,7 @@ func main() {
 	nodeMgr := &csiaddonsnode.Manager{
 		Client:       csiClient,
 		Config:       cfg,
+		KubeClient:   kubeClient,
 		Node:         *nodeID,
 		Endpoint:     controllerEndpoint,
 		PodName:      *podName,
