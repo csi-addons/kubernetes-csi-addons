@@ -17,68 +17,109 @@ limitations under the License.
 package controller
 
 import (
-	"context"
+	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/stretchr/testify/assert"
 )
 
-var _ = Describe("NetworkFenceClass Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+func TestRemoveClassFromList(t *testing.T) {
+	tests := []struct {
+		name      string
+		classes   []string
+		className string
+		expected  []string
+	}{
+		{
+			name:      "Class exists in the middle",
+			classes:   []string{"class1", "class2", "class3"},
+			className: "class2",
+			expected:  []string{"class1", "class3"},
+		},
+		{
+			name:      "Class is the first element",
+			classes:   []string{"class1", "class2", "class3"},
+			className: "class1",
+			expected:  []string{"class2", "class3"},
+		},
+		{
+			name:      "Class is the last element",
+			classes:   []string{"class1", "class2", "class3"},
+			className: "class3",
+			expected:  []string{"class1", "class2"},
+		},
+		{
+			name:      "Class does not exist",
+			classes:   []string{"class1", "class2", "class3"},
+			className: "class4",
+			expected:  []string{"class1", "class2", "class3"},
+		},
+		{
+			name:      "Empty list",
+			classes:   []string{},
+			className: "class1",
+			expected:  []string{},
+		},
+		{
+			name:      "Removing the last class",
+			classes:   []string{"class1"},
+			className: "class1",
+			expected:  []string{},
+		},
+	}
 
-		ctx := context.Background()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := removeClassFromList(tt.classes, tt.className)
+			assert.Equal(t, tt.expected, result, "classes should be equal")
+		})
+	}
+}
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		networkfenceclass := &csiaddonsv1alpha1.NetworkFenceClass{}
+func TestValidatePrefixedParameters(t *testing.T) {
+	tests := []struct {
+		name    string
+		param   map[string]string
+		wantErr bool
+	}{
+		{
+			name: "valid parameters",
+			param: map[string]string{
+				prefixedNetworkFenceSecretNameKey:      "secret1",
+				prefixedNetworkFenceSecretNamespaceKey: "namespace1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty secret name",
+			param: map[string]string{
+				prefixedNetworkFenceSecretNameKey:      "",
+				prefixedNetworkFenceSecretNamespaceKey: "namespace1",
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty secret namespace",
+			param: map[string]string{
+				prefixedNetworkFenceSecretNameKey:      "secret1",
+				prefixedNetworkFenceSecretNamespaceKey: "",
+			},
+			wantErr: true,
+		},
+		{
+			name:    "unknown parameter key",
+			param:   map[string]string{networkFenceParameterPrefix + "/unknownKey": "value"},
+			wantErr: true,
+		},
+	}
 
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind NetworkFenceClass")
-			err := k8sClient.Get(ctx, typeNamespacedName, networkfenceclass)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &csiaddonsv1alpha1.NetworkFenceClass{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					// TODO(user): Specify other spec details if needed.
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePrefixedParameters(tt.param)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
-
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &csiaddonsv1alpha1.NetworkFenceClass{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance NetworkFenceClass")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &NetworkFenceClassReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
-		})
-	})
-})
+	}
+}
