@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	NetworkFence_FenceClusterNetwork_FullMethodName   = "/proto.NetworkFence/FenceClusterNetwork"
 	NetworkFence_UnFenceClusterNetwork_FullMethodName = "/proto.NetworkFence/UnFenceClusterNetwork"
+	NetworkFence_GetFenceClients_FullMethodName       = "/proto.NetworkFence/GetFenceClients"
 )
 
 // NetworkFenceClient is the client API for NetworkFence service.
@@ -34,6 +35,9 @@ type NetworkFenceClient interface {
 	FenceClusterNetwork(ctx context.Context, in *NetworkFenceRequest, opts ...grpc.CallOption) (*NetworkFenceResponse, error)
 	// UnFenceClusterNetwork RPC call to un-fence the cluster network.
 	UnFenceClusterNetwork(ctx context.Context, in *NetworkFenceRequest, opts ...grpc.CallOption) (*NetworkFenceResponse, error)
+	// GetFenceClients RPC calls to get the client information to use in a
+	// FenceClusterNetwork or UnfenceClusterNetwork RPC.
+	GetFenceClients(ctx context.Context, in *FenceClientsRequest, opts ...grpc.CallOption) (*FenceClientsResponse, error)
 }
 
 type networkFenceClient struct {
@@ -64,6 +68,16 @@ func (c *networkFenceClient) UnFenceClusterNetwork(ctx context.Context, in *Netw
 	return out, nil
 }
 
+func (c *networkFenceClient) GetFenceClients(ctx context.Context, in *FenceClientsRequest, opts ...grpc.CallOption) (*FenceClientsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FenceClientsResponse)
+	err := c.cc.Invoke(ctx, NetworkFence_GetFenceClients_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NetworkFenceServer is the server API for NetworkFence service.
 // All implementations must embed UnimplementedNetworkFenceServer
 // for forward compatibility.
@@ -75,6 +89,9 @@ type NetworkFenceServer interface {
 	FenceClusterNetwork(context.Context, *NetworkFenceRequest) (*NetworkFenceResponse, error)
 	// UnFenceClusterNetwork RPC call to un-fence the cluster network.
 	UnFenceClusterNetwork(context.Context, *NetworkFenceRequest) (*NetworkFenceResponse, error)
+	// GetFenceClients RPC calls to get the client information to use in a
+	// FenceClusterNetwork or UnfenceClusterNetwork RPC.
+	GetFenceClients(context.Context, *FenceClientsRequest) (*FenceClientsResponse, error)
 	mustEmbedUnimplementedNetworkFenceServer()
 }
 
@@ -90,6 +107,9 @@ func (UnimplementedNetworkFenceServer) FenceClusterNetwork(context.Context, *Net
 }
 func (UnimplementedNetworkFenceServer) UnFenceClusterNetwork(context.Context, *NetworkFenceRequest) (*NetworkFenceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnFenceClusterNetwork not implemented")
+}
+func (UnimplementedNetworkFenceServer) GetFenceClients(context.Context, *FenceClientsRequest) (*FenceClientsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetFenceClients not implemented")
 }
 func (UnimplementedNetworkFenceServer) mustEmbedUnimplementedNetworkFenceServer() {}
 func (UnimplementedNetworkFenceServer) testEmbeddedByValue()                      {}
@@ -148,6 +168,24 @@ func _NetworkFence_UnFenceClusterNetwork_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NetworkFence_GetFenceClients_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FenceClientsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NetworkFenceServer).GetFenceClients(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NetworkFence_GetFenceClients_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NetworkFenceServer).GetFenceClients(ctx, req.(*FenceClientsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NetworkFence_ServiceDesc is the grpc.ServiceDesc for NetworkFence service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -162,6 +200,10 @@ var NetworkFence_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnFenceClusterNetwork",
 			Handler:    _NetworkFence_UnFenceClusterNetwork_Handler,
+		},
+		{
+			MethodName: "GetFenceClients",
+			Handler:    _NetworkFence_GetFenceClients_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

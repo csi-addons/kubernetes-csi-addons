@@ -6,10 +6,17 @@ option go_package = "github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 // NetworkFence holds the RPC method for allowing the communication between
 // the CSIAddons controller and the sidecar for fencing operations.
 service NetworkFence {
-    // FenceClusterNetwork RPC call to fence the cluster network.
-    rpc FenceClusterNetwork (NetworkFenceRequest) returns(NetworkFenceResponse) {}
-    // UnFenceClusterNetwork RPC call to un-fence the cluster network.
-    rpc UnFenceClusterNetwork (NetworkFenceRequest) returns(NetworkFenceResponse) {}
+  // FenceClusterNetwork RPC call to fence the cluster network.
+  rpc FenceClusterNetwork (NetworkFenceRequest)
+  returns(NetworkFenceResponse) {}
+  // UnFenceClusterNetwork RPC call to un-fence the cluster network.
+  rpc UnFenceClusterNetwork (NetworkFenceRequest)
+  returns(NetworkFenceResponse) {}
+
+  // GetFenceClients RPC calls to get the client information to use in a
+  // FenceClusterNetwork or UnfenceClusterNetwork RPC.
+  rpc GetFenceClients(FenceClientsRequest)
+  returns (FenceClientsResponse){}
 }
 
 // NetworkFenceRequest holds the required information to fence/unfence
@@ -29,4 +36,31 @@ message NetworkFenceRequest {
 // the FenceRequest call.
 message NetworkFenceResponse {
   // Intentionally empty.
+}
+
+// FenceClientsRequest contains the necessary information to identify
+// the clients that need fencing.
+message FenceClientsRequest {
+  // Plugin-specific parameters passed in as opaque key-value pairs.
+  map<string, string> parameters = 1;
+  // Secrets required by the driver to complete the request.
+  string secret_name = 2;
+  string secret_namespace = 3;
+}
+
+// FenceClientsResponse holds the information about clients that require
+// fencing.
+message FenceClientsResponse {
+  // List of clients that need to be fenced.
+  repeated ClientDetails clients = 1;
+}
+
+// ClientDetails holds the information about the client that requires fencing.
+message ClientDetails {
+  // id represents the unique identifier of the client.
+  // Required field.
+  string id = 1;
+  // list of cidrs that represent the client's local cidrs.
+  // Required field.
+  repeated string cidrs = 2;
 }
