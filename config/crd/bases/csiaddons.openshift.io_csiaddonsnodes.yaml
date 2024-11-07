@@ -104,6 +104,40 @@ spec:
                   Message is a human-readable message indicating details about why the CSIAddonsNode
                   is in this state.
                 type: string
+              networkFenceClientStatus:
+                description: NetworkFenceClientStatus contains the status of the clients
+                  required for fencing.
+                items:
+                  description: NetworkFenceClientStatus contains the status of the
+                    clients required for fencing.
+                  properties:
+                    ClientDetails:
+                      items:
+                        description: ClientDetail contains the details of the client
+                          required for fencing.
+                        properties:
+                          cidrs:
+                            description: Cidrs is the list of CIDR blocks that are
+                              fenced.
+                            items:
+                              type: string
+                            type: array
+                          id:
+                            description: Id is the unique identifier of the client
+                              where it belongs to.
+                            type: string
+                        required:
+                        - cidrs
+                        - id
+                        type: object
+                      type: array
+                    networkFenceClassName:
+                      type: string
+                  required:
+                  - ClientDetails
+                  - networkFenceClassName
+                  type: object
+                type: array
               reason:
                 description: |-
                   Reason is a brief CamelCase string that describes any failure and is meant

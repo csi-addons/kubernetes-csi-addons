@@ -77,6 +77,23 @@ type CSIAddonsNodeStatus struct {
 
 	// A list of capabilities advertised by the sidecar
 	Capabilities []string `json:"capabilities,omitempty"`
+
+	// NetworkFenceClientStatus contains the status of the clients required for fencing.
+	NetworkFenceClientStatus []NetworkFenceClientStatus `json:"networkFenceClientStatus,omitempty"`
+}
+
+// NetworkFenceClientStatus contains the status of the clients required for fencing.
+type NetworkFenceClientStatus struct {
+	NetworkFenceClassName string         `json:"networkFenceClassName"`
+	ClientDetails         []ClientDetail `json:"ClientDetails"`
+}
+
+// ClientDetail contains the details of the client required for fencing.
+type ClientDetail struct {
+	// Id is the unique identifier of the client where it belongs to.
+	Id string `json:"id"`
+	// Cidrs is the list of CIDR blocks that are fenced.
+	Cidrs []string `json:"cidrs"`
 }
 
 //+kubebuilder:object:root=true
