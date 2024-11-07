@@ -154,3 +154,29 @@ itself by adding the `csiaddons.openshift.io/state: "unmanaged"` annotation.
 CSI Addons will not perform any further modifications on the `ReclaimSpaceCronJob` with the `unmanaged` state.
 
 To have a custom schedule the user can then modify the `schedule` field of the `ReclaimSpaceCronJob` spec.
+
+## Disabling Reclaim Space
+
+### Disabling Reclaim Space for a Specific PersistentVolumeClaim
+
+To disable reclaim space for a specific PersistentVolumeClaim (PVC), follow these steps to modify the associated `ReclaimSpaceCronJob` CR:
+
+1. **Identify the `ReclaimSpaceCronJob` CR**: Run the following command to retrieve the name of the `ReclaimSpaceCronJob` CR associated with the PVC:
+
+   ```bash
+   kubectl get reclaimspacecronjobs -o jsonpath='{range .items[?(@.spec.jobTemplate.spec.target.persistentVolumeClaim=="<PVC_NAME>")]}{.metadata.name}{"\n"}{end}'
+   ```
+
+   Replace `<PVC_NAME>` with the name of your PVC.
+
+2. **Edit the `ReclaimSpaceCronJob` CR**: Apply the following to disable the reclaim space:
+   - Update the `csiaddons.openshift.io/state` annotation from `"managed"` to `"unmanaged"`.
+   ```bash
+   kubectl annotate reclaimspacecronjobs <RECLAIMSPACECRONJOB_NAME> "csiaddons.openshift.io/state=unmanaged" --overwrite=true
+   ```
+   - Add `suspend: true` under the `spec` field.
+   ```bash
+   kubectl patch reclaimspacecronjobs <RECLAIMSPACECRONJOB_NAME> -p '{"spec": {"suspend": true}}' --type=merge
+   ```
+
+These changes will disable reclaim space for the specified PVC.
