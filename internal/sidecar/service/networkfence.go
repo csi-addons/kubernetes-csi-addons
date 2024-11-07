@@ -115,3 +115,48 @@ func getCIDRS(cidr []string) []*fence.CIDR {
 	}
 	return cidrs
 }
+
+// GetFenceClients fetches required information from kubernetes cluster and calls
+// CSI-Addons GetFenceClients service.
+func (ns *NetworkFenceServer) GetFenceClients(
+	ctx context.Context,
+	req *proto.FenceClientsRequest) (*proto.FenceClientsResponse, error) {
+	data := map[string]string{}
+	var err error
+	// Get the secrets from the k8s cluster if secret name or namespace is provided
+	if req.GetSecretName() != "" || req.GetSecretNamespace() != "" {
+		data, err = kube.GetSecret(ctx, ns.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
+		if err != nil {
+			klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+
+	getFenceClientRequest := fence.GetFenceClientsRequest{
+		Parameters: req.GetParameters(),
+		Secrets:    data,
+	}
+
+	resp, err := ns.controllerClient.GetFenceClients(ctx, &getFenceClientRequest)
+	if err != nil {
+		klog.Errorf("Failed to get fence clients: %v", err)
+		return nil, err
+	}
+	response := &proto.FenceClientsResponse{}
+	for _, client := range resp.Clients {
+		response.Clients = append(response.Clients, &proto.ClientDetails{
+			Id:    client.Id,
+			Cidrs: cidrsFromFenceCIDR(client.Addresses),
+		})
+	}
+
+	return response, nil
+}
+
+func cidrsFromFenceCIDR(cidr []*fence.CIDR) []string {
+	cidrs := []string{}
+	for _, c := range cidr {
+		cidrs = append(cidrs, c.Cidr)
+	}
+	return cidrs
+}
