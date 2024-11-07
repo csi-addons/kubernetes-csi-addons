@@ -6,4 +6,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: networkfenceclass-sample
 spec:
-  # TODO(user): Add fields here
+  provisioner: driver.example.com
+  parameters:
+    csiaddons.openshift.io/networkfence-secret-name: secret
+    csiaddons.openshift.io/network-secret-namespace: default
