@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -26,6 +27,7 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/spec/lib/go/identity"
 
@@ -138,6 +140,13 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	nfsc, err := r.getNetworkFenceClientStatus(ctx, &logger, newConn, csiAddonsNode)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	csiAddonsNode.Status.NetworkFenceClientStatus = nfsc
+
 	logger.Info("Successfully connected to sidecar")
 	r.ConnPool.Put(key, newConn)
 	logger.Info("Added connection to connection pool", "Key", key)
@@ -155,11 +164,122 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
+// getNetworkFenceClassesForDriver gets the networkfenceclasses for the driver.
+func (r *CSIAddonsNodeReconciler) getNetworkFenceClassesForDriver(ctx context.Context, logger *logr.Logger,
+	instance *csiaddonsv1alpha1.CSIAddonsNode) ([]csiaddonsv1alpha1.NetworkFenceClass, error) {
+	// get the networkfenceclasses from the annotation
+	nfclasses := make([]csiaddonsv1alpha1.NetworkFenceClass, 0)
+	classesJSON, ok := instance.GetAnnotations()[networkFenceClassAnnotationKey]
+	if !ok {
+		logger.Info("No networkfenceclasses found in annotation")
+		return nfclasses, nil
+	}
+
+	var classes []string
+
+	// Unmarshal the existing JSON into a slice of strings.
+	if err := json.Unmarshal([]byte(classesJSON), &classes); err != nil {
+		logger.Error(err, "Failed to unmarshal existing networkFenceClasses annotation", "name", instance.Name)
+		return nfclasses, err
+	}
+
+	for _, class := range classes {
+		logger.Info("Found networkfenceclass ", "name", class)
+		nfc := csiaddonsv1alpha1.NetworkFenceClass{}
+		err := r.Client.Get(ctx, client.ObjectKey{Name: class}, &nfc)
+		if err != nil {
+			logger.Error(err, "Failed to get networkfenceclass", "name", class)
+			return nil, err
+		}
+		nfclasses = append(nfclasses, nfc)
+	}
+
+	return nfclasses, nil
+}
+
+func (r *CSIAddonsNodeReconciler) getNetworkFenceClientStatus(ctx context.Context, logger *logr.Logger, conn *connection.Connection, csiAddonsNode *csiaddonsv1alpha1.CSIAddonsNode) ([]csiaddonsv1alpha1.NetworkFenceClientStatus, error) {
+
+	nfclasses, err := r.getNetworkFenceClassesForDriver(ctx, logger, csiAddonsNode)
+	if err != nil {
+		logger.Error(err, "Failed to get network fence classes")
+		return nil, err
+	}
+
+	var nfsc []csiaddonsv1alpha1.NetworkFenceClientStatus
+
+	for _, nfc := range nfclasses {
+		clients, err := getFenceClientDetails(ctx, conn, logger, nfc)
+		if err != nil {
+			logger.Error(err, "Failed to get clients to fence", "networkFenceClass", nfc.Name)
+			return nil, err
+		}
+
+		// If no clients are found, skip this network fence class
+		if clients == nil {
+			continue
+		}
+
+		// process the client details for this network fence class
+		clientDetails := r.getClientDetails(clients)
+		nfsc = append(nfsc, csiaddonsv1alpha1.NetworkFenceClientStatus{
+			NetworkFenceClassName: nfc.Name,
+			ClientDetails:         clientDetails,
+		})
+	}
+
+	return nfsc, nil
+}
+
+// getClientDetails processes the client details to create the necessary status
+func (r *CSIAddonsNodeReconciler) getClientDetails(clients *proto.FenceClientsResponse) []csiaddonsv1alpha1.ClientDetail {
+	var clientDetails []csiaddonsv1alpha1.ClientDetail
+	for _, client := range clients.Clients {
+		clientDetails = append(clientDetails, csiaddonsv1alpha1.ClientDetail{
+			Id:    client.Id,
+			Cidrs: client.Cidrs,
+		})
+	}
+	return clientDetails
+}
+
+// getFenceClientDetails gets the list of clients to fence from the driver.
+func getFenceClientDetails(ctx context.Context, conn *connection.Connection, logger *logr.Logger, nfc csiaddonsv1alpha1.NetworkFenceClass) (*proto.FenceClientsResponse, error) {
+
+	param := nfc.Spec.Parameters
+	secretName := param[prefixedNetworkFenceSecretNameKey]
+	secretNamespace := param[prefixedNetworkFenceSecretNamespaceKey]
+	// Remove secret from the parameters
+	delete(param, prefixedNetworkFenceSecretNameKey)
+	delete(param, prefixedNetworkFenceSecretNamespaceKey)
+
+	// check if the driver contains the GET_CLIENTS_TO_FENCE capability
+	// if it does, we need to get the list of clients to fence
+	for _, cap := range conn.Capabilities {
+		if cap.GetNetworkFence() != nil &&
+			cap.GetNetworkFence().GetType() == identity.Capability_NetworkFence_GET_CLIENTS_TO_FENCE {
+			logger.Info("Driver support GET_CLIENTS_TO_FENCE capability")
+			client := proto.NewNetworkFenceClient(conn.Client)
+			req := &proto.FenceClientsRequest{
+				Parameters:      nfc.Spec.Parameters,
+				SecretName:      secretName,
+				SecretNamespace: secretNamespace,
+			}
+			clients, err := client.GetFenceClients(ctx, req)
+			if err != nil {
+				logger.Error(err, "Failed to get clients to fence")
+				return nil, err
+			}
+			return clients, nil
+		}
+	}
+	return nil, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *CSIAddonsNodeReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&csiaddonsv1alpha1.CSIAddonsNode{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{})).
 		WithOptions(ctrlOptions).
 		Complete(r)
 }
