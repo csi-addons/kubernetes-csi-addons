@@ -42,8 +42,6 @@ import (
 
 var (
 	csiAddonsNodeFinalizer = csiaddonsv1alpha1.GroupVersion.Group + "/csiaddonsnode"
-
-	errLegacyEndpoint = errors.New("legacy formatted endpoint")
 )
 
 // CSIAddonsNodeReconciler reconciles a CSIAddonsNode object
@@ -207,9 +205,7 @@ func (r *CSIAddonsNodeReconciler) removeFinalizer(
 // by GRPC to connect to the sidecar.
 func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL string) (string, error) {
 	namespace, podname, port, err := parseEndpoint(rawURL)
-	if err != nil && errors.Is(err, errLegacyEndpoint) {
-		return rawURL, nil
-	} else if err != nil {
+	if err != nil {
 		return "", err
 	}
 
@@ -231,11 +227,6 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 // format. When the recommended format is used, it returns the Namespace,
 // PodName, Port and error instead.
 func parseEndpoint(rawURL string) (string, string, string, error) {
-	// assume old formatted endpoint, don't parse it
-	if !strings.Contains(rawURL, "://") {
-		return "", "", "", errLegacyEndpoint
-	}
-
 	endpoint, err := url.Parse(rawURL)
 	if err != nil {
 		return "", "", "", fmt.Errorf("failed to parse endpoint %q: %w", rawURL, err)

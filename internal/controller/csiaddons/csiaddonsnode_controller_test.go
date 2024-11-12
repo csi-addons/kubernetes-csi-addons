@@ -17,7 +17,6 @@ limitations under the License.
 package controller
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/csi-addons/spec/lib/go/identity"
@@ -26,11 +25,8 @@ import (
 )
 
 func TestParseEndpoint(t *testing.T) {
-	_, _, _, err := parseEndpoint("1.2.3.4:5678")
-	assert.True(t, errors.Is(err, errLegacyEndpoint))
-
 	// test empty namespace
-	_, _, _, err = parseEndpoint("pod://pod-name:5678")
+	_, _, _, err := parseEndpoint("pod://pod-name:5678")
 	assert.Error(t, err)
 
 	// test empty namespace
