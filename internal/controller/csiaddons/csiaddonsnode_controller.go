@@ -93,8 +93,19 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	nodeID := csiAddonsNode.Spec.Driver.NodeID
 	driverName := csiAddonsNode.Spec.Driver.Name
 
-	key := csiAddonsNode.Namespace + "/" + util.NormalizeLeaseName(csiAddonsNode.Name)
 	logger = logger.WithValues("NodeID", nodeID, "DriverName", driverName)
+
+	podName, endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
+	if err != nil {
+		logger.Error(err, "Failed to resolve endpoint")
+		return ctrl.Result{}, fmt.Errorf("failed to resolve endpoint %q: %w", csiAddonsNode.Spec.Driver.EndPoint, err)
+	}
+
+	// namespace + "/" + leader identity(pod name) is the key for the connection.
+	// this key is used by GetLeaderByDriver to get the connection
+	key := csiAddonsNode.Namespace + "/" + podName
+
+	logger = logger.WithValues("EndPoint", endPoint)
 
 	if !csiAddonsNode.DeletionTimestamp.IsZero() {
 		// if deletion timestamp is set, the CSIAddonsNode is getting deleted,
@@ -104,14 +115,6 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		err = r.removeFinalizer(ctx, &logger, csiAddonsNode)
 		return ctrl.Result{}, err
 	}
-
-	endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
-	if err != nil {
-		logger.Error(err, "Failed to resolve endpoint")
-		return ctrl.Result{}, fmt.Errorf("failed to resolve endpoint %q: %w", csiAddonsNode.Spec.Driver.EndPoint, err)
-	}
-
-	logger = logger.WithValues("EndPoint", endPoint)
 
 	if err := r.addFinalizer(ctx, &logger, csiAddonsNode); err != nil {
 		return ctrl.Result{}, err
@@ -201,12 +204,12 @@ func (r *CSIAddonsNodeReconciler) removeFinalizer(
 	return nil
 }
 
-// resolveEndpoint parses the endpoint and returned a string that can be used
+// resolveEndpoint parses the endpoint and returned a endpoint and pod name that can be used
 // by GRPC to connect to the sidecar.
-func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL string) (string, error) {
+func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL string) (string, string, error) {
 	namespace, podname, port, err := parseEndpoint(rawURL)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	pod := &corev1.Pod{}
@@ -215,12 +218,12 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		Name:      podname,
 	}, pod)
 	if err != nil {
-		return "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
+		return "", "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
 	} else if pod.Status.PodIP == "" {
-		return "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
+		return "", "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
 	}
 
-	return fmt.Sprintf("%s:%s", pod.Status.PodIP, port), nil
+	return podname, fmt.Sprintf("%s:%s", pod.Status.PodIP, port), nil
 }
 
 // parseEndpoint returns the rawURL if it is in the legacy <IP-address>:<port>
