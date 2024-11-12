@@ -134,7 +134,6 @@ func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) erro
 	_, err = controllerutil.CreateOrUpdate(ctx, cli, csiaddonNode, func() error {
 		// update the resourceVersion
 		resourceVersion := csiaddonNode.ResourceVersion
-		node.ObjectMeta.DeepCopyInto(&csiaddonNode.ObjectMeta)
 		if resourceVersion != "" {
 			csiaddonNode.ResourceVersion = resourceVersion
 		}
