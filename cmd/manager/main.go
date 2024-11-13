@@ -82,6 +82,7 @@ func main() {
 		ctx                         = context.Background()
 		cfg                         = util.NewConfig()
 		tlsOpts                     []func(*tls.Config)
+		enableAuth                  bool
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP, or 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -99,6 +100,7 @@ func main() {
 	flag.BoolVar(&secureMetrics, "metrics-secure", true, "If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&showVersion, "version", false, "Print Version details")
 	flag.StringVar(&cfg.SchedulePrecedence, "schedule-precedence", "", "The order of precedence in which schedule of reclaimspace and keyrotation is considered. Possible values are sc-only")
+	flag.BoolVar(&enableAuth, "enable-auth", false, "Enables TLS and adds bearer token to the headers (disabled by default)")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
@@ -182,16 +184,16 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 	connPool := connection.NewConnectionPool()
 
 	ctrlOptions := controller.Options{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
 	if err = (&controllers.CSIAddonsNodeReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		ConnPool: connPool,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		ConnPool:   connPool,
+		EnableAuth: enableAuth,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CSIAddonsNode")
 		os.Exit(1)

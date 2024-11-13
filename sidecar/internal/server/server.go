@@ -17,10 +17,15 @@ limitations under the License.
 package server
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 
+	"github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes/token"
+
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
@@ -38,15 +43,17 @@ type SidecarServer struct {
 	// URL components to listen on the tcp port
 	scheme   string
 	endpoint string
+	client   *k8s.Clientset
 
-	server   *grpc.Server
-	services []SidecarService
+	server           *grpc.Server
+	services         []SidecarService
+	enableAuthChecks bool
 }
 
 // NewSidecarServer create a new SidecarServer on the given IP-address and
 // port. If the IP-address is an empty string, the server will listen on all
 // available IP-addresses. Only tcp ports are supported.
-func NewSidecarServer(ip, port string) *SidecarServer {
+func NewSidecarServer(ip, port string, client *k8s.Clientset, enableAuthChecks bool) *SidecarServer {
 	ss := &SidecarServer{}
 
 	if ss.services == nil {
@@ -55,7 +62,8 @@ func NewSidecarServer(ip, port string) *SidecarServer {
 
 	ss.scheme = "tcp"
 	ss.endpoint = ip + ":" + port
-
+	ss.client = client
+	ss.enableAuthChecks = enableAuthChecks
 	return ss
 }
 
@@ -69,8 +77,21 @@ func (ss *SidecarServer) RegisterService(svc SidecarService) {
 // Init creates the internal gRPC server, and registers the SidecarServices.
 // and starts gRPC server.
 func (ss *SidecarServer) Start() {
-	// create the gRPC server and register services
-	ss.server = grpc.NewServer()
+	if ss.enableAuthChecks {
+		cert, err := token.GenerateSelfSignedCert()
+		if err != nil {
+			panic("Failed to generate self-signed certificate: " + err.Error())
+		}
+
+		// Create TLS credentials
+		creds := credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{cert},
+		})
+		// create the gRPC server and register services
+		ss.server = grpc.NewServer(grpc.UnaryInterceptor(token.AuthorizationInterceptor(*ss.client)), grpc.Creds(creds))
+	} else {
+		ss.server = grpc.NewServer()
+	}
 
 	for _, svc := range ss.services {
 		svc.RegisterService(ss.server)

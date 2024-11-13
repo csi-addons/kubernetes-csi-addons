@@ -56,6 +56,7 @@ func main() {
 		leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Duration, in seconds, that non-leader candidates will wait to force acquire leadership. Defaults to 15 seconds.")
 		leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 10*time.Second, "Duration, in seconds, that the acting leader will retry refreshing leadership before giving up. Defaults to 10 seconds.")
 		leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 5*time.Second, "Duration, in seconds, the LeaderElector clients should wait between tries of actions. Defaults to 5 seconds.")
+		enableAuthChecks            = flag.Bool("enable-auth", false, "Enable Authorization checks and TLS communication (disabled by default)")
 	)
 	klog.InitFlags(nil)
 
@@ -110,7 +111,7 @@ func main() {
 		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
 	}
 
-	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort)
+	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.GetGRPCClient(), kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))
