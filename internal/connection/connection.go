@@ -18,10 +18,14 @@ package connection
 
 import (
 	"context"
+	"crypto/tls"
 	"time"
+
+	"github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes/token"
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -39,10 +43,18 @@ type Connection struct {
 
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
 // filled with required information.
-func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace, podName string) (*Connection, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithIdleTimeout(time.Duration(0)),
+func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace, podName string, enableAuth bool) (*Connection, error) {
+	var opts []grpc.DialOption
+	if enableAuth {
+		opts = append(opts, token.WithServiceAccountToken())
+		tlsConfig := &tls.Config{
+			// Certs are only used to initiate HTTPS connections; authorization is handled by SA tokens
+			InsecureSkipVerify: true,
+		}
+		creds := credentials.NewTLS(tlsConfig)
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	cc, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {

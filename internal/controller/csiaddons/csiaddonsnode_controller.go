@@ -49,8 +49,9 @@ var (
 // CSIAddonsNodeReconciler reconciles a CSIAddonsNode object
 type CSIAddonsNodeReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	ConnPool *connection.ConnectionPool
+	Scheme     *runtime.Scheme
+	ConnPool   *connection.ConnectionPool
+	EnableAuth bool
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
@@ -126,7 +127,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Info("Connecting to sidecar")
-	newConn, err := connection.NewConnection(ctx, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name)
+	newConn, err := connection.NewConnection(ctx, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
 	if err != nil {
 		logger.Error(err, "Failed to establish connection with sidecar")
 
@@ -334,7 +335,6 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 	if err != nil {
 		return "", "", err
 	}
-
 	pod := &corev1.Pod{}
 	err = r.Client.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
