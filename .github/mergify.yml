@@ -1,14 +1,16 @@
----
 defaults:
   actions:
     queue:
       name: default
-      method: rebase
-      update_method: rebase
-
 queue_rules:
-  - name: default
-    conditions:
+  - name: duplicated default from API changes needs approval from a contributor and
+      a reviewer
+    queue_conditions:
+      - base~=^(main)|(release-.+)$
+      - label!=DNM
+      - label!=api
+      - "#approved-reviews-by>=2"
+      - "#changes-requested-reviews-by=0"
       - "status-success=codespell"
       - "status-success=build_bundle"
       - "status-success=build_controller"
@@ -16,6 +18,50 @@ queue_rules:
       - "status-success=go_mod_verify"
       - "status-success=go_mod_vendor"
       - "status-success=kind_deploy"
+      - "status-success=make_test"
+      - base~=^(main)|(release-.+)$
+      - label!=DNM
+      - label=api
+      - "#approved-reviews-by>=2"
+      - "#changes-requested-reviews-by=0"
+      - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-contributors"
+      - "approved-reviews-by=@csi-addons/kubernetes-csi-addons-reviewers"
+      - "status-success=codespell"
+      - "status-success=build_bundle"
+      - "status-success=build_controller"
+      - "status-success=build_sidecar"
+      - "status-success=go_mod_verify"
+      - "status-success=go_mod_vendor"
+      - "status-success=kind_deploy"
+      - "status-success=make_test"
+    merge_conditions: []
+    merge_method: rebase
+    update_method: rebase
+  - name: default
+    queue_conditions:
+      - base~=^(main)|(release-.+)$
+      - label!=DNM
+      - label!=api
+      - "#approved-reviews-by>=2"
+      - "#changes-requested-reviews-by=0"
+      - "status-success=codespell"
+      - "status-success=build_bundle"
+      - "status-success=build_controller"
+      - "status-success=build_sidecar"
+      - "status-success=go_mod_verify"
+      - "status-success=go_mod_vendor"
+      - "status-success=kind_deploy"
+      - "status-success=make_test"
+    merge_conditions:
+      - "status-success=codespell"
+      - "status-success=build_bundle"
+      - "status-success=build_controller"
+      - "status-success=build_sidecar"
+      - "status-success=go_mod_verify"
+      - "status-success=go_mod_vendor"
+      - "status-success=kind_deploy"
+    merge_method: rebase
+    update_method: rebase
 
 pull_request_rules:
   - name: remove outdated approvals
@@ -41,7 +87,6 @@ pull_request_rules:
       - "status-success=kind_deploy"
       - "status-success=make_test"
     actions:
-      queue: {}
       dismiss_reviews: {}
       delete_head_branch: {}
   - name: API changes needs approval from a contributor and a reviewer
@@ -62,7 +107,6 @@ pull_request_rules:
       - "status-success=kind_deploy"
       - "status-success=make_test"
     actions:
-      queue: {}
       dismiss_reviews: {}
       delete_head_branch: {}
   - name: pr title contains DNM
@@ -103,3 +147,7 @@ pull_request_rules:
       request_reviews:
         users_from_teams:
           - "@csi-addons/kubernetes-csi-addons-contributors"
+  - name: refactored queue action rule
+    conditions: []
+    actions:
+      queue:
