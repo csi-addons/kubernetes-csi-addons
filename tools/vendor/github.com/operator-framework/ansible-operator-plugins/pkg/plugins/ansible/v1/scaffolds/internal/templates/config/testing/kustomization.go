@@ -17,7 +17,7 @@ package testing
 import (
 	"path/filepath"
 
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
 var _ machinery.Template = &Kustomization{}
@@ -50,10 +50,12 @@ namePrefix: osdk-
 #commonLabels:
 #  someName: someValue
 
-patchesStrategicMerge:
-- manager_image.yaml
-- debug_logs_patch.yaml
-- ../default/manager_auth_proxy_patch.yaml
+patches:
+- path: manager_image.yaml
+- path: debug_logs_patch.yaml
+- path: ../default/manager_metrics_patch.yaml
+  target:
+    kind: Deployment
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

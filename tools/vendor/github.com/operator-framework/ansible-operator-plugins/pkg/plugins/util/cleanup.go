@@ -21,14 +21,12 @@ import (
 	"os"
 	"path/filepath"
 
-	kbutil "sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
-
 	log "github.com/sirupsen/logrus"
+	kbutil "sigs.k8s.io/kubebuilder/v4/pkg/plugin/util"
 )
 
 // RemoveKustomizeCRDManifests removes items in config/crd relating to CRD conversion webhooks.
 func RemoveKustomizeCRDManifests() error {
-
 	pathsToRemove := []string{
 		filepath.Join("config", "crd", "kustomizeconfig.yaml"),
 	}
@@ -60,7 +58,6 @@ func RemoveKustomizeCRDManifests() error {
 // UpdateKustomizationsInit updates certain parts of or removes entire kustomization.yaml files
 // that are either not used by certain Init plugins or are created by preceding Init plugins.
 func UpdateKustomizationsInit() error {
-
 	defaultKFile := filepath.Join("config", "default", "kustomization.yaml")
 	if err := kbutil.ReplaceInFile(defaultKFile,
 		`
@@ -192,7 +189,6 @@ func UpdateKustomizationsInit() error {
 // UpdateKustomizationsCreateAPI updates certain parts of or removes entire kustomization.yaml files
 // that are either not used by certain CreateAPI plugins or are created by preceding CreateAPI plugins.
 func UpdateKustomizationsCreateAPI() error {
-
 	crdKFile := filepath.Join("config", "crd", "kustomization.yaml")
 	if crdKBytes, err := os.ReadFile(crdKFile); err != nil && !errors.Is(err, os.ErrNotExist) {
 		log.Debugf("Error reading kustomization for substitution: %v", err)

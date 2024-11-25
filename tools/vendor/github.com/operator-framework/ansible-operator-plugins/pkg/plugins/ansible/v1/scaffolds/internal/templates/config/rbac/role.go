@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
 var _ machinery.Template = &ManagerRole{}
