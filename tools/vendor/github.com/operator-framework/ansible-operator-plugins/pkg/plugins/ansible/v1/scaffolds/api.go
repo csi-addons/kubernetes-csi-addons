@@ -18,10 +18,10 @@ limitations under the License.
 package scaffolds
 
 import (
-	"sigs.k8s.io/kubebuilder/v3/pkg/config"
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
-	"sigs.k8s.io/kubebuilder/v3/pkg/model/resource"
-	"sigs.k8s.io/kubebuilder/v3/pkg/plugins"
+	"sigs.k8s.io/kubebuilder/v4/pkg/config"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/model/resource"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugins"
 
 	"github.com/operator-framework/ansible-operator-plugins/pkg/plugins/ansible/v1/constants"
 	"github.com/operator-framework/ansible-operator-plugins/pkg/plugins/ansible/v1/scaffolds/internal/templates"

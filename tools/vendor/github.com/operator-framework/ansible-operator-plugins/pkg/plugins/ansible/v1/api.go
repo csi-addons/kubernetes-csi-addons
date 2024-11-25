@@ -20,11 +20,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"sigs.k8s.io/kubebuilder/v3/pkg/config"
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
-	"sigs.k8s.io/kubebuilder/v3/pkg/model/resource"
-	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
-	pluginutil "sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
+	"sigs.k8s.io/kubebuilder/v4/pkg/config"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/model/resource"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugin"
 
 	"github.com/operator-framework/ansible-operator-plugins/pkg/plugins/ansible/v1/scaffolds"
 	"github.com/operator-framework/ansible-operator-plugins/pkg/plugins/util"
@@ -142,7 +141,7 @@ func (p *createAPISubcommand) InjectResource(res *resource.Resource) error {
 
 	// Selected CRD version must match existing CRD versions.
 	// nolint:staticcheck
-	if pluginutil.HasDifferentCRDVersion(p.config, p.resource.API.CRDVersion) {
+	if hasDifferentCRDVersion(p.config, p.resource.API.CRDVersion) {
 		return fmt.Errorf("only one CRD version can be used for all resources, cannot add %q", p.resource.API.CRDVersion)
 	}
 
@@ -164,4 +163,14 @@ func (p *createAPISubcommand) Scaffold(fs machinery.Filesystem) error {
 	}
 
 	return nil
+}
+
+// hasDifferentCRDVersion returns true if any other CRD version is tracked in the project configuration.
+func hasDifferentCRDVersion(config config.Config, crdVersion string) bool {
+	return hasDifferentAPIVersion(config.ListCRDVersions(), crdVersion)
+}
+
+// go/v4 no longer supports v1beta1 option. Do we need to support it here?
+func hasDifferentAPIVersion(versions []string, version string) bool {
+	return !(len(versions) == 0 || (len(versions) == 1 && versions[0] == version))
 }

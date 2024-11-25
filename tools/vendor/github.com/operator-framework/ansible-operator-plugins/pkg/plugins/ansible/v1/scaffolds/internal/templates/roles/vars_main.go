@@ -17,7 +17,7 @@ package roles
 import (
 	"path/filepath"
 
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 
 	"github.com/operator-framework/ansible-operator-plugins/pkg/plugins/ansible/v1/constants"
 )

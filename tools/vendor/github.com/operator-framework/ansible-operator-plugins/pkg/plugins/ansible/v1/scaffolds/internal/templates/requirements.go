@@ -15,7 +15,7 @@
 package templates
 
 import (
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
 var _ machinery.Template = &RequirementsYml{}
@@ -38,9 +38,9 @@ collections:
   - name: operator_sdk.util
     version: "0.5.0"
   - name: kubernetes.core
-    version: "2.4.0"
+    version: "3.2.0"
   - name: cloud.common
-    version: "2.1.1"
+    version: "3.0.0"
   - name: community.docker
-    version: "3.10.3"
+    version: "3.12.1"
 `

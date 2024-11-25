@@ -20,10 +20,10 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/pflag"
-	"sigs.k8s.io/kubebuilder/v3/pkg/config"
-	"sigs.k8s.io/kubebuilder/v3/pkg/machinery"
-	"sigs.k8s.io/kubebuilder/v3/pkg/plugin"
-	"sigs.k8s.io/kubebuilder/v3/pkg/plugin/util"
+	"sigs.k8s.io/kubebuilder/v4/pkg/config"
+	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugin"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugin/util"
 
 	"github.com/operator-framework/ansible-operator-plugins/pkg/plugins/ansible/v1/scaffolds"
 	sdkpluginutil "github.com/operator-framework/ansible-operator-plugins/pkg/plugins/util"
@@ -108,8 +108,7 @@ func (p *initSubcommand) InjectConfig(c config.Config) error {
 }
 
 func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
-
-	if err := addInitCustomizations(p.config.GetProjectName(), p.config.IsComponentConfig()); err != nil {
+	if err := addInitCustomizations(p.config.GetProjectName()); err != nil {
 		return fmt.Errorf("error updating init manifests: %s", err)
 	}
 
@@ -152,41 +151,48 @@ func (p *initSubcommand) PostScaffold() error {
 }
 
 // addInitCustomizations will perform the required customizations for this plugin on the common base
-func addInitCustomizations(projectName string, componentConfig bool) error {
+func addInitCustomizations(projectName string) error {
+	roleFile := filepath.Join("config", "rbac", "role.yaml")
+
+	// We have our own base role file, so we remove the default one
+	if err := os.Remove(roleFile); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
 	managerFile := filepath.Join("config", "manager", "manager.yaml")
-	managerProxyPatchFile := filepath.Join("config", "default", "manager_auth_proxy_patch.yaml")
+	managerMetricsPatch := filepath.Join("config", "default", "manager_metrics_patch.yaml")
 
 	// todo: we ought to use afero instead. Replace this methods to insert/update
 	// by https://github.com/kubernetes-sigs/kubebuilder/pull/2119
 
 	// Add leader election
-	if componentConfig {
-		err := util.InsertCode(managerFile,
-			"- /manager",
-			fmt.Sprintf("\n        args:\n        - --leader-election-id=%s", projectName))
-		if err != nil {
-			return err
-		}
 
-		err = util.InsertCode(managerProxyPatchFile,
-			"memory: 64Mi",
-			fmt.Sprintf("\n      - name: manager\n        args:\n        - \"--leader-election-id=%s\"", projectName))
-		if err != nil {
-			return err
-		}
-	} else {
-		err := util.InsertCode(managerFile,
-			"--leader-elect",
-			fmt.Sprintf("\n        - --leader-election-id=%s", projectName))
-		if err != nil {
-			return err
-		}
-		err = util.InsertCode(managerProxyPatchFile,
-			"- \"--leader-elect\"",
-			fmt.Sprintf("\n        - \"--leader-election-id=%s\"", projectName))
-		if err != nil {
-			return err
-		}
+	err := util.InsertCode(managerFile,
+		"--leader-elect",
+		fmt.Sprintf("\n          - --leader-election-id=%s", projectName))
+	if err != nil {
+		return err
+	}
+
+	// Enable the proper auth/metrics flags
+	err = util.ReplaceInFile(managerMetricsPatch,
+		`# This patch adds the args to allow exposing the metrics endpoint using HTTPS
+- op: add
+  path: /spec/template/spec/containers/0/args/0
+  value: --metrics-bind-address=:8443`, `# This patch adds the args to allow exposing the metrics endpoint using HTTPS
+- op: add
+  path: /spec/template/spec/containers/0/args/0
+  value: --metrics-bind-address=:8443
+# This patch adds the args to allow securing the metrics endpoint
+- op: add
+  path: /spec/template/spec/containers/0/args/0
+  value: --metrics-secure
+# This patch adds the args to allow RBAC-based authn/authz the metrics endpoint
+- op: add
+  path: /spec/template/spec/containers/0/args/0
+  value: --metrics-require-rbac`)
+	if err != nil {
+		return err
 	}
 
 	// update default resource request and limits with bigger values
@@ -208,7 +214,7 @@ func addInitCustomizations(projectName string, componentConfig bool) error {
             memory: 256Mi
       `
 
-	err := util.ReplaceInFile(managerFile, resourcesLimitsFragment, resourcesLimitsAnsibleFragment)
+	err = util.ReplaceInFile(managerFile, resourcesLimitsFragment, resourcesLimitsAnsibleFragment)
 	if err != nil {
 		return err
 	}
@@ -226,27 +232,9 @@ func addInitCustomizations(projectName string, componentConfig bool) error {
 	// replace the default ports because ansible has been using another one
 	// todo: remove it when we be able to change the port for the default one
 	// issue: https://github.com/operator-framework/ansible-operator-plugins/issues/4331
-	err = util.ReplaceInFile(managerFile, "port: 8081", "port: 6789")
+	err = util.ReplaceInFile(managerFile, "8081", "6789")
 	if err != nil {
 		return err
-	}
-
-	if componentConfig {
-		managerConfigFile := filepath.Join("config", "manager", "controller_manager_config.yaml")
-		err = util.ReplaceInFile(managerConfigFile, "8081", "6789")
-		if err != nil {
-			return err
-		}
-		// Remove the webhook option for the componentConfig since webhooks are not supported by ansible
-		err = util.ReplaceInFile(managerConfigFile, "webhook:\n  port: 9443", "")
-		if err != nil {
-			return err
-		}
-	} else {
-		err = util.ReplaceInFile(managerProxyPatchFile, "8081", "6789")
-		if err != nil {
-			return err
-		}
 	}
 
 	// Remove the call to the command as manager. Helm/Ansible has not been exposing this entrypoint
