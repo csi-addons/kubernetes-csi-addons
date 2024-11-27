@@ -30,6 +30,7 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -138,6 +139,8 @@ func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) erro
 			csiaddonNode.ResourceVersion = resourceVersion
 		}
 		node.Spec.DeepCopyInto(&csiaddonNode.Spec)
+		// set the ownerReferences
+		csiaddonNode.ObjectMeta.OwnerReferences = node.ObjectMeta.OwnerReferences
 		return nil
 	})
 
@@ -188,7 +191,10 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 		return nil, fmt.Errorf("%w: pod has no owner", errInvalidConfig)
 	}
 
-	ownerReferences := []v1.OwnerReference{}
+	ownerKindForCSIAddonsName := ""
+	ownerNameForCSIAddonsName := ""
+
+	ownerReferences := make([]v1.OwnerReference, 1)
 	if pod.OwnerReferences[0].Kind == "ReplicaSet" {
 		// If the pod is owned by a ReplicaSet, we need to get the owner of the ReplicaSet i.e. Deployment
 		rs, err := mgr.KubeClient.AppsV1().ReplicaSets(mgr.PodNamespace).Get(context.TODO(), pod.OwnerReferences[0].Name, v1.GetOptions{})
@@ -198,14 +204,29 @@ func (mgr *Manager) getCSIAddonsNode() (*csiaddonsv1alpha1.CSIAddonsNode, error)
 		if len(rs.OwnerReferences) == 0 {
 			return nil, fmt.Errorf("%w: replicaset has no owner", errInvalidConfig)
 		}
-		ownerReferences = append(ownerReferences, rs.OwnerReferences[0])
+		ownerKindForCSIAddonsName = rs.OwnerReferences[0].Kind
+		ownerNameForCSIAddonsName = rs.OwnerReferences[0].Name
+
+		// The pod (created using deployment) might move to new nodes and this might create the
+		// stale CSIAddonsNode object.
+		// So, we need to set the pod as the owner for the CSIAddonsNode as we dont store any details
+		// that are required later on for any other operations like Fencing etc.
+		ownerReferences[0] = v1.OwnerReference{
+			APIVersion: "v1",
+			Kind:       "Pod",
+			Name:       pod.Name,
+			UID:        types.UID(mgr.PodUID),
+		}
 	} else {
+		ownerKindForCSIAddonsName = pod.OwnerReferences[0].Kind
+		ownerNameForCSIAddonsName = pod.OwnerReferences[0].Name
 		// If the pod is owned by DeamonSet or StatefulSet get the owner of the pod.
-		ownerReferences = append(ownerReferences, pod.OwnerReferences[0])
+		ownerReferences[0] = pod.OwnerReferences[0]
 	}
+
 	// we need to have the constant name for the CSIAddonsNode object.
 	// We will use the nodeID and the ownerName for the CSIAddonsNode object name.
-	name, err := generateName(mgr.Node, mgr.PodNamespace, ownerReferences[0].Kind, ownerReferences[0].Name)
+	name, err := generateName(mgr.Node, mgr.PodNamespace, ownerKindForCSIAddonsName, ownerNameForCSIAddonsName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate name: %w", err)
 	}
