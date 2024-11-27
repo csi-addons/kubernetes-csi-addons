@@ -105,7 +105,9 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// namespace + "/" + leader identity(pod name) is the key for the connection.
 	// this key is used by GetLeaderByDriver to get the connection
-	key := csiAddonsNode.Namespace + "/" + podName
+	// util.NormalizeLeaseName() is used to sanitize the leader identity used for the leases
+	// csiaddonsnode need to store the key with same format so that it can be used to get the connection.
+	key := csiAddonsNode.Namespace + "/" + util.NormalizeLeaseName(podName)
 
 	logger = logger.WithValues("EndPoint", endPoint)
 
