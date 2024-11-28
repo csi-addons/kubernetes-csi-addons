@@ -65,7 +65,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          platforms: ${{ secrets.BUILD_PLATFORMS }}
+          platforms: ${{ vars.BUILD_PLATFORMS }}
           push: true
           tags: quay.io/csiaddons/k8s-controller:latest
 
@@ -95,6 +95,6 @@ jobs:
         with:
           context: .
           file: build/Containerfile.sidecar
-          platforms: ${{ secrets.BUILD_PLATFORMS }}
+          platforms: ${{ vars.BUILD_PLATFORMS }}
           push: true
           tags: quay.io/csiaddons/k8s-sidecar:latest
