@@ -98,7 +98,8 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger = logger.WithValues("NodeID", nodeID, "DriverName", driverName)
 
 	podName, endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
-	if err != nil {
+	// In case of CR is marked for deletion, we dont need the connection to be established.
+	if err != nil && podName == "" && csiAddonsNode.DeletionTimestamp.IsZero() {
 		logger.Error(err, "Failed to resolve endpoint")
 		return ctrl.Result{}, fmt.Errorf("failed to resolve endpoint %q: %w", csiAddonsNode.Spec.Driver.EndPoint, err)
 	}
@@ -340,9 +341,9 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		Name:      podname,
 	}, pod)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
+		return podname, "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
 	} else if pod.Status.PodIP == "" {
-		return "", "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
+		return podname, "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
 	}
 
 	return podname, fmt.Sprintf("%s:%s", pod.Status.PodIP, port), nil
