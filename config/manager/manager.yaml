@@ -25,6 +25,7 @@ spec:
         kubectl.kubernetes.io/default-container: manager
       labels:
         app.kubernetes.io/name: csi-addons
+        control-plane: controller-manager
     spec:
       securityContext:
         runAsNonRoot: true
@@ -32,9 +33,14 @@ spec:
         - command:
             - /csi-addons-manager
           args:
+            - --namespace=$(POD_NAMESPACE)
             - --leader-elect
           image: controller:latest
           name: manager
+          ports:
+            - name: metrics
+              containerPort: 8443
+              protocol: TCP
           env:
             - name: POD_NAMESPACE
               valueFrom:
