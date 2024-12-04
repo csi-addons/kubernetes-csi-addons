@@ -43,12 +43,6 @@ REPLACES ?=
 # but can skip several. This can be accomplished using the skipRange annotation:
 SKIP_RANGE ?=
 
-# By setting RBAC_PROXY_IMG to a different container-image, new versions of
-# the kube-rbac-proxy can easily be tested. Products that include CSI-Addons
-# may want to provide a different location of the container-image.
-# The default value is set in config/default/kustomization.yaml
-RBAC_PROXY_IMG ?= quay.io/brancz/kube-rbac-proxy:v0.18.0
-
 # The default version of the bundle (CSV) can be found in
 # config/manifests/bases/csi-addons.clusterserviceversion.yaml . When tagging a
 # release, the bundle will be versioned with the same value as well.
@@ -120,7 +114,7 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen kustomize ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="{./api/...,./cmd/...,./internal/controller/...,./internal/...,./sidecar/...}" output:crd:artifacts:config=config/crd/bases
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG} rbac-proxy=${RBAC_PROXY_IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${CONTROLLER_IMG}
 	$(KUSTOMIZE) build config/crd > deploy/controller/crds.yaml
 	$(KUSTOMIZE) build config/rbac > deploy/controller/rbac.yaml
 	$(KUSTOMIZE) build config/manager > deploy/controller/setup-controller.yaml

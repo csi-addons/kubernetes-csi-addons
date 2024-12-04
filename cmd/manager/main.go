@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"os"
 	"time"
@@ -43,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	//+kubebuilder:scaffold:imports
@@ -70,15 +72,18 @@ func main() {
 		metricsAddr                 string
 		probeAddr                   string
 		enableLeaderElection        bool
+		enableHTTP2                 bool
 		leaderElectionLeaseDuration time.Duration
 		leaderElectionRenewDeadline time.Duration
 		leaderElectionRetryPeriod   time.Duration
 		showVersion                 bool
+		secureMetrics               bool
 		enableAdmissionWebhooks     bool
 		ctx                         = context.Background()
 		cfg                         = util.NewConfig()
+		tlsOpts                     []func(*tls.Config)
 	)
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. Use :8443 for HTTPS or :8080 for HTTP, or 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -89,7 +94,9 @@ func main() {
 	flag.DurationVar(&cfg.ReclaimSpaceTimeout, "reclaim-space-timeout", cfg.ReclaimSpaceTimeout, "Timeout for reclaimspace operation")
 	flag.IntVar(&cfg.MaxConcurrentReconciles, "max-concurrent-reconciles", cfg.MaxConcurrentReconciles, "Maximum number of concurrent reconciles")
 	flag.StringVar(&cfg.Namespace, "namespace", cfg.Namespace, "Namespace where the CSIAddons pod is deployed")
+	flag.BoolVar(&enableHTTP2, "enable-http2", false, "If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", false, "[DEPRECATED] Enable the admission webhooks")
+	flag.BoolVar(&secureMetrics, "metrics-secure", true, "If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&showVersion, "version", false, "Print Version details")
 	flag.StringVar(&cfg.SchedulePrecedence, "schedule-precedence", "", "The order of precedence in which schedule of reclaimspace and keyrotation is considered. Possible values are sc-only")
 	opts := zap.Options{
@@ -128,8 +135,37 @@ func main() {
 		os.Exit(1)
 	}
 
+	// HTTP/2 is disabled by default as it is not supported by all clients.
+	// It can be enabled by setting the --enable-http2 flag.
+	disableHTTP2 := func(config *tls.Config) {
+		setupLog.Info("disabling HTTP/2")
+		config.NextProtos = []string{"http/1.1"}
+	}
+
+	if !enableHTTP2 {
+		tlsOpts = append(tlsOpts, disableHTTP2)
+	}
+
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   metricsAddr,
+		SecureServing: secureMetrics,
+		TLSOpts:       tlsOpts,
+	}
+
+	if secureMetrics {
+		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+
+		// When running in production it is recommended to provide a certificate
+		// instead of using the self signed one (default if no certificate is provided).
+
+		// See https://book.kubebuilder.io/reference/metrics.html#changes-recommended-for-production
+		// metricsServerOptions.CertDir = "/path/to/certdir"
+		// metricsServerOptions.CertName = "tls.crt"
+		// metricsServerOptions.KeyName = "tls.key"
+	}
+
 	mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
-		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
+		Metrics:                metricsServerOptions,
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
@@ -138,7 +174,8 @@ func main() {
 		RenewDeadline:          &leaderElectionRenewDeadline,
 		RetryPeriod:            &leaderElectionRetryPeriod,
 		WebhookServer: webhook.NewServer(webhook.Options{
-			Port: 9443,
+			Port:    9443,
+			TLSOpts: tlsOpts,
 		}),
 	})
 	if err != nil {
