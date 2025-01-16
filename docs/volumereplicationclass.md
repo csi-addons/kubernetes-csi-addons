@@ -1,6 +1,6 @@
 # VolumeReplicationClass
 
-`VolumeReplicationClass` is a cluster scoped resource that contains driver related configuration parameters.
+VolumeReplicationClass is a cluster scoped resource that contains driver related configuration parameters.
 
 `provisioner` is name of the storage provisioner.
 
