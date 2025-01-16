@@ -112,6 +112,8 @@ spec:
                     x-kubernetes-validations:
                     - message: selector is immutable
                       rule: self == oldSelf
+                required:
+                - selector
                 type: object
                 x-kubernetes-validations:
                 - message: source is immutable
@@ -131,11 +133,12 @@ spec:
                 - message: volumeGroupReplicationContentName is immutable
                   rule: self == oldSelf
               volumeReplicationClassName:
-                description: volumeReplicationClassName is the volumeReplicationClass
-                  name for VolumeReplication object
+                description: |-
+                  volumeReplicationClassName is the volumeReplicationClass name for the VolumeReplication object
+                  created for this volumeGroupReplication
                 type: string
                 x-kubernetes-validations:
-                - message: volumReplicationClassName is immutable
+                - message: volumeReplicationClassName is immutable
                   rule: self == oldSelf
               volumeReplicationName:
                 description: Name of the VolumeReplication object created for this

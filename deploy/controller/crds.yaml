@@ -1414,9 +1414,9 @@ spec:
                 type: string
               source:
                 description: |-
-                  Source specifies whether the snapshot is (or should be) dynamically provisioned
-                  or already exists, and just requires a Kubernetes object representation.
-                  This field is immutable after creation.
+                  Source specifies whether the volume group is (or should be) dynamically provisioned
+                  or already exists using the volumes listed here, and just requires a
+                  Kubernetes object representation.
                   Required.
                 properties:
                   volumeHandles:
@@ -1433,6 +1433,7 @@ spec:
                 description: |-
                   VolumeGroupReplicationClassName is the name of the VolumeGroupReplicationClass from
                   which this group replication was (or will be) created.
+                  Required.
                 type: string
               volumeGroupReplicationHandle:
                 description: |-
@@ -1445,10 +1446,8 @@ spec:
                   VolumeGroupReplicationContent object is bound.
                   VolumeGroupReplication.Spec.VolumeGroupReplicationContentName field must reference to
                   this VolumeGroupReplicationContent's name for the bidirectional binding to be valid.
-                  For a pre-existing VolumeGroupReplicationContent object, name and namespace of the
-                  VolumeGroupReplication object MUST be provided for binding to happen.
-                  This field is immutable after creation.
-                  Required.
+                  For a pre-existing VolumeGroupReplication object, MUST provide an empty/nil value for
+                  VolumeGroupReplicationRef for the auto-binding to happen.
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -1491,16 +1490,15 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
                 x-kubernetes-validations:
-                - message: both volumeGroupReplicationRef.name and volumeGroupReplicationRef.namespace
-                    must be set
-                  rule: has(self.name) && has(self.__namespace__)
-                - message: volumeGroupReplicationRef is immutable
-                  rule: self == oldSelf
+                - message: volumeGroupReplicationRef.name, volumeGroupReplicationRef.namespace
+                    and volumeGroupReplicationRef.uid must be set if volumeGroupReplicationRef
+                    is defined
+                  rule: 'self != null ? has(self.name) && has(self.__namespace__)
+                    && has(self.uid) : true'
             required:
             - provisioner
             - source
-            - volumeGroupReplicationHandle
-            - volumeGroupReplicationRef
+            - volumeGroupReplicationClassName
             type: object
           status:
             description: VolumeGroupReplicationContentStatus defines the status of
@@ -1508,7 +1506,7 @@ spec:
             properties:
               persistentVolumeRefList:
                 description: |-
-                  PersistentVolumeRefList is the list of of PV for the group replication
+                  PersistentVolumeRefList is the list of PV for the group replication
                   The maximum number of allowed PV in the group is 100.
                 items:
                   description: |-
@@ -1647,6 +1645,8 @@ spec:
                     x-kubernetes-validations:
                     - message: selector is immutable
                       rule: self == oldSelf
+                required:
+                - selector
                 type: object
                 x-kubernetes-validations:
                 - message: source is immutable
@@ -1666,11 +1666,12 @@ spec:
                 - message: volumeGroupReplicationContentName is immutable
                   rule: self == oldSelf
               volumeReplicationClassName:
-                description: volumeReplicationClassName is the volumeReplicationClass
-                  name for VolumeReplication object
+                description: |-
+                  volumeReplicationClassName is the volumeReplicationClass name for the VolumeReplication object
+                  created for this volumeGroupReplication
                 type: string
                 x-kubernetes-validations:
-                - message: volumReplicationClassName is immutable
+                - message: volumeReplicationClassName is immutable
                   rule: self == oldSelf
               volumeReplicationName:
                 description: Name of the VolumeReplication object created for this
