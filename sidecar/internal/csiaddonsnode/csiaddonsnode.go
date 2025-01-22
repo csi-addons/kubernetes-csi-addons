@@ -60,7 +60,7 @@ type Manager struct {
 	// CSI-driver that is included in the CSIAddonsNode object.
 	Client client.Client
 
-	// Config is a ReST Config for the Kubernets API.
+	// Config is a ReST Config for the Kubernetes API.
 	Config *rest.Config
 
 	// kubernetes client to interact with the Kubernetes API.
