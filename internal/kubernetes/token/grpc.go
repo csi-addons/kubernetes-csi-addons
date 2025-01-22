@@ -40,7 +40,7 @@ import (
 )
 
 const bearerPrefix = "Bearer "
-const authorizationKey = "Authorization"
+const authorizationKey = "authorization"
 
 func WithServiceAccountToken() grpc.DialOption {
 	return grpc.WithUnaryInterceptor(addAuthorizationHeader)
