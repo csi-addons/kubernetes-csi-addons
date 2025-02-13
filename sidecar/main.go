@@ -118,10 +118,15 @@ func main() {
 		PodNamespace: *podNamespace,
 		PodUID:       *podUID,
 	}
-	err = nodeMgr.Deploy()
-	if err != nil {
-		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
-	}
+
+	// Start the watcher, it is responsible for fetching
+	// CSIAddonNode object and then calling deploy()
+	go func() {
+		err := nodeMgr.DispatchWatcher()
+		if err != nil {
+			klog.Fatalf("failed to start watcher due to error: %v", err)
+		}
+	}()
 
 	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
