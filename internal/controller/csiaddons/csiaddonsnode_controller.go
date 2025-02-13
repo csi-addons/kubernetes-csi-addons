@@ -346,7 +346,15 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		return podname, "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
 	}
 
-	return podname, fmt.Sprintf("%s:%s", pod.Status.PodIP, port), nil
+	ip := pod.Status.PodIP
+
+	// Detect if the IP has more than one colon in it, indicating an IPv6
+	// We need this check to format it correctly, as we will append a port to the IP
+	if strings.Count(ip, ":") >= 2 {
+		ip = fmt.Sprintf("[%s]", ip)
+	}
+
+	return podname, fmt.Sprintf("%s:%s", ip, port), nil
 }
 
 // parseEndpoint returns the rawURL if it is in the legacy <IP-address>:<port>
