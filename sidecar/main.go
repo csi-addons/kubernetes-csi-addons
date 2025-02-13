@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/sidecar/service"
@@ -106,10 +107,21 @@ func main() {
 		PodNamespace: *podNamespace,
 		PodUID:       *podUID,
 	}
-	err = nodeMgr.Deploy()
+
+	nodeObj, err := nodeMgr.GetCSIAddonsNode()
 	if err != nil {
-		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
+		klog.Fatalf("failed to get csiaddonsNode object: %v", err)
 	}
+
+	// Start the watcher, it calls nodeMgr.Deploy() internally
+	go func() {
+		err := nodeMgr.DispatchWatcher(nodeObj)
+		if err != nil {
+			klog.Errorf("Watcher for %s failed due to error: %v", nodeObj.Name, err)
+
+			os.Exit(1)
+		}
+	}()
 
 	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
