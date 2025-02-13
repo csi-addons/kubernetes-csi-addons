@@ -75,10 +75,12 @@ func (vgb *VolumeGroupBase) SetParameters(parameters string) error {
 	return nil
 }
 
-// SetVolumeIDs sets and parses the volume IDs
+// SetVolumeIDs sets and parses the volume IDs, only if volumeids are provided.
 func (vgb *VolumeGroupBase) SetVolumeIDs(volumeids string) {
-	volumeIDs := strings.Split(volumeids, ",")
-	vgb.volumeIDs = volumeIDs
+	if volumeids != "" {
+		volumeIDs := strings.Split(volumeids, ",")
+		vgb.volumeIDs = volumeIDs
+	}
 }
 
 // Parses the parameters to convert them from string format to map[string]string format
