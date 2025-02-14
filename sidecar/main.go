@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/sidecar/service"
@@ -30,9 +31,12 @@ import (
 	sideutil "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
 
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func main() {
@@ -64,7 +68,16 @@ func main() {
 		klog.Exitf("failed to set logtostderr flag: %v", err)
 	}
 
+	opts := zap.Options{
+		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
+	}
+	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	logger := zap.New(zap.UseFlagOptions(&opts))
+	klog.SetLogger(logger)
+	ctrl.SetLogger(logger)
 
 	if *showVersion {
 		version.PrintVersion()
@@ -106,10 +119,21 @@ func main() {
 		PodNamespace: *podNamespace,
 		PodUID:       *podUID,
 	}
-	err = nodeMgr.Deploy()
+
+	nodeObj, err := nodeMgr.GetCSIAddonsNode()
 	if err != nil {
-		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
+		klog.Fatalf("failed to get csiaddonsNode object: %v", err)
 	}
+
+	// Start the watcher, it calls nodeMgr.Deploy() internally
+	go func() {
+		err := nodeMgr.DispatchWatcher(nodeObj)
+		if err != nil {
+			klog.Errorf("Watcher for %s failed due to error: %v", nodeObj.Name, err)
+
+			os.Exit(1)
+		}
+	}()
 
 	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))

@@ -130,7 +130,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 			mgr.Endpoint = tt.args.endpoint
 			mgr.Node = tt.args.nodeID
 
-			got, err := mgr.getCSIAddonsNode()
+			got, err := mgr.GetCSIAddonsNode()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getCSIAddonsNode() error = %v, wantErr %v", err, tt.wantErr)
 			}
