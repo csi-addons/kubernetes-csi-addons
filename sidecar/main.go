@@ -30,9 +30,12 @@ import (
 	sideutil "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
 
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func main() {
@@ -64,7 +67,16 @@ func main() {
 		klog.Exitf("failed to set logtostderr flag: %v", err)
 	}
 
+	opts := zap.Options{
+		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
+	}
+	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	logger := zap.New(zap.UseFlagOptions(&opts))
+	klog.SetLogger(logger)
+	ctrl.SetLogger(logger)
 
 	if *showVersion {
 		version.PrintVersion()
