@@ -32,4 +32,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/csiaddons/k8s-controller
-  newTag: latest
+  newTag: v0.12.0
