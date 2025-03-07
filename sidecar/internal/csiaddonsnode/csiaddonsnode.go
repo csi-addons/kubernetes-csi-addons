@@ -342,7 +342,7 @@ func (mgr *Manager) DispatchWatcher() error {
 	retryCount := 0
 	node, err := mgr.getCSIAddonsNode()
 	if err != nil {
-		return errors.New("failed to get CSIAddonsNode object")
+		return fmt.Errorf("failed to get CSIAddonsNode object due to error: %w", err)
 	}
 
 	for retryCount < int(watcherRetryCount) {
