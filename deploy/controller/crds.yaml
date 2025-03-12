@@ -721,7 +721,8 @@ spec:
                   type: string
                 type: array
               driver:
-                description: Driver contains  the name of CSI driver.
+                description: Driver contains the name of CSI driver, required if NetworkFenceClassName
+                  is absent
                 type: string
                 x-kubernetes-validations:
                 - message: driver is immutable
@@ -735,6 +736,12 @@ spec:
                 - Fenced
                 - Unfenced
                 type: string
+              networkFenceClassName:
+                description: NetworkFenceClassName contains the name of the NetworkFenceClass
+                type: string
+                x-kubernetes-validations:
+                - message: networkFenceClassName is immutable
+                  rule: self == oldSelf
               parameters:
                 additionalProperties:
                   type: string
@@ -764,18 +771,19 @@ spec:
                       rule: self == oldSelf
                 type: object
                 x-kubernetes-validations:
+                - message: secrets are immutable
+                  rule: self == oldSelf
                 - message: secret is immutable
                   rule: self == oldSelf
             required:
             - cidrs
-            - driver
             - fenceState
             type: object
             x-kubernetes-validations:
-            - message: parameters are immutable
-              rule: has(self.parameters) == has(oldSelf.parameters)
-            - message: secret is immutable
-              rule: has(self.secret) == has(oldSelf.secret)
+            - message: one of driver or networkFenceClassName must be present
+              rule: has(self.driver) || has(self.networkFenceClassName)
+            - message: secret must be present when networkFenceClassName is not specified
+              rule: has(self.networkFenceClassName) || has(self.secret)
           status:
             description: NetworkFenceStatus defines the observed state of NetworkFence
             properties:
