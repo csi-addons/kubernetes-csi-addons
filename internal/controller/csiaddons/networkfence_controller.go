@@ -59,6 +59,16 @@ func validateNetworkFenceSpec(nwFence *csiaddonsv1alpha1.NetworkFence) error {
 	if nwFence == nil {
 		return errors.New("NetworkFence resource is empty")
 	}
+
+	if nwFence.Spec.NetworkFenceClassName != "" {
+		if nwFence.Spec.Cidrs == nil {
+			return errors.New("required parameter spec.cidrs is not specified")
+		}
+
+		// Driver name and secrets will be read (and validated) in NetworkFenceClass
+		return nil
+	}
+
 	if nwFence.Spec.Driver == "" {
 		return errors.New("required parameter driver is not specified")
 	}
@@ -108,19 +118,11 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	logger = logger.WithValues("DriverName", nwFence.Spec.Driver, "CIDRs", nwFence.Spec.Cidrs)
-
-	client, err := r.getNetworkFenceClient(ctx, nwFence.Spec.Driver)
+	nf, err := r.getNetworkFenceInstance(ctx, logger, nwFence)
 	if err != nil {
-		logger.Error(err, "Failed to get NetworkFenceClient")
-		return ctrl.Result{}, err
-	}
+		logger.Error(err, "failed to get the networkfenceinstance")
 
-	nf := NetworkFenceInstance{
-		reconciler:       r,
-		logger:           logger,
-		instance:         nwFence,
-		controllerClient: client,
+		return ctrl.Result{}, err
 	}
 
 	// check if the networkfence object is getting deleted and handle it.
@@ -180,6 +182,7 @@ type NetworkFenceInstance struct {
 	controllerClient proto.NetworkFenceClient
 	logger           logr.Logger
 	instance         *csiaddonsv1alpha1.NetworkFence
+	nfClass          *csiaddonsv1alpha1.NetworkFenceClass
 }
 
 func (nf *NetworkFenceInstance) updateStatus(ctx context.Context,
@@ -226,6 +229,25 @@ func (nf *NetworkFenceInstance) processFencingRequest(ctx context.Context) error
 		SecretName:      nf.instance.Spec.Secret.Name,
 		SecretNamespace: nf.instance.Spec.Secret.Namespace,
 		Cidrs:           nf.instance.Spec.Cidrs,
+	}
+
+	if nf.nfClass != nil {
+		nfParams := nf.nfClass.Spec.Parameters
+
+		request.SecretName = nfParams[prefixedNetworkFenceSecretNameKey]
+		request.SecretNamespace = nfParams[prefixedNetworkFenceSecretNamespaceKey]
+
+		if request.Parameters == nil {
+			request.Parameters = make(map[string]string)
+		}
+
+		for k, v := range nfParams {
+			if k == prefixedNetworkFenceSecretNameKey ||
+				k == prefixedNetworkFenceSecretNamespaceKey {
+				continue
+			}
+			request.Parameters[k] = v
+		}
 	}
 
 	if nf.instance.Spec.FenceState == csiaddonsv1alpha1.Fenced {
@@ -324,4 +346,48 @@ func (r *NetworkFenceReconciler) getNetworkFenceClient(ctx context.Context, driv
 	}
 
 	return nil, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support NetworkFence", conn.Name, drivername)
+}
+
+// getNetworkFenceInstance returns a new NetworkFenceInstance object
+// by setting its logger and controller client. If NetworkFenceClassName is
+// present, it uses the values from NetworkFenceClass else it uses the
+// spec of the NetworkFence object.
+func (r *NetworkFenceReconciler) getNetworkFenceInstance(
+	ctx context.Context,
+	logger logr.Logger,
+	nf *csiaddonsv1alpha1.NetworkFence,
+) (*NetworkFenceInstance, error) {
+	nfInstance := &NetworkFenceInstance{
+		reconciler: r,
+		instance:   nf,
+	}
+
+	var driverName string
+	var err error
+
+	// If NetworkFenceClassName is empty, use the driver from NetworkFence spec
+	// and log a warning for the same.
+	if nf.Spec.NetworkFenceClassName == "" {
+		logger.Info("WARNING: Specifying driver, secrets and parameters inside NetworkFence is deprecated, please use NetworkFenceClass instead")
+
+		driverName = nf.Spec.Driver
+	} else {
+		// We need to fetch the driverName from the NetworkFenceClass
+		nfc := &csiaddonsv1alpha1.NetworkFenceClass{}
+		if err = r.Get(ctx, client.ObjectKey{Name: nf.Spec.NetworkFenceClassName}, nfc); err != nil {
+			return nil, fmt.Errorf("failed to get networkfenceclass with name %q due to error: %w", nf.Spec.NetworkFenceClassName, err)
+		}
+
+		nfInstance.nfClass = nfc
+		driverName = nfc.Spec.Provisioner
+	}
+
+	// Set the logger and client
+	nfInstance.logger = logger.WithValues("DriverName", driverName, "CIDRs", nf.Spec.Cidrs)
+	nfInstance.controllerClient, err = r.getNetworkFenceClient(ctx, driverName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get networkfenceclient using driver %q due to error: %w", driverName, err)
+	}
+
+	return nfInstance, nil
 }
