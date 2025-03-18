@@ -57,6 +57,11 @@ type VolumeGroupReplicationContentSpec struct {
 	// +kubebuilder:validation:Required
 	VolumeGroupReplicationClassName string `json:"volumeGroupReplicationClassName"`
 
+	// volumeGroupAttributes holds the contextual information of the volume group.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="field is immutable"
+	// +kubebuilder:validation:Optional
+	VolumeGroupAttributes map[string]string `json:"volumeGroupAttributes,omitempty"`
+
 	// Source specifies whether the volume group is (or should be) dynamically provisioned
 	// or already exists using the volumes listed here, and just requires a
 	// Kubernetes object representation.
