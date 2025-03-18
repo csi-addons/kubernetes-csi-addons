@@ -1429,6 +1429,12 @@ spec:
                 required:
                 - volumeHandles
                 type: object
+              volumeGroupAttributes:
+                additionalProperties:
+                  type: string
+                description: volumeGroupAttributes holds the attributes of the volume
+                  group.
+                type: object
               volumeGroupReplicationClassName:
                 description: |-
                   VolumeGroupReplicationClassName is the name of the VolumeGroupReplicationClass from
