@@ -1437,6 +1437,15 @@ spec:
                 required:
                 - volumeHandles
                 type: object
+              volumeGroupAttributes:
+                additionalProperties:
+                  type: string
+                description: volumeGroupAttributes holds the contextual information
+                  of the volume group.
+                type: object
+                x-kubernetes-validations:
+                - message: field is immutable
+                  rule: self == oldSelf
               volumeGroupReplicationClassName:
                 description: |-
                   VolumeGroupReplicationClassName is the name of the VolumeGroupReplicationClass from
