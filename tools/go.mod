@@ -1,12 +1,12 @@
 module github.com/csi-addons/kubernetes-csi-addons/tools
 
 go 1.22.0
-toolchain go1.23.4
+toolchain go1.24.1
 
 require (
 	github.com/operator-framework/operator-sdk v1.38.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240102165319-7f316f1309b1
 	sigs.k8s.io/controller-tools v0.17.2
 	sigs.k8s.io/kustomize/kustomize/v5 v5.6.0
