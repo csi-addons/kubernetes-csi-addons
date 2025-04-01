@@ -70,7 +70,7 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	// Fetch ReclaimSpaceCronJob instance
 	rsCronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{}
-	err := r.Client.Get(ctx, req.NamespacedName, rsCronJob)
+	err := r.Get(ctx, req.NamespacedName, rsCronJob)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -359,14 +359,14 @@ func getNextSchedule(
 	now time.Time) (time.Time, time.Time, error) {
 	sched, err := cron.ParseStandard(rsCronJob.Spec.Schedule)
 	if err != nil {
-		return time.Time{}, time.Time{}, fmt.Errorf("Unparsable schedule %q: %v", rsCronJob.Spec.Schedule, err)
+		return time.Time{}, time.Time{}, fmt.Errorf("unparsable schedule %q: %v", rsCronJob.Spec.Schedule, err)
 	}
 
 	var earliestTime time.Time
 	if rsCronJob.Status.LastScheduleTime != nil {
 		earliestTime = rsCronJob.Status.LastScheduleTime.Time
 	} else {
-		earliestTime = rsCronJob.ObjectMeta.CreationTimestamp.Time
+		earliestTime = rsCronJob.CreationTimestamp.Time
 	}
 	if rsCronJob.Spec.StartingDeadlineSeconds != nil {
 		// controller is not going to schedule anything below this point
@@ -391,9 +391,9 @@ func getNextSchedule(
 			// when user has reduced the schedule which in turn
 			// leads to the new interval being less than 100 times of the old interval.
 			return time.Time{}, time.Time{},
-				fmt.Errorf("too many missed start times (> 100). Set or decrease" +
-					".spec.startingDeadlineSeconds, check clock skew or" +
-					" delete and recreate reclaimspacecronjob.")
+				fmt.Errorf("too many missed start times (> 100); set or decrease" +
+					" .spec.startingDeadlineSeconds, check clock skew or" +
+					" delete and recreate reclaimspacecronjob")
 		}
 	}
 	return lastMissed, sched.Next(now), nil

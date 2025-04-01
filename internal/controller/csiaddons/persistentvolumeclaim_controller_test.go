@@ -279,11 +279,11 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 	}
 
 	// Create the namespace, storage class, and PVC
-	err := r.Client.Create(ctx, ns)
+	err := r.Create(ctx, ns)
 	assert.NoError(t, err)
-	err = r.Client.Create(ctx, sc)
+	err = r.Create(ctx, sc)
 	assert.NoError(t, err)
-	err = r.Client.Create(ctx, pvc)
+	err = r.Create(ctx, pvc)
 	assert.NoError(t, err)
 
 	for _, tt := range tests {
@@ -292,11 +292,11 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 			ns.Annotations = tt.args.nsAnnotations
 			sc.Annotations = tt.args.scAnnotations
 
-			err = r.Client.Update(ctx, ns)
+			err = r.Update(ctx, ns)
 			assert.NoError(t, err)
-			err = r.Client.Update(ctx, sc)
+			err = r.Update(ctx, sc)
 			assert.NoError(t, err)
-			err = r.Client.Update(ctx, pvc)
+			err = r.Update(ctx, pvc)
 			assert.NoError(t, err)
 
 			schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)

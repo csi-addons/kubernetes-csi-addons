@@ -107,7 +107,7 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		nwFence.Status.Result = csiaddonsv1alpha1.FencingOperationResultFailed
 		nwFence.Status.Message = fmt.Sprintf("Failed to validate Networkfence parameters: %v", util.GetErrorMessage(err))
-		statusErr := r.Client.Status().Update(ctx, nwFence)
+		statusErr := r.Status().Update(ctx, nwFence)
 		if statusErr != nil {
 			logger.Error(statusErr, "Failed to update networkfence status")
 
@@ -141,9 +141,9 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if nwFence.Spec.FenceState == csiaddonsv1alpha1.Fenced {
-		nf.logger.Info("FenceClusterNetwork Request", "namespaced name", req.NamespacedName.String())
+		nf.logger.Info("FenceClusterNetwork Request", "namespaced name", req.String())
 	} else {
-		nf.logger.Info("UnFenceClusterNetwork Request", "namespaced name", req.NamespacedName.String())
+		nf.logger.Info("UnFenceClusterNetwork Request", "namespaced name", req.String())
 	}
 
 	err = nf.processFencing(ctx)
@@ -189,7 +189,7 @@ func (nf *NetworkFenceInstance) updateStatus(ctx context.Context,
 	result csiaddonsv1alpha1.FencingOperationResult, message string) error {
 	nf.instance.Status.Result = result
 	nf.instance.Status.Message = message
-	if err := nf.reconciler.Client.Status().Update(ctx, nf.instance); err != nil {
+	if err := nf.reconciler.Status().Update(ctx, nf.instance); err != nil {
 		nf.logger.Error(err, "failed to update status")
 
 		return err
@@ -297,7 +297,7 @@ func (nf *NetworkFenceInstance) addFinalizerToNetworkFence(ctx context.Context) 
 		nf.logger.Info("adding finalizer to NetworkFence object", "Finalizer", networkFenceFinalizer)
 
 		nf.instance.Finalizers = append(nf.instance.Finalizers, networkFenceFinalizer)
-		if err := nf.reconciler.Client.Update(ctx, nf.instance); err != nil {
+		if err := nf.reconciler.Update(ctx, nf.instance); err != nil {
 			return fmt.Errorf("failed to add finalizer (%s) to NetworkFence resource"+
 				" (%s): %w", networkFenceFinalizer, nf.instance.GetName(), err)
 		}
@@ -312,7 +312,7 @@ func (nf *NetworkFenceInstance) removeFinalizerFromNetworkFence(ctx context.Cont
 		nf.logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
 
 		nf.instance.Finalizers = util.RemoveFromSlice(nf.instance.Finalizers, networkFenceFinalizer)
-		if err := nf.reconciler.Client.Update(ctx, nf.instance); err != nil {
+		if err := nf.reconciler.Update(ctx, nf.instance); err != nil {
 			return fmt.Errorf("failed to remove finalizer (%s) from NetworkFence resource"+
 				" %s: %w", networkFenceFinalizer, nf.instance.Name, err)
 		}

@@ -31,7 +31,7 @@ import (
 // getPVCDataSource get pvc, pv object from the request.
 func (r VolumeReplicationReconciler) getPVCDataSource(logger logr.Logger, req types.NamespacedName) (*corev1.PersistentVolumeClaim, *corev1.PersistentVolume, error) {
 	pvc := &corev1.PersistentVolumeClaim{}
-	err := r.Client.Get(context.TODO(), req, pvc)
+	err := r.Get(context.TODO(), req, pvc)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Error(err, "PVC not found", "PVC Name", req.Name)
@@ -47,7 +47,7 @@ func (r VolumeReplicationReconciler) getPVCDataSource(logger logr.Logger, req ty
 	// Get PV object for the PVC
 	pvName := pvc.Spec.VolumeName
 	pv := &corev1.PersistentVolume{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: pvName}, pv)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: pvName}, pv)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Error(err, "PV not found", "PV Name", pvName)
@@ -61,14 +61,14 @@ func (r VolumeReplicationReconciler) getPVCDataSource(logger logr.Logger, req ty
 
 // annotatePVCWithOwner will add the VolumeReplication details to the PVC annotations.
 func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, logger logr.Logger, reqOwnerName string, pvc *corev1.PersistentVolumeClaim) error {
-	if pvc.ObjectMeta.Annotations == nil {
-		pvc.ObjectMeta.Annotations = map[string]string{}
+	if pvc.Annotations == nil {
+		pvc.Annotations = map[string]string{}
 	}
 
-	currentOwnerName := pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
+	currentOwnerName := pvc.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
 	if currentOwnerName == "" {
 		logger.Info("setting owner on PVC annotation", "Name", pvc.Name, "owner", reqOwnerName)
-		pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = reqOwnerName
+		pvc.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = reqOwnerName
 		err := r.Update(ctx, pvc)
 		if err != nil {
 			logger.Error(err, "Failed to update PVC annotation", "Name", pvc.Name)
@@ -95,10 +95,10 @@ func (r *VolumeReplicationReconciler) annotatePVCWithOwner(ctx context.Context, 
 
 // removeOwnerFromPVCAnnotation removes the VolumeReplication owner from the PVC annotations.
 func (r *VolumeReplicationReconciler) removeOwnerFromPVCAnnotation(ctx context.Context, logger logr.Logger, pvc *corev1.PersistentVolumeClaim) error {
-	if _, ok := pvc.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]; ok {
+	if _, ok := pvc.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]; ok {
 		logger.Info("removing owner annotation from PersistentVolumeClaim object", "Annotation", replicationv1alpha1.VolumeReplicationNameAnnotation)
-		delete(pvc.ObjectMeta.Annotations, replicationv1alpha1.VolumeReplicationNameAnnotation)
-		if err := r.Client.Update(ctx, pvc); err != nil {
+		delete(pvc.Annotations, replicationv1alpha1.VolumeReplicationNameAnnotation)
+		if err := r.Update(ctx, pvc); err != nil {
 			return fmt.Errorf("failed to remove annotation %q from PersistentVolumeClaim "+
 				"%q %w",
 				replicationv1alpha1.VolumeReplicationNameAnnotation, pvc.Name, err)

@@ -241,7 +241,7 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 			err = reconciler.Get(ctx, pvcNamespacedName, testPVC)
 			assert.NoError(t, err)
 
-			assert.Equal(t, testPVC.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], vrName)
+			assert.Equal(t, testPVC.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], vrName)
 		}
 
 		err = reconciler.removeOwnerFromPVCAnnotation(context.TODO(), log.FromContext(context.TODO()), testPVC)

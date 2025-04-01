@@ -66,7 +66,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Fetch CSIAddonsNode instance
 	csiAddonsNode := &csiaddonsv1alpha1.CSIAddonsNode{}
-	err := r.Client.Get(ctx, req.NamespacedName, csiAddonsNode)
+	err := r.Get(ctx, req.NamespacedName, csiAddonsNode)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -82,7 +82,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateFailed
 		csiAddonsNode.Status.Message = fmt.Sprintf("Failed to validate CSIAddonsNode parameters: %v", err)
-		statusErr := r.Client.Status().Update(ctx, csiAddonsNode)
+		statusErr := r.Status().Update(ctx, csiAddonsNode)
 		if statusErr != nil {
 			logger.Error(statusErr, "Failed to update status")
 
@@ -134,7 +134,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		errMessage := util.GetErrorMessage(err)
 		csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateFailed
 		csiAddonsNode.Status.Message = fmt.Sprintf("Failed to establish connection with sidecar: %v", errMessage)
-		statusErr := r.Client.Status().Update(ctx, csiAddonsNode)
+		statusErr := r.Status().Update(ctx, csiAddonsNode)
 		if statusErr != nil {
 			logger.Error(statusErr, "Failed to update status")
 
@@ -158,7 +158,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateConnected
 	csiAddonsNode.Status.Message = "Successfully established connection with sidecar"
 	csiAddonsNode.Status.Capabilities = parseCapabilities(newConn.Capabilities)
-	err = r.Client.Status().Update(ctx, csiAddonsNode)
+	err = r.Status().Update(ctx, csiAddonsNode)
 	if err != nil {
 		logger.Error(err, "Failed to update status")
 
@@ -190,7 +190,7 @@ func (r *CSIAddonsNodeReconciler) getNetworkFenceClassesForDriver(ctx context.Co
 	for _, class := range classes {
 		logger.Info("Found networkfenceclass ", "name", class)
 		nfc := csiaddonsv1alpha1.NetworkFenceClass{}
-		err := r.Client.Get(ctx, client.ObjectKey{Name: class}, &nfc)
+		err := r.Get(ctx, client.ObjectKey{Name: class}, &nfc)
 		if err != nil {
 			logger.Error(err, "Failed to get networkfenceclass", "name", class)
 			return nil, err
@@ -298,7 +298,7 @@ func (r *CSIAddonsNodeReconciler) addFinalizer(
 		logger.Info("Adding finalizer")
 
 		csiAddonsNode.Finalizers = append(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer)
-		if err := r.Client.Update(ctx, csiAddonsNode); err != nil {
+		if err := r.Update(ctx, csiAddonsNode); err != nil {
 			logger.Error(err, "Failed to add finalizer")
 
 			return err
@@ -318,7 +318,7 @@ func (r *CSIAddonsNodeReconciler) removeFinalizer(
 		logger.Info("Removing finalizer")
 
 		csiAddonsNode.Finalizers = util.RemoveFromSlice(csiAddonsNode.Finalizers, csiAddonsNodeFinalizer)
-		if err := r.Client.Update(ctx, csiAddonsNode); err != nil {
+		if err := r.Update(ctx, csiAddonsNode); err != nil {
 			logger.Error(err, "Failed to remove finalizer")
 
 			return err
@@ -336,7 +336,7 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		return "", "", err
 	}
 	pod := &corev1.Pod{}
-	err = r.Client.Get(ctx, client.ObjectKey{
+	err = r.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
 		Name:      podname,
 	}, pod)

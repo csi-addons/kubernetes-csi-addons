@@ -37,7 +37,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -84,7 +83,7 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// Fetch ReclaimSpaceJob instance.
 	rsJob := &csiaddonsv1alpha1.ReclaimSpaceJob{}
-	err := r.Client.Get(ctx, req.NamespacedName, rsJob)
+	err := r.Get(ctx, req.NamespacedName, rsJob)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -114,8 +113,8 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 		rsJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
 		rsJob.Status.Message = fmt.Sprintf("Failed to validate ReclaimSpaceJob.Spec: %v", err)
-		rsJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
-		if statusErr := r.Client.Status().Update(ctx, rsJob); statusErr != nil {
+		rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
+		if statusErr := r.Status().Update(ctx, rsJob); statusErr != nil {
 			logger.Error(err, "Failed to update status")
 			return ctrl.Result{}, statusErr
 		}
@@ -143,10 +142,10 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		logger.Info("Maximum retry limit reached")
 		rsJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
 		rsJob.Status.Message = "Maximum retry limit reached"
-		rsJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
+		rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 	}
 
-	if statusErr := r.Client.Status().Update(ctx, rsJob); statusErr != nil {
+	if statusErr := r.Status().Update(ctx, rsJob); statusErr != nil {
 		logger.Error(statusErr, "Failed to update status")
 
 		return ctrl.Result{}, statusErr
@@ -195,7 +194,7 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 
 	if rsJob.Status.StartTime == nil {
 		// this is the first reconcile, add StartTime
-		rsJob.Status.StartTime = &v1.Time{Time: time.Now()}
+		rsJob.Status.StartTime = &metav1.Time{Time: time.Now()}
 	} else {
 		// not first reconcile, increment retries
 		rsJob.Status.Retries++
@@ -203,11 +202,11 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 
 	// check whether currentTime > CreationTime + RetryDeadlineSeconds,
 	// if true, mark it as Time limit reached and fail.
-	if time.Now().After(rsJob.CreationTimestamp.Time.Add(time.Second * time.Duration(rsJob.Spec.RetryDeadlineSeconds))) {
+	if time.Now().After(rsJob.CreationTimestamp.Add(time.Second * time.Duration(rsJob.Spec.RetryDeadlineSeconds))) {
 		logger.Info("Time limit reached")
 		rsJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
 		rsJob.Status.Message = "Time limit reached"
-		rsJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
+		rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 
 		return nil
 	}
@@ -253,7 +252,7 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 	}
 
 	if !controllerFound && !nodeFound {
-		err = fmt.Errorf("Controller and Node Client not found for %q nodeID", target.nodeID)
+		err = fmt.Errorf("controller and Node Client not found for %q nodeID", target.nodeID)
 		setFailedCondition(
 			&rsJob.Status.Conditions,
 			err.Error(),
@@ -275,7 +274,7 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 	if nodeReclaimedSpace != nil || controllerReclaimedSpace != nil {
 		rsJob.Status.ReclaimedSpace = resource.NewQuantity(reclaimedSpace, resource.DecimalSI)
 	}
-	rsJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
+	rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 	logger.Info("Successfully completed reclaim space operation")
 
 	return nil
@@ -291,7 +290,7 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	req := types.NamespacedName{Name: spec.Target.PersistentVolumeClaim, Namespace: namespace}
 	pvc := &corev1.PersistentVolumeClaim{}
 
-	err := r.Client.Get(ctx, req, pvc)
+	err := r.Get(ctx, req, pvc)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +304,7 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	pv := &corev1.PersistentVolume{}
 	req = types.NamespacedName{Name: pvc.Spec.VolumeName}
 
-	err = r.Client.Get(ctx, req, pv)
+	err = r.Get(ctx, req, pv)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +314,7 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	}
 
 	volumeAttachments := &scv1.VolumeAttachmentList{}
-	err = r.Client.List(ctx, volumeAttachments)
+	err = r.List(ctx, volumeAttachments)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +478,7 @@ func validateReclaimSpaceJobSpec(
 // setFailedCondition updates failedConditin type if it exists else
 // appends a new condition.
 func setFailedCondition(
-	conditions *[]v1.Condition,
+	conditions *[]metav1.Condition,
 	message string,
 	observedGeneration int64) {
 	newCondition := metav1.Condition{
