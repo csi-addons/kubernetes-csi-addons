@@ -78,10 +78,12 @@ func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace,
 	return conn, nil
 }
 
-func (c *Connection) Close() {
-	if c.Client != nil {
-		c.Client.Close()
+func (c *Connection) Close() error {
+	if c.Client == nil {
+		return nil
 	}
+
+	return c.Client.Close()
 }
 
 // fetchCapabilities fetches the capability of the connected CSI driver.

@@ -19,6 +19,7 @@ package connection
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	coordination "k8s.io/api/coordination/v1"
@@ -54,7 +55,10 @@ func (cp *ConnectionPool) Put(key string, conn *Connection) {
 
 	oldConn, ok := cp.pool[key]
 	if ok {
-		oldConn.Close()
+		err := oldConn.Close()
+		if err != nil {
+			log.Printf("warning: failed to close old connection: %v", err)
+		}
 	}
 
 	cp.pool[key] = conn
@@ -67,7 +71,10 @@ func (cp *ConnectionPool) Delete(key string) {
 
 	conn, ok := cp.pool[key]
 	if ok {
-		conn.Close()
+		err := conn.Close()
+		if err != nil {
+			log.Printf("warning: failed to close deleted connection: %v", err)
+		}
 	}
 
 	delete(cp.pool, key)
