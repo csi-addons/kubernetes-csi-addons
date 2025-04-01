@@ -1,0 +1,9 @@
+---
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        # only called from the csi-addons tool
+        - fmt.Fprintln

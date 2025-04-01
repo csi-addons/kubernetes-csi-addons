@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/version"
@@ -98,13 +99,21 @@ func init() {
 func main() {
 	op, found := operations[cmd.operation]
 	if !found {
-		fmt.Printf("ERROR: operation %q not found\n", cmd.operation)
-		os.Exit(1)
+		log.Fatalf("ERROR: operation %q not found", cmd.operation)
 	}
 
 	op.Connect(cmd.endpoint)
 
 	err := op.Init(cmd)
+	if err == nil {
+		defer func() {
+			err = op.Close()
+			if err != nil {
+				log.Printf("failed to close connection: %v", err)
+			}
+		}()
+	}
+
 	if err != nil {
 		err = fmt.Errorf("failed to initialize %q: %w", cmd.operation, err)
 	} else {
@@ -114,11 +123,8 @@ func main() {
 		}
 	}
 
-	op.Close()
-
 	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("ERROR: %v", err)
 	}
 }
 
@@ -149,7 +155,7 @@ var operations = make(map[string]operation)
 // Connect() and Close() functions can be inherited from the grpcClient struct.
 type operation interface {
 	Connect(endpoint string)
-	Close()
+	Close() error
 
 	Init(c *command) error
 	Execute() error
@@ -174,8 +180,12 @@ func (g *grpcClient) Connect(endpoint string) {
 }
 
 // Close the connected grpc.ClientConn.
-func (g *grpcClient) Close() {
-	g.Client.Close()
+func (g *grpcClient) Close() error {
+	if g.Client == nil {
+		return nil
+	}
+
+	return g.Client.Close()
 }
 
 // registerOperation adds a new operation struct to the operations map.

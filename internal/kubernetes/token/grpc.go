@@ -25,6 +25,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -118,7 +119,12 @@ func readFile(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			log.Printf("failed to close file %q: %v", filePath, err)
+		}
+	}()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
