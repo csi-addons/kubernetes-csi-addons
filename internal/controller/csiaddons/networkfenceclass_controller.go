@@ -149,7 +149,7 @@ func (r *NetworkFenceClassReconciler) addFinalizer(
 		logger.Info("Adding finalizer")
 
 		networkFenceClass.Finalizers = append(networkFenceClass.Finalizers, csiAddonsNodeFinalizer)
-		if err := r.Client.Update(ctx, networkFenceClass); err != nil {
+		if err := r.Update(ctx, networkFenceClass); err != nil {
 			logger.Error(err, "Failed to add finalizer")
 
 			return err
@@ -169,7 +169,7 @@ func (r *NetworkFenceClassReconciler) removeFinalizer(
 		logger.Info("Removing finalizer")
 
 		networkFenceClass.Finalizers = util.RemoveFromSlice(networkFenceClass.Finalizers, csiAddonsNodeFinalizer)
-		if err := r.Client.Update(ctx, networkFenceClass); err != nil {
+		if err := r.Update(ctx, networkFenceClass); err != nil {
 			logger.Error(err, "Failed to remove finalizer")
 
 			return err
@@ -182,7 +182,7 @@ func (r *NetworkFenceClassReconciler) removeFinalizer(
 // getNetworkFenceClass fetches the NetworkFenceClass object.
 func (r *NetworkFenceClassReconciler) getNetworkFenceClass(ctx context.Context, req ctrl.Request) (*csiaddonsv1alpha1.NetworkFenceClass, error) {
 	instance := &csiaddonsv1alpha1.NetworkFenceClass{}
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.FromContext(ctx).Info("NetworkFenceClass resource not found")
@@ -196,7 +196,7 @@ func (r *NetworkFenceClassReconciler) getNetworkFenceClass(ctx context.Context, 
 
 func (r *NetworkFenceClassReconciler) listCSIAddonsNodes(ctx context.Context, provisioner string) (*csiaddonsv1alpha1.CSIAddonsNodeList, error) {
 	csiaddonsNodeList := &csiaddonsv1alpha1.CSIAddonsNodeList{}
-	err := r.Client.List(ctx, csiaddonsNodeList, client.MatchingFields{driverName: provisioner})
+	err := r.List(ctx, csiaddonsNodeList, client.MatchingFields{driverName: provisioner})
 	if err != nil {
 		log.FromContext(ctx).Error(err, "Failed to list CSIAddonsNode objects")
 		return nil, err
@@ -241,7 +241,7 @@ func (r *NetworkFenceClassReconciler) processCSIAddonsNode(ctx context.Context, 
 				// Store the updated JSON in the annotation.
 				csiaddonsnode.Annotations[networkFenceClassAnnotationKey] = string(updatedClassesJSON)
 				logger.Info("Adding NetworkFenceClass to csiaddonsnode annotations", "name", csiaddonsnode.Name, "NetworkFenceClass", instance.Name)
-				return r.Client.Update(ctx, csiaddonsnode)
+				return r.Update(ctx, csiaddonsnode)
 			}
 
 			if ok && nfUnderDeletion {
@@ -261,7 +261,7 @@ func (r *NetworkFenceClassReconciler) processCSIAddonsNode(ctx context.Context, 
 					csiaddonsnode.Annotations[networkFenceClassAnnotationKey] = string(updatedClassesJSON)
 				}
 				logger.Info("Removing NetworkFenceClass from csiaddonsnode annotation", "name", csiaddonsnode.Name, "NetworkFenceClass", instance.Name)
-				return r.Client.Update(ctx, csiaddonsnode)
+				return r.Update(ctx, csiaddonsnode)
 			}
 		}
 	}
@@ -348,7 +348,7 @@ func (r *NetworkFenceClassReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return []reconcile.Request{}
 			}
 			networkFenceClaimList := &csiaddonsv1alpha1.NetworkFenceClassList{}
-			err := r.Client.List(ctx, networkFenceClaimList, client.MatchingFields{provisionerName: csiAddonsNode.Spec.Driver.Name})
+			err := r.List(ctx, networkFenceClaimList, client.MatchingFields{provisionerName: csiAddonsNode.Spec.Driver.Name})
 			if err != nil {
 				return []reconcile.Request{}
 			}

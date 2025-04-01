@@ -55,7 +55,7 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 
 	// Fetch the resource
 	krcJob := &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{}
-	err := r.Client.Get(ctx, req.NamespacedName, krcJob)
+	err := r.Get(ctx, req.NamespacedName, krcJob)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("encryptionkeyrotationcronjob resource not found")
@@ -296,7 +296,7 @@ func getNextScheduleForKeyRotation(
 	if krcJob.Status.LastScheduleTime != nil {
 		earliestTime = krcJob.Status.LastScheduleTime.Time
 	} else {
-		earliestTime = krcJob.ObjectMeta.CreationTimestamp.Time
+		earliestTime = krcJob.CreationTimestamp.Time
 	}
 	if krcJob.Spec.StartingDeadlineSeconds != nil {
 		// controller is not going to schedule anything below this point

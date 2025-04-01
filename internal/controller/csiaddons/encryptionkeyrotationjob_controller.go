@@ -66,7 +66,7 @@ func (r *EncryptionKeyRotationJobReconciler) Reconcile(ctx context.Context, req 
 
 	// Fetch the EncrytionKeyRotaionJob
 	krJob := &csiaddonsv1alpha1.EncryptionKeyRotationJob{}
-	err := r.Client.Get(ctx, req.NamespacedName, krJob)
+	err := r.Get(ctx, req.NamespacedName, krJob)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("encryptionkeyrotationjob resource not found")
@@ -98,7 +98,7 @@ func (r *EncryptionKeyRotationJobReconciler) Reconcile(ctx context.Context, req 
 		krJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
 		krJob.Status.Message = fmt.Sprintf("failed to validate encryptionkeyrotationjob spec: %v", err)
 		krJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
-		if statusUpdErr := r.Client.Status().Update(ctx, krJob); statusUpdErr != nil {
+		if statusUpdErr := r.Status().Update(ctx, krJob); statusUpdErr != nil {
 			logger.Error(statusUpdErr, "failed to update status")
 			return ctrl.Result{}, statusUpdErr
 		}
@@ -129,7 +129,7 @@ func (r *EncryptionKeyRotationJobReconciler) Reconcile(ctx context.Context, req 
 		krJob.Status.CompletionTime = &v1.Time{Time: time.Now()}
 	}
 
-	if statusUpdErr := r.Client.Status().Update(ctx, krJob); statusUpdErr != nil {
+	if statusUpdErr := r.Status().Update(ctx, krJob); statusUpdErr != nil {
 		logger.Error(statusUpdErr, "Failed to update status")
 
 		return ctrl.Result{}, statusUpdErr
@@ -168,7 +168,7 @@ func (r *EncryptionKeyRotationJobReconciler) reconcileEncryptionKeyRotationJob(
 
 	// check whether currentTime > CreationTime + RetryDeadlineSeconds,
 	// if true, mark it as Time limit reached and fail.
-	if time.Now().After(krJob.CreationTimestamp.Time.Add(time.Second * time.Duration(krJob.Spec.RetryDeadlineSeconds))) {
+	if time.Now().After(krJob.CreationTimestamp.Add(time.Second * time.Duration(krJob.Spec.RetryDeadlineSeconds))) {
 		logger.Info("Time limit reached")
 		krJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
 		krJob.Status.Message = "Time limit reached"
@@ -222,7 +222,7 @@ func (r *EncryptionKeyRotationJobReconciler) getTargetDetails(
 	req := types.NamespacedName{Name: spec.Target.PersistentVolumeClaim, Namespace: namespace}
 	pvc := &corev1.PersistentVolumeClaim{}
 
-	err := r.Client.Get(ctx, req, pvc)
+	err := r.Get(ctx, req, pvc)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (r *EncryptionKeyRotationJobReconciler) getTargetDetails(
 	pv := &corev1.PersistentVolume{}
 	req = types.NamespacedName{Name: pvc.Spec.VolumeName}
 
-	err = r.Client.Get(ctx, req, pv)
+	err = r.Get(ctx, req, pv)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (r *EncryptionKeyRotationJobReconciler) getTargetDetails(
 	}
 
 	volumeAttachments := &scv1.VolumeAttachmentList{}
-	err = r.Client.List(ctx, volumeAttachments)
+	err = r.List(ctx, volumeAttachments)
 	if err != nil {
 		return nil, err
 	}

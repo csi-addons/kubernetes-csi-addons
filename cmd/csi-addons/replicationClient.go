@@ -42,7 +42,7 @@ func getVolumeReplicationClient() *replicationClient {
 	}
 
 	crdConfig := *config
-	crdConfig.ContentConfig.GroupVersion = &replicationv1alpha1.GroupVersion
+	crdConfig.GroupVersion = &replicationv1alpha1.GroupVersion
 	crdConfig.APIPath = "/apis"
 	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme)
 	crdConfig.UserAgent = rest.DefaultKubernetesUserAgent()

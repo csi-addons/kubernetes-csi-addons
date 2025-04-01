@@ -106,7 +106,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 	// Fetch PersistentVolumeClaim instance
 	pvc := &corev1.PersistentVolumeClaim{}
-	err := r.Client.Get(ctx, req.NamespacedName, pvc)
+	err := r.Get(ctx, req.NamespacedName, pvc)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -127,7 +127,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 	// get the driver name from PV to check if it supports space reclamation.
 	pv := &corev1.PersistentVolume{}
 
-	err = r.Client.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, pv)
+	err = r.Get(ctx, types.NamespacedName{Name: pvc.Spec.VolumeName}, pv)
 	if err != nil {
 		logger.Error(err, "Failed to get PV", "PVName", pvc.Spec.VolumeName)
 		return ctrl.Result{}, err
@@ -402,9 +402,9 @@ func (r *PersistentVolumeClaimReconciler) findChildCronJob(
 		client.InNamespace(req.Namespace),
 		client.MatchingFields{jobOwnerKey: req.Name})
 	if err != nil {
-		logger.Error(err, "Failed to list child reclaimSpaceCronJobs")
+		logger.Error(err, "failed to list child reclaimSpaceCronJobs")
 
-		return activeJob, fmt.Errorf("Failed to list child reclaimSpaceCronJob: %v", err)
+		return activeJob, fmt.Errorf("failed to list child reclaimSpaceCronJob: %v", err)
 	}
 
 	for i, job := range childJobs.Items {
@@ -430,10 +430,10 @@ func (r *PersistentVolumeClaimReconciler) deleteChildCronJob(
 	job *csiaddonsv1alpha1.ReclaimSpaceCronJob) error {
 	err := r.Delete(ctx, job)
 	if client.IgnoreNotFound(err) != nil {
-		logger.Error(err, "Failed to delete child reclaimSpaceCronJob",
+		logger.Error(err, "failed to delete child reclaimSpaceCronJob",
 			"ReclaimSpaceCronJobName", job.Name)
 
-		return fmt.Errorf("Failed to delete child reclaimSpaceCronJob %q: %w",
+		return fmt.Errorf("failed to delete child reclaimSpaceCronJob %q: %w",
 			job.Name, err)
 	}
 
@@ -578,7 +578,7 @@ func (r *PersistentVolumeClaimReconciler) patchAnnotationsToResource(
 	}
 	logger.Info("Adding annotation", "Annotation", string(patch))
 
-	err = r.Client.Patch(ctx, resource, client.RawPatch(types.StrategicMergePatchType, patch))
+	err = r.Patch(ctx, resource, client.RawPatch(types.StrategicMergePatchType, patch))
 	if err != nil {
 		logger.Error(err, "Failed to update annotation")
 
@@ -625,7 +625,7 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 		if nameFound {
 			// remove name annotation by patching it to null.
 			patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q: null}}}`, rsCronJobNameAnnotation))
-			err = r.Client.Patch(ctx, pvc, client.RawPatch(types.StrategicMergePatchType, patch))
+			err = r.Patch(ctx, pvc, client.RawPatch(types.StrategicMergePatchType, patch))
 			if err != nil {
 				logger.Error(err, "Failed to remove annotation")
 
@@ -651,7 +651,7 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 		}
 		// update rsCronJob spec
 		rsCronJob.Spec = newRSCronJob.Spec
-		err = r.Client.Update(ctx, rsCronJob)
+		err = r.Update(ctx, rsCronJob)
 		if err != nil {
 			logger.Error(err, "Failed to update reclaimSpaceCronJob")
 
@@ -691,7 +691,7 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 		return ctrl.Result{}, err
 	}
 
-	err = r.Client.Create(ctx, rsCronJob)
+	err = r.Create(ctx, rsCronJob)
 	if err != nil {
 		logger.Error(err, "Failed to create reclaimSpaceCronJob")
 
@@ -806,7 +806,7 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 
 		// Update the spec
 		krcJob.Spec = newKrcJob.Spec
-		err = r.Client.Update(ctx, krcJob)
+		err = r.Update(ctx, krcJob)
 		if err != nil {
 			logger.Error(err, "failed to update encryptionkeyrotationcronjob")
 			return err // ctr.Result
@@ -844,7 +844,7 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	}
 
 	// Update the cluster with the new resource
-	err = r.Client.Create(ctx, krcJob)
+	err = r.Create(ctx, krcJob)
 	if err != nil {
 		logger.Error(err, "failed to create new encryptionkeyrotationcronjob")
 		return err
@@ -909,7 +909,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromSC(
 	if pvc.Spec.StorageClassName != nil && len(*pvc.Spec.StorageClassName) != 0 {
 		storageClassName := *pvc.Spec.StorageClassName
 		sc := &storagev1.StorageClass{}
-		err := r.Client.Get(ctx, types.NamespacedName{Name: storageClassName}, sc)
+		err := r.Get(ctx, types.NamespacedName{Name: storageClassName}, sc)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.Error(err, "StorageClass not found", "StorageClass", storageClassName)
@@ -936,7 +936,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 	annotationKey string) (string, error) {
 	// check for namespace schedule annotation.
 	ns := &corev1.Namespace{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
+	err := r.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
 	if err != nil {
 		logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
 		return "", err
@@ -1028,7 +1028,7 @@ func (r *PersistentVolumeClaimReconciler) checkDisabledByAnnotation(
 		storageClassName := *pvc.Spec.StorageClassName
 		storageClass := &storagev1.StorageClass{}
 
-		err := r.Client.Get(ctx, client.ObjectKey{Name: storageClassName}, storageClass)
+		err := r.Get(ctx, client.ObjectKey{Name: storageClassName}, storageClass)
 		if err != nil {
 			logger.Error(err, "Failed to get StorageClass", "StorageClass", storageClassName)
 			return false, err
@@ -1054,7 +1054,7 @@ func (r *PersistentVolumeClaimReconciler) checkDisabledByAnnotation(
 
 	// Check on Namespace
 	ns := &corev1.Namespace{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
+	err := r.Get(ctx, types.NamespacedName{Name: pvc.Namespace}, ns)
 	if err != nil {
 		logger.Error(err, "Failed to get Namespace", "Namespace", pvc.Namespace)
 		return false, err

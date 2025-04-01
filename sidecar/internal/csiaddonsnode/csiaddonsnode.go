@@ -146,7 +146,7 @@ func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) erro
 		}
 		node.Spec.DeepCopyInto(&csiaddonNode.Spec)
 		// set the ownerReferences
-		csiaddonNode.ObjectMeta.OwnerReferences = node.ObjectMeta.OwnerReferences
+		csiaddonNode.OwnerReferences = node.OwnerReferences
 		return nil
 	})
 

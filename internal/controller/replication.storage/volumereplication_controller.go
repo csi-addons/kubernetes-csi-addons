@@ -95,7 +95,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Fetch VolumeReplication instance
 	instance := &replicationv1alpha1.VolumeReplication{}
-	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -304,7 +304,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	instance.Status.LastStartTime = getCurrentTime()
-	if err = r.Client.Update(context.TODO(), instance); err != nil {
+	if err = r.Update(context.TODO(), instance); err != nil {
 		logger.Error(err, "failed to update status")
 
 		return reconcile.Result{}, err
@@ -521,9 +521,10 @@ func (r *VolumeReplicationReconciler) getReplicationClient(ctx context.Context, 
 
 		// validate of VOLUME_REPLICATION capability is enabled by the storage driver.
 		if cap.GetVolumeReplication().GetType() == identity.Capability_VolumeReplication_VOLUME_REPLICATION {
-			if dataSource == pvcDataSource {
+			switch dataSource {
+			case pvcDataSource:
 				return grpcClient.NewVolumeReplicationClient(conn.Client, r.Timeout), nil
-			} else if dataSource == volumeGroupReplicationDataSource {
+			case volumeGroupReplicationDataSource:
 				return grpcClient.NewVolumeGroupReplicationClient(conn.Client, r.Timeout), nil
 			}
 		}
@@ -541,7 +542,7 @@ func (r *VolumeReplicationReconciler) updateReplicationStatus(
 	instance.Status.State = state
 	instance.Status.Message = message
 	instance.Status.ObservedGeneration = instance.Generation
-	if err := r.Client.Status().Update(context.TODO(), instance); err != nil {
+	if err := r.Status().Update(context.TODO(), instance); err != nil {
 		logger.Error(err, "failed to update status")
 
 		return err
@@ -595,7 +596,7 @@ func (r *VolumeReplicationReconciler) waitForVolumeReplicationResource(logger lo
 		Version: replicationv1alpha1.GroupVersion.Version,
 	})
 	for {
-		err := r.Client.List(context.TODO(), unstructuredResource)
+		err := r.List(context.TODO(), unstructuredResource)
 		if err == nil {
 			return nil
 		}
@@ -823,14 +824,14 @@ func getCurrentTime() *metav1.Time {
 
 // annotateVolumeGroupReplicationWithOwner will add the VolumeReplication details to the VGR annotations.
 func (r *VolumeReplicationReconciler) annotateVolumeGroupReplicationWithOwner(ctx context.Context, logger logr.Logger, reqOwnerName string, vgr *replicationv1alpha1.VolumeGroupReplication) error {
-	if vgr.ObjectMeta.Annotations == nil {
-		vgr.ObjectMeta.Annotations = map[string]string{}
+	if vgr.Annotations == nil {
+		vgr.Annotations = map[string]string{}
 	}
 
-	currentOwnerName := vgr.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
+	currentOwnerName := vgr.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]
 	if currentOwnerName == "" {
 		logger.Info("setting owner on VGR annotation", "Name", vgr.Name, "owner", reqOwnerName)
-		vgr.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = reqOwnerName
+		vgr.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] = reqOwnerName
 		err := r.Update(ctx, vgr)
 		if err != nil {
 			logger.Error(err, "Failed to update VGR annotation", "Name", vgr.Name)
@@ -857,7 +858,7 @@ func (r *VolumeReplicationReconciler) annotateVolumeGroupReplicationWithOwner(ct
 
 func (r *VolumeReplicationReconciler) getVolumeGroupReplicationDataSource(logger logr.Logger, req types.NamespacedName) (*replicationv1alpha1.VolumeGroupReplication, *replicationv1alpha1.VolumeGroupReplicationContent, error) {
 	volumeGroupReplication := &replicationv1alpha1.VolumeGroupReplication{}
-	err := r.Client.Get(context.TODO(), req, volumeGroupReplication)
+	err := r.Get(context.TODO(), req, volumeGroupReplication)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Error(err, "VolumeGroupReplication not found", "VolumeGroupReplication Name", req.Name)
@@ -874,7 +875,7 @@ func (r *VolumeReplicationReconciler) getVolumeGroupReplicationDataSource(logger
 
 	vgrcReq := types.NamespacedName{Name: vgrcName}
 	volumeGroupReplicationContent := &replicationv1alpha1.VolumeGroupReplicationContent{}
-	err = r.Client.Get(context.TODO(), vgrcReq, volumeGroupReplicationContent)
+	err = r.Get(context.TODO(), vgrcReq, volumeGroupReplicationContent)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Error(err, "VolumeGroupReplicationContent not found", "VolumeGroupReplicationContent Name", vgrcName)
@@ -888,10 +889,10 @@ func (r *VolumeReplicationReconciler) getVolumeGroupReplicationDataSource(logger
 
 // removeOwnerFromVGRAnnotation removes the VolumeReplication owner from the VGR annotations.
 func (r *VolumeReplicationReconciler) removeOwnerFromVGRAnnotation(ctx context.Context, logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication) error {
-	if _, ok := vgr.ObjectMeta.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]; ok {
+	if _, ok := vgr.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation]; ok {
 		logger.Info("removing owner annotation from VolumeGroupReplication object", "Annotation", replicationv1alpha1.VolumeReplicationNameAnnotation)
-		delete(vgr.ObjectMeta.Annotations, replicationv1alpha1.VolumeReplicationNameAnnotation)
-		if err := r.Client.Update(ctx, vgr); err != nil {
+		delete(vgr.Annotations, replicationv1alpha1.VolumeReplicationNameAnnotation)
+		if err := r.Update(ctx, vgr); err != nil {
 			return fmt.Errorf("failed to remove annotation %q from VolumeGroupReplication "+
 				"%q %w",
 				replicationv1alpha1.VolumeReplicationNameAnnotation, vgr.Name, err)

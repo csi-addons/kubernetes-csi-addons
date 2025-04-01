@@ -25,11 +25,12 @@ import (
 )
 
 func getSource(dataSource string) v1alpha1.Source {
-	if dataSource == pvcDataSource {
+	switch dataSource {
+	case pvcDataSource:
 		return v1alpha1.Volume
-	} else if dataSource == volumeGroupReplicationDataSource {
+	case volumeGroupReplicationDataSource:
 		return v1alpha1.VolumeGroup
-	} else {
+	default:
 		return ""
 	}
 }
