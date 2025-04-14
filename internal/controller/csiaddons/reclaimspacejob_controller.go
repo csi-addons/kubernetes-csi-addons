@@ -394,7 +394,7 @@ func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	target *targetDetails) (bool, *int64, error) {
 	controllerClient, err := r.getLeadingRSClient(ctx, r.Client, target.driverName)
 	if err != nil {
-		logger.Info("Controller Client not found: %v", err)
+		logger.Error(err, "Failed to get controller client", "driverName", target.driverName)
 		return false, nil, err
 	}
 
