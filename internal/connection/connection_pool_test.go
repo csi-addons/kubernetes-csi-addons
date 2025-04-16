@@ -57,34 +57,39 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
+			connected:    true,
 		}
 
 		cp.Put(key1, conn1)
 
-		conns := cp.GetByNodeID(driverName, nodeID)
+		conns, err := cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		assert.Equal(t, 1, len(conns))
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn1, *v)
+				assert.Equal(t, conn1, v)
 			}
 		}
 
 		// nodeID is optional
-		conns = cp.GetByNodeID(driverName, "")
+		conns, err = cp.GetByNodeID(driverName, "")
+		assert.Equal(t, err, nil)
 		assert.Equal(t, 1, len(conns))
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn1, *v)
+				assert.Equal(t, conn1, v)
 			}
 		}
 
 		// non-matching driverName
-		conns = cp.GetByNodeID("", "")
+		conns, err = cp.GetByNodeID("", "")
+		assert.Equal(t, err, nil)
 		assert.Equal(t, 0, len(conns))
 
 		cp.Delete(key1)
 
-		conns = cp.GetByNodeID(driverName, nodeID)
+		conns, err = cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		assert.Empty(t, conns)
 	})
 
@@ -98,6 +103,7 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
+			connected:    true,
 		}
 
 		conn2 := &Connection{
@@ -113,29 +119,33 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:     nodeID,
 			DriverName: driverName,
 			Timeout:    0,
+			connected:  true,
 		}
 
 		cp.Put(key1, conn1)
 
-		conns := cp.GetByNodeID(driverName, nodeID)
+		conns, err := cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn1, *v)
+				assert.Equal(t, conn1, v)
 			}
 		}
 
 		cp.Put(key1, conn2)
 
-		conns = cp.GetByNodeID(driverName, nodeID)
+		conns, err = cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn2, *v)
+				assert.Equal(t, conn2, v)
 			}
 		}
 
 		cp.Delete(key1)
 
-		conns = cp.GetByNodeID(driverName, nodeID)
+		conns, err = cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		assert.Empty(t, conns)
 	})
 
@@ -149,20 +159,23 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
+			connected:    true,
 		}
 		cp.Put(key1, conn1)
 
-		conns := cp.GetByNodeID(driverName, nodeID)
+		conns, err := cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn1, *v)
+				assert.Equal(t, conn1, v)
 			}
 		}
 
 		cp.Delete(key1)
 		cp.Delete(key1)
 
-		conns = cp.GetByNodeID(driverName, nodeID)
+		conns, err = cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		assert.Empty(t, conns)
 	})
 
@@ -176,13 +189,15 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
+			connected:    true,
 		}
 		cp.Put(key1, conn1)
 
-		conns := cp.GetByNodeID(driverName, nodeID)
+		conns, err := cp.GetByNodeID(driverName, nodeID)
+		assert.Equal(t, err, nil)
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn1, *v)
+				assert.Equal(t, conn1, v)
 			}
 		}
 
@@ -191,12 +206,13 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      1,
+			connected:    true,
 		}
 		cp.Put(key1, conn2)
 		assert.Equal(t, 1, len(conns))
 		for k, v := range conns {
 			if k == key1 {
-				assert.Equal(t, *conn1, *v)
+				assert.Equal(t, conn1, v)
 			}
 		}
 	})
@@ -222,12 +238,15 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 				pool: map[string]*Connection{
 					"one": {
 						DriverName: "driver-1",
+						connected:  true,
 					},
 					"two": {
 						DriverName: "driver-2",
+						connected:  true,
 					},
 					"three": {
 						DriverName: "driver-1",
+						connected:  true,
 					},
 				},
 				rwlock: &sync.RWMutex{},
@@ -238,9 +257,11 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 			want: map[string]*Connection{
 				"one": {
 					DriverName: "driver-1",
+					connected:  true,
 				},
 				"three": {
 					DriverName: "driver-1",
+					connected:  true,
 				},
 			},
 		},
@@ -250,9 +271,11 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 				pool: map[string]*Connection{
 					"one": {
 						DriverName: "driver-1",
+						connected:  true,
 					},
 					"two": {
 						DriverName: "driver-2",
+						connected:  true,
 					},
 				},
 				rwlock: &sync.RWMutex{},
@@ -269,7 +292,8 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 				pool:   tt.fields.pool,
 				rwlock: tt.fields.rwlock,
 			}
-			res := cp.getByDriverName(tt.args.driverName)
+			res, err := cp.getByDriverName(tt.args.driverName)
+			assert.Equal(t, err, nil)
 			assert.Equal(t, tt.want, res)
 		})
 	}
