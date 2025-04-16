@@ -28,6 +28,8 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 )
 
+const failedToReconnectFmtStr = "failed to reconnect an inactive connection due to error: %w"
+
 //+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch
 
 // ConnectionPool consists of map of Connection objects and
@@ -82,34 +84,45 @@ func (cp *ConnectionPool) Delete(key string) {
 
 // getByDriverName returns map of connections filtered by driverName. This function
 // must be called with read lock held.
-func (cp *ConnectionPool) getByDriverName(driverName string) map[string]*Connection {
+func (cp *ConnectionPool) getByDriverName(driverName string) (map[string]*Connection, error) {
 	newPool := make(map[string]*Connection)
 	for k, v := range cp.pool {
 		if v.DriverName != driverName {
 			continue
 		}
+		if err := v.Connect(); err != nil {
+			return nil, fmt.Errorf(failedToReconnectFmtStr, err)
+		}
 		newPool[k] = v
 	}
 
-	return newPool
+	return newPool, nil
 }
 
 // GetByNodeID returns map of connections, filtered with given driverName and optional nodeID.
-func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) map[string]*Connection {
+func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) (map[string]*Connection, error) {
 	cp.rwlock.RLock()
 	defer cp.rwlock.RUnlock()
 
-	pool := cp.getByDriverName(driverName)
+	pool, err := cp.getByDriverName(driverName)
+	if err != nil {
+		return nil, err
+	}
 	result := make(map[string]*Connection)
 	for k, v := range pool {
 		// since nodeID is options,check only if it is not empty
 		if nodeID != "" && v.NodeID != nodeID {
 			continue
 		}
+		// We may skip this one as the validation is done in `getByDriverName` as well
+		// But since this is just checking a boolean, leaving it as-is is fine too.
+		if err = v.Connect(); err != nil {
+			return nil, fmt.Errorf(failedToReconnectFmtStr, err)
+		}
 		result[k] = v
 	}
 
-	return result
+	return result, nil
 }
 
 // getNamespaceByDriverName loops through the connections in the pool and
@@ -164,6 +177,10 @@ func (cp *ConnectionPool) GetLeaderByDriver(ctx context.Context, reconciler clie
 	conn, ok := cp.pool[key]
 	if !ok {
 		return nil, fmt.Errorf("no connection with key %q found for driver %q: %w", key, driverName, err)
+	}
+
+	if err = conn.Connect(); err != nil {
+		return nil, fmt.Errorf(failedToReconnectFmtStr, err)
 	}
 
 	return conn, nil
