@@ -171,7 +171,7 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 	logger *logr.Logger,
 	annotations map[string]string,
 	driverName string,
-	cap Operation) (bool, bool) {
+	cap Operation) (bool, bool, error) {
 	driverSupportsCap := false
 	capFound := false
 
@@ -183,14 +183,17 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 		driverAnnotation = krCSIAddonsDriverAnnotation
 	default:
 		logger.Info("Unknown capability", "Capability", cap)
-		return false, false
+		return false, false, nil
 	}
 
 	if drivers, ok := annotations[driverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driverAnnotation) {
 		driverSupportsCap = true
 	}
 
-	conns := r.ConnPool.GetByNodeID(driverName, "")
+	conns, err := r.ConnPool.GetByNodeID(driverName, "")
+	if err != nil {
+		return false, false, err
+	}
 	for _, conn := range conns {
 		for _, c := range conn.Capabilities {
 			switch cap {
@@ -203,7 +206,7 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 			}
 
 			if capFound {
-				return false, true
+				return false, true, nil
 			}
 		}
 	}
@@ -211,12 +214,12 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 	// If the driver supports the capability but the capability is not found in connection pool,
 	if driverSupportsCap {
 		logger.Info(fmt.Sprintf("Driver supports %s but driver is not registered in the connection pool, Requeuing request", cap), "DriverName", driverName)
-		return true, false
+		return true, false, nil
 	}
 
 	// If the driver does not support the capability, skip requeue
 	logger.Info(fmt.Sprintf("Driver does not support %s, skip Requeue", cap), "DriverName", driverName)
-	return false, false
+	return false, false, nil
 }
 
 // determineScheduleAndRequeue determines the schedule from annotations.
@@ -957,7 +960,10 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 		// Depending on requeue value, it will return ErrorConnNotFoundRequeueNeeded.
 		switch annotationKey {
 		case krcJobScheduleTimeAnnotation:
-			requeue, keyRotationSupported := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, keyRotationOp)
+			requeue, keyRotationSupported, err := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, keyRotationOp)
+			if err != nil {
+				return "", err
+			}
 			if keyRotationSupported {
 				return schedule, nil
 			}
@@ -965,7 +971,10 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 				return "", ErrConnNotFoundRequeueNeeded
 			}
 		case rsCronJobScheduleTimeAnnotation:
-			requeue, supportReclaimspace := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, relciamSpaceOp)
+			requeue, supportReclaimspace, err := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, relciamSpaceOp)
+			if err != nil {
+				return "", err
+			}
 			if supportReclaimspace {
 				// if driver supports space reclamation,
 				// return schedule from ns annotation.

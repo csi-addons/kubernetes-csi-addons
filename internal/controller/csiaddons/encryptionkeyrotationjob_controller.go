@@ -278,7 +278,10 @@ func (r *EncryptionKeyRotationJobReconciler) rotateEncryptionKey(
 	ctx context.Context,
 	logger *logr.Logger,
 	target *targetDetails) error {
-	clientName, client := r.getClientByNode(target.driverName, target.nodeID)
+	clientName, client, err := r.getClientByNode(target.driverName, target.nodeID)
+	if err != nil {
+		return err
+	}
 	if client == nil {
 		return fmt.Errorf("node client not found for node id: %s", target.nodeID)
 	}
@@ -292,7 +295,7 @@ func (r *EncryptionKeyRotationJobReconciler) rotateEncryptionKey(
 	timedCtx, cFunc := context.WithTimeout(ctx, target.timeout)
 	defer cFunc()
 
-	_, err := client.EncryptionKeyRotate(timedCtx, req)
+	_, err = client.EncryptionKeyRotate(timedCtx, req)
 	if err != nil {
 		if status.Code(err) == codes.Unimplemented {
 			logger.Info("encryptionkeyrotation not implemented by driver")
@@ -305,8 +308,11 @@ func (r *EncryptionKeyRotationJobReconciler) rotateEncryptionKey(
 	return nil
 }
 
-func (r *EncryptionKeyRotationJobReconciler) getClientByNode(driver, nodeID string) (string, proto.EncryptionKeyRotationClient) {
-	conns := r.ConnPool.GetByNodeID(driver, nodeID)
+func (r *EncryptionKeyRotationJobReconciler) getClientByNode(driver, nodeID string) (string, proto.EncryptionKeyRotationClient, error) {
+	conns, err := r.ConnPool.GetByNodeID(driver, nodeID)
+	if err != nil {
+		return "", nil, err
+	}
 	for k, v := range conns {
 		for _, cap := range v.Capabilities {
 			if cap.GetEncryptionKeyRotation() == nil {
@@ -314,12 +320,12 @@ func (r *EncryptionKeyRotationJobReconciler) getClientByNode(driver, nodeID stri
 			}
 
 			if cap.GetEncryptionKeyRotation().Type == identity.Capability_EncryptionKeyRotation_ENCRYPTIONKEYROTATION {
-				return k, proto.NewEncryptionKeyRotationClient(v.Client)
+				return k, proto.NewEncryptionKeyRotationClient(v.Client), nil
 			}
 		}
 	}
 
-	return "", nil
+	return "", nil, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
