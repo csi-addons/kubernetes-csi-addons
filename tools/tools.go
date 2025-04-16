@@ -22,7 +22,7 @@ limitations under the License.
 // other dependencies. It also makes things easier to install the tools in
 // environments that have slow networking or are completely disconnected.
 
-package main
+package tools
 
 import (
 	_ "github.com/operator-framework/operator-sdk/cmd/operator-sdk"
