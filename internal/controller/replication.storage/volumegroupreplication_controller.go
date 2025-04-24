@@ -31,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -492,36 +491,19 @@ func (r *VolumeGroupReplicationReconciler) setGroupReplicationFailure(
 func (r *VolumeGroupReplicationReconciler) getMatchingPVCsFromSource(instance *replicationv1alpha1.VolumeGroupReplication) ([]corev1.PersistentVolumeClaim, string, error) {
 
 	pvcList := corev1.PersistentVolumeClaimList{}
-	newSelector := labels.NewSelector()
 
-	if instance.Spec.Source.Selector.MatchLabels != nil {
-		for key, value := range instance.Spec.Source.Selector.MatchLabels {
-			req, err := labels.NewRequirement(key, selection.Equals, []string{value})
-			if err != nil {
-				r.log.Error(err, "failed to add label selector requirement", "Selector Key", key, "Selector Value", value)
-				return nil, "", err
-			}
-			newSelector = newSelector.Add(*req)
-		}
+	selector, err := metav1.LabelSelectorAsSelector(instance.Spec.Source.Selector)
+	if err != nil {
+		return nil, "", err
 	}
 
-	if instance.Spec.Source.Selector.MatchExpressions != nil {
-		for _, labelExp := range instance.Spec.Source.Selector.MatchExpressions {
-			req, err := labels.NewRequirement(labelExp.Key, selection.Operator(labelExp.Operator), labelExp.Values)
-			if err != nil {
-				r.log.Error(err, "failed to add label selector requirement", "Selector Key", labelExp.Key, "Selector Values", labelExp.Values)
-				return nil, "", err
-			}
-			newSelector = newSelector.Add(*req)
-		}
-	}
 	opts := []client.ListOption{
-		client.MatchingLabelsSelector{Selector: newSelector},
+		client.MatchingLabelsSelector{Selector: selector},
 		client.InNamespace(instance.Namespace),
 	}
-	err := r.List(r.ctx, &pvcList, opts...)
+	err = r.List(r.ctx, &pvcList, opts...)
 	if err != nil {
-		r.log.Error(err, "failed to list pvcs with the given selectors", "Selector", newSelector.String())
+		r.log.Error(err, "failed to list pvcs with the given selectors", "Selector", selector.String())
 		return nil, "", err
 	}
 
@@ -536,7 +518,7 @@ func (r *VolumeGroupReplicationReconciler) getMatchingPVCsFromSource(instance *r
 		}
 	}
 
-	return pvcList.Items, newSelector.String(), nil
+	return pvcList.Items, selector.String(), nil
 }
 
 // getPVHandles fetches the PV handles for the respective PVCs
