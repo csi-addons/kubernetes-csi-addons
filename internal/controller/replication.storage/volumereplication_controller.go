@@ -173,7 +173,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		vgr, vgrc, vgrErr = r.getVolumeGroupReplicationDataSource(logger, nameSpacedName)
 		if vgrErr != nil {
 			if errors.IsNotFound(vgrErr) && !instance.DeletionTimestamp.IsZero() {
-				logger.Info("volumeGroupReplication resource not found, as volumeReplication resource is getting garbage collected")
+				logger.Info("volumeGroupReplicationContent resource not found, as volumeReplication resource is getting garbage collected")
 				break
 			}
 			logger.Error(vgrErr, "failed to get VolumeGroupReplication", "VGRName", instance.Spec.DataSource.Name)
@@ -278,9 +278,14 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 					return reconcile.Result{}, err
 				}
 			case volumeGroupReplicationDataSource:
-				if err = removeFinalizerFromVGRContent(r.Client, logger, vgrc, volumeReplicationFinalizer); err != nil {
-					logger.Error(err, "Failed to remove VolumeReplication finalizer from VolumeGroupReplicationContent resource")
-					return reconcile.Result{}, err
+				// It is possible that the VGRContent has already been deleted
+				// as the finalizer was removed in a previous reconcile loop,
+				// and this is a reconcile that happened after that deletion.
+				if vgrc != nil {
+					if err = removeFinalizerFromVGRContent(r.Client, logger, vgrc, volumeReplicationFinalizer); err != nil {
+						logger.Error(err, "Failed to remove VolumeReplication finalizer from VolumeGroupReplicationContent resource")
+						return reconcile.Result{}, err
+					}
 				}
 
 				err = r.removeOwnerFromVGRAnnotation(ctx, logger, vgr)
@@ -822,7 +827,7 @@ func (r *VolumeReplicationReconciler) getVolumeGroupReplicationDataSource(logger
 	if vgrcName == "" {
 		logger.Error(err, "VolumeGroupReplicationContentName is empty", "VolumeGroupReplication Name", req.Name)
 
-		return nil, nil, stderrors.New("VolumeGroupReplicationContentName is empty")
+		return volumeGroupReplication, nil, stderrors.New("VolumeGroupReplicationContentName is empty")
 	}
 
 	vgrcReq := types.NamespacedName{Name: vgrcName}
@@ -833,7 +838,7 @@ func (r *VolumeReplicationReconciler) getVolumeGroupReplicationDataSource(logger
 			logger.Error(err, "VolumeGroupReplicationContent not found", "VolumeGroupReplicationContent Name", vgrcName)
 		}
 
-		return nil, nil, err
+		return volumeGroupReplication, nil, err
 	}
 
 	return volumeGroupReplication, volumeGroupReplicationContent, nil
