@@ -2,8 +2,6 @@ module github.com/csi-addons/kubernetes-csi-addons/tools
 
 go 1.23.0
 
-toolchain go1.24.1
-
 require (
 	github.com/operator-framework/operator-sdk v1.38.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
