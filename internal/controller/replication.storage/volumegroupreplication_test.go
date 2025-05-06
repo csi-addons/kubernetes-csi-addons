@@ -97,10 +97,11 @@ func createFakeVolumeGroupReplicationReconciler(t *testing.T, obj ...runtime.Obj
 	reconcilerCtx := context.TODO()
 
 	return VolumeGroupReplicationReconciler{
-		Client: client,
-		Scheme: scheme,
-		log:    logger,
-		ctx:    reconcilerCtx,
+		Client:           client,
+		Scheme:           scheme,
+		log:              logger,
+		ctx:              reconcilerCtx,
+		MaxGroupPVCCount: 100,
 	}
 }
 

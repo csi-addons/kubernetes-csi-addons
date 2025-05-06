@@ -58,10 +58,11 @@ const (
 // VolumeGroupReplicationReconciler reconciles a VolumeGroupReplication object
 type VolumeGroupReplicationReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	ctx      context.Context
-	log      logr.Logger
-	Recorder record.EventRecorder
+	Scheme           *runtime.Scheme
+	ctx              context.Context
+	log              logr.Logger
+	Recorder         record.EventRecorder
+	MaxGroupPVCCount int
 }
 
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
@@ -162,9 +163,9 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			_ = r.setGroupReplicationFailure(instance, err)
 			return reconcile.Result{}, err
 		}
-		if len(pvcList) > 100 {
-			err = fmt.Errorf("more than 100 PVCs match the given selector")
-			r.log.Error(err, "only 100 PVCs are allowed for volume group replication")
+		if len(pvcList) > r.MaxGroupPVCCount {
+			err = fmt.Errorf("more than %q PVCs match the given selector", r.MaxGroupPVCCount)
+			r.log.Error(err, "only %q PVCs are allowed for volume group replication", r.MaxGroupPVCCount)
 			_ = r.setGroupReplicationFailure(instance, err)
 			return reconcile.Result{}, err
 		}
