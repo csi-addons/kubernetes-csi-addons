@@ -34,6 +34,7 @@ type Config struct {
 	ReclaimSpaceTimeout     time.Duration
 	MaxConcurrentReconciles int
 	SchedulePrecedence      string
+	MaxGroupPVC             int
 }
 
 const (
@@ -45,6 +46,8 @@ const (
 	defaultReclaimSpaceTimeout     = time.Minute * 3
 	SchedulePrecedenceKey          = "schedule-precedence"
 	ScheduleSCOnly                 = "sc-only"
+	MaxGroupPVCKey                 = "max-group-pvcs"
+	defaultMaxGroupPVC             = 100 // based on ceph's support/testing
 )
 
 // NewConfig returns a new Config object with default values.
@@ -54,6 +57,7 @@ func NewConfig() Config {
 		ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
 		MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
 		SchedulePrecedence:      "",
+		MaxGroupPVC:             defaultMaxGroupPVC,
 	}
 }
 
@@ -98,6 +102,17 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 				return fmt.Errorf("invalid value %q for key %q", val, SchedulePrecedenceKey)
 			}
 			cfg.SchedulePrecedence = val
+
+		case MaxGroupPVCKey:
+			maxGroupPVCs, err := strconv.Atoi(val)
+			if err != nil {
+				return fmt.Errorf("failed to parse key %q value %q as int: %w",
+					MaxGroupPVCKey, val, err)
+			}
+			if maxGroupPVCs <= 0 || maxGroupPVCs > 100 {
+				return fmt.Errorf("invalid value %q for key %q", val, MaxGroupPVCKey)
+			}
+			cfg.MaxGroupPVC = maxGroupPVCs
 
 		default:
 			return fmt.Errorf("unknown config key %q", key)
