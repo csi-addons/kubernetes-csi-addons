@@ -30,6 +30,7 @@ import (
 	sideutil "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
 
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
+	"github.com/kubernetes-csi/csi-lib-utils/standardflags"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -72,6 +73,7 @@ func main() {
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
+	standardflags.AddAutomaxprocs(klog.Infof)
 	flag.Parse()
 
 	logger := zap.New(zap.UseFlagOptions(&opts))
