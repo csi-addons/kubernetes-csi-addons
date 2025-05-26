@@ -51,6 +51,7 @@ spec:
       - args:
         - --namespace=$(POD_NAMESPACE)
         - --leader-elect
+        - --automaxprocs
         command:
         - /csi-addons-manager
         env:
