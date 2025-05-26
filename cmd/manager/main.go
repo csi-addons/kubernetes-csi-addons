@@ -35,6 +35,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/kubernetes-csi/csi-lib-utils/standardflags"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -107,6 +108,7 @@ func main() {
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
+	standardflags.AddAutomaxprocs(setupLog.Info)
 	flag.Parse()
 
 	if cfg.SchedulePrecedence != "" && cfg.SchedulePrecedence != util.ScheduleSCOnly {
