@@ -127,6 +127,9 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		return reconcile.Result{}, err
 	}
 
+	secretName := vgrClassObj.Spec.Parameters[prefixedGroupReplicationSecretNameKey]
+	secretNamespace := vgrClassObj.Spec.Parameters[prefixedGroupReplicationSecretNamespaceKey]
+
 	// Declare all dependent resources
 	vgrContentName := fmt.Sprintf("vgrcontent-%s", instance.UID)
 	if instance.Spec.VolumeGroupReplicationContentName != "" {
@@ -137,6 +140,11 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			Name: vgrContentName,
 		},
 	}
+	if secretName != "" && secretNamespace != "" {
+		metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, prefixedGroupReplicationSecretNameKey, secretName)
+		metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, prefixedGroupReplicationSecretNamespaceKey, secretNamespace)
+	}
+
 	vrName := fmt.Sprintf("vr-%s", instance.UID)
 	if instance.Spec.VolumeReplicationName != "" {
 		vrName = instance.Spec.VolumeReplicationName
@@ -656,9 +664,7 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 			return errors.New("dependent VGRContent resource is not yet created, waiting for it to be created")
 		}
 		if vgrContentObj.CreationTimestamp.IsZero() {
-			vgrContentObj.Annotations = map[string]string{
-				volumeGroupReplicationRef: vgrRef,
-			}
+			metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, volumeGroupReplicationRef, vgrRef)
 			vgrContentObj.Spec = replicationv1alpha1.VolumeGroupReplicationContentSpec{
 				VolumeGroupReplicationRef: &corev1.ObjectReference{
 					APIVersion: vgr.APIVersion,
@@ -678,7 +684,7 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 		}
 
 		if vgrContentObj.Annotations[volumeGroupReplicationRef] != vgrRef {
-			vgrContentObj.Annotations[volumeGroupReplicationRef] = vgrRef
+			metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, volumeGroupReplicationRef, vgrRef)
 		}
 
 		if vgrContentObj.Spec.VolumeGroupReplicationRef == nil {
