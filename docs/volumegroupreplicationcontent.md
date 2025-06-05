@@ -2,6 +2,9 @@
 
 VolumeGroupReplicationContent is a cluster scoped resource that contains volume grouping related information.
 
+`volumeGroupAttributes` contains key-value pairs from the VolumeGroupContext field available in the
+CreateVolumeGroupResponse returned by the CSI driver.
+
 `volumeGroupReplicationRef` contains object reference of the volumeGroupReplication resource that created this resource.
 
 `volumeGroupReplicationHandle` (optional) is an existing (but new) group replication ID.
@@ -19,6 +22,8 @@ kind: VolumeGroupReplicationContent
 metadata:
   name: volumegroupreplicationcontent-sample
 spec:
+  volumeGroupAttributes:
+    clusterID: my-cluster
   volumeGroupReplicationRef:
     kind: VolumeGroupReplication
     name: volumegroupreplication-sample
