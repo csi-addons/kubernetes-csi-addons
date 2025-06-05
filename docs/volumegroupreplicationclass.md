@@ -19,6 +19,7 @@ metadata:
 spec:
   provisioner: example.provisioner.io
   parameters:
+    clusterID: my-cluster
     replication.storage.openshift.io/group-replication-secret-name: secret-name
     replication.storage.openshift.io/group-replication-secret-namespace: secret-namespace
 ```
