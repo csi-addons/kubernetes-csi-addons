@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugin/util"
+
 	"github.com/spf13/afero"
 	"sigs.k8s.io/kubebuilder/v4/pkg/config"
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
@@ -33,7 +35,7 @@ import (
 
 // Version of `opm` to download and use for building index images.
 // This version's release artifacts *must* contain a binary for multiple arches; certain releases do not.
-const opmVersion = "v1.23.0"
+const opmVersion = "v1.55.0"
 
 const filePath = "Makefile"
 
@@ -123,6 +125,15 @@ func (s *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 
 	if err := s.config.EncodePluginConfig(pluginKey, Config{}); err != nil && !errors.As(err, &config.UnsupportedFieldError{}) {
 		return err
+	}
+
+	// TODO: remove this when we bump kubebuilder to v5.x
+	// Not adopt changes introduced by mistake in the default Makefile of kubebuilder v4.x.
+	if operatorType == projutil.OperatorTypeGo {
+		err = util.ReplaceInFile("Makefile", makefileTestE2ETarget, "")
+		if err != nil {
+			return fmt.Errorf("error replacing Makefile: %w", err)
+		}
 	}
 
 	return nil
@@ -230,6 +241,7 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 `
 
 	makefileBundleFragmentNonGo = `
+
 .PHONY: bundle
 bundle: kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
@@ -241,7 +253,7 @@ bundle: kustomize operator-sdk ## Generate bundle manifests and metadata, then v
 	makefileBundleBuildPushFragment = `
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -303,11 +315,24 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 `
+
+	// TODO: remove it when we bump kubebuilder to v5.x
+	// We will not adopt this change since it did not work and was a bug introduced in the
+	// default Makefile of kubebuilder v4.x.
+	makefileTestE2ETarget = `@command -v $(KIND) >/dev/null 2>&1 || { \
+		echo "Kind is not installed. Please install Kind manually."; \
+		exit 1; \
+	}
+	@$(KIND) get clusters | grep -q 'kind' || { \
+		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
+		exit 1; \
+	}
+	`
 )
