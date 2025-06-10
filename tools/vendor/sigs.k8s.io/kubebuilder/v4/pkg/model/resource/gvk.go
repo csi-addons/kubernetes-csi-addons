@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -44,7 +45,7 @@ type GVK struct {
 func (gvk GVK) Validate() error {
 	// Check if the qualified group has a valid DNS1123 subdomain value
 	if gvk.QualifiedGroup() == "" {
-		return fmt.Errorf(groupRequired)
+		return errors.New(groupRequired)
 	}
 	if err := validation.IsDNS1123Subdomain(gvk.QualifiedGroup()); err != nil {
 		// NOTE: IsDNS1123Subdomain returns a slice of strings instead of an error, so no wrapping
@@ -53,20 +54,19 @@ func (gvk GVK) Validate() error {
 
 	// Check if the version follows the valid pattern
 	if gvk.Version == "" {
-		return fmt.Errorf(versionRequired)
+		return errors.New(versionRequired)
 	}
-	errs := validation.IsDNS1123Subdomain(gvk.Version)
-	if len(errs) > 0 && gvk.Version != versionInternal {
+	if errs := validation.IsDNS1123Subdomain(gvk.Version); len(errs) > 0 && gvk.Version != versionInternal {
 		return fmt.Errorf("Version must respect DNS-1123 (was %s)", gvk.Version)
 	}
 
 	// Check if kind has a valid DNS1035 label value
 	if gvk.Kind == "" {
-		return fmt.Errorf(kindRequired)
+		return errors.New(kindRequired)
 	}
-	if errors := validation.IsDNS1035Label(strings.ToLower(gvk.Kind)); len(errors) != 0 {
+	if errs := validation.IsDNS1035Label(strings.ToLower(gvk.Kind)); len(errs) != 0 {
 		// NOTE: IsDNS1035Label returns a slice of strings instead of an error, so no wrapping
-		return fmt.Errorf("invalid Kind: %#v", errors)
+		return fmt.Errorf("invalid Kind: %#v", errs)
 	}
 
 	// Require kind to start with an uppercase character

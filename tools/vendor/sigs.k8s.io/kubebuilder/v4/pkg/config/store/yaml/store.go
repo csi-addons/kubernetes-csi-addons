@@ -89,7 +89,7 @@ func (s *yamlStore) LoadFrom(path string) error {
 
 	// Check the file version
 	var versioned versionedConfig
-	if err := yaml.Unmarshal(in, &versioned); err != nil {
+	if err = yaml.Unmarshal(in, &versioned); err != nil {
 		return store.LoadError{Err: fmt.Errorf("unable to determine config version: %w", err)}
 	}
 
@@ -123,13 +123,13 @@ func (s yamlStore) SaveTo(path string) error {
 
 	// If it is a new configuration, the path should not exist yet
 	if s.mustNotExist {
-		// Lets check that the file doesn't exist
+		// Check that the file doesn't exist
 		_, err := s.fs.Stat(path)
-		if os.IsNotExist(err) {
-			// This is exactly what we want
-		} else if err == nil || os.IsExist(err) {
+		if err == nil || os.IsExist(err) {
+			// File already exists
 			return store.SaveError{Err: fmt.Errorf("configuration already exists in %q", path)}
-		} else {
+		} else if !os.IsNotExist(err) {
+			// Error occurred while checking file existence
 			return store.SaveError{Err: fmt.Errorf("unable to check for file prior existence: %w", err)}
 		}
 	}
@@ -144,7 +144,7 @@ func (s yamlStore) SaveTo(path string) error {
 	content = append([]byte(commentStr), content...)
 
 	// Write the marshalled configuration
-	err = afero.WriteFile(s.fs, path, content, 0600)
+	err = afero.WriteFile(s.fs, path, content, 0o600)
 	if err != nil {
 		return store.SaveError{Err: fmt.Errorf("failed to save configuration to %q: %w", path, err)}
 	}

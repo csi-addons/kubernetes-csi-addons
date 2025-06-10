@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 	"sigs.k8s.io/kubebuilder/v4/pkg/model/resource"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins"
-	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/api"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/cmd"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/controllers"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/hack"
 )
@@ -70,6 +70,11 @@ func (s *apiScaffolder) Scaffold() error {
 	boilerplate, err := afero.ReadFile(s.fs.FS, hack.DefaultBoilerplatePath)
 	if err != nil {
 		if errors.Is(err, afero.ErrFileNotFound) {
+			log.Warnf("Unable to find %s: %s.\n"+
+				"This file is used to generate the license header in the project.\n"+
+				"Note that controller-gen will also use this. Therefore, ensure that you "+
+				"add the license file or configure your project accordingly.",
+				hack.DefaultBoilerplatePath, err)
 			boilerplate = []byte("")
 		} else {
 			return fmt.Errorf("error scaffolding API/controller: unable to load boilerplate: %w", err)
@@ -102,7 +107,7 @@ func (s *apiScaffolder) Scaffold() error {
 
 	if doController {
 		if err := scaffold.Execute(
-			&controllers.SuiteTest{Force: s.force, K8SVersion: EnvtestK8SVersion},
+			&controllers.SuiteTest{Force: s.force},
 			&controllers.Controller{ControllerRuntimeVersion: ControllerRuntimeVersion, Force: s.force},
 			&controllers.ControllerTest{Force: s.force, DoAPI: doAPI},
 		); err != nil {
@@ -111,7 +116,7 @@ func (s *apiScaffolder) Scaffold() error {
 	}
 
 	if err := scaffold.Execute(
-		&templates.MainUpdater{WireResource: doAPI, WireController: doController},
+		&cmd.MainUpdater{WireResource: doAPI, WireController: doController},
 	); err != nil {
 		return fmt.Errorf("error updating cmd/main.go: %v", err)
 	}

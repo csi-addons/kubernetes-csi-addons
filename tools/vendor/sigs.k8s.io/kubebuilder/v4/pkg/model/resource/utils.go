@@ -24,13 +24,10 @@ import (
 	"github.com/gobuffalo/flect"
 )
 
-const V1beta1 = "v1beta1"
-const V1 = "v1"
-
 // validateAPIVersion validates CRD or Webhook versions
 func validateAPIVersion(version string) error {
 	switch version {
-	case V1beta1, V1:
+	case "v1":
 		return nil
 	default:
 		return fmt.Errorf("API version must be one of: v1beta1, v1")
@@ -52,17 +49,6 @@ func safeImport(unsafe string) string {
 func APIPackagePath(repo, group, version string, multiGroup bool) string {
 	if multiGroup && group != "" {
 		return path.Join(repo, "api", group, version)
-	}
-	return path.Join(repo, "api", version)
-}
-
-// APIPackagePathLegacy returns the default path
-func APIPackagePathLegacy(repo, group, version string, multiGroup bool) string {
-	if multiGroup {
-		if group != "" {
-			return path.Join(repo, "apis", group, version)
-		}
-		return path.Join(repo, "apis", version)
 	}
 	return path.Join(repo, "api", version)
 }
