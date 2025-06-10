@@ -187,11 +187,12 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 			return reconcile.Result{}, err
 		}
 
-		// Update the group handle in the VolumeGroupReplicationContent CR
-		instance.Spec.VolumeGroupReplicationHandle = resp.GetVolumeGroup().VolumeGroupId
+		// Update the VGRContent resource with the group id and group attributes
+		instance.Spec.VolumeGroupAttributes = resp.GetVolumeGroup().GetVolumeGroupContext()
+		instance.Spec.VolumeGroupReplicationHandle = resp.GetVolumeGroup().GetVolumeGroupId()
 		err = r.Update(ctx, instance)
 		if err != nil {
-			logger.Error(err, "failed to update group id in VGRContent")
+			logger.Error(err, "failed to update VGRContent resource")
 			return reconcile.Result{}, err
 		}
 	} else {
