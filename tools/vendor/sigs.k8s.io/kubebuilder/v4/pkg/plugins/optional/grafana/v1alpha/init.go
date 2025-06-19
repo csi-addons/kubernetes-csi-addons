@@ -32,11 +32,11 @@ type initSubcommand struct {
 }
 
 func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *plugin.SubcommandMetadata) {
-	subcmdMeta.Description = MetaDataDescription
+	subcmdMeta.Description = metaDataDescription
 
 	subcmdMeta.Examples = fmt.Sprintf(`  # Initialize a common project with this plugin
-  %[1]s init --plugins=grafana.kubebuilder.io/v1-alpha
-`, cliMeta.CommandName)
+  %[1]s init --plugins=%[2]s
+`, cliMeta.CommandName, pluginKey)
 }
 
 func (p *initSubcommand) InjectConfig(c config.Config) error {

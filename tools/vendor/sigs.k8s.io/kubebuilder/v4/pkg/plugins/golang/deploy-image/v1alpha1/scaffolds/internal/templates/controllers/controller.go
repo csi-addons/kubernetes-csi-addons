@@ -27,7 +27,8 @@ import (
 var _ machinery.Template = &Controller{}
 
 // Controller scaffolds the file that defines the controller for a CRD or a builtin resource
-// nolint:maligned
+//
+//nolint:maligned
 type Controller struct {
 	machinery.TemplateMixin
 	machinery.MultiGroupMixin
@@ -40,7 +41,7 @@ type Controller struct {
 	PackageName string
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Controller) SetTemplateDefaults() error {
 	if f.Path == "" {
 		if f.MultiGroup && f.Resource.Group != "" {
@@ -83,11 +84,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	
+
 	{{ if not (isEmptyStr .Resource.Path) -}}
 	{{ .Resource.ImportAlias }} "{{ .Resource.Path }}"
 	{{- end }}
@@ -133,7 +135,7 @@ type {{ .Resource.Kind }}Reconciler struct {
 // - About Controllers: https://kubernetes.io/docs/concepts/architecture/controller/
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@{{ .ControllerRuntimeVersion }}/pkg/reconcile
 func (r *{{ .Resource.Kind }}Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
 	// Fetch the {{ .Resource.Kind }} instance
 	// The purpose is check if the Custom Resource for the Kind {{ .Resource.Kind }}
@@ -153,7 +155,7 @@ func (r *{{ .Resource.Kind }}Reconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	// Let's just set the status as Unknown when no status is available
-	if {{ lower .Resource.Kind }}.Status.Conditions == nil || len({{ lower .Resource.Kind }}.Status.Conditions) == 0 {
+	if len({{ lower .Resource.Kind }}.Status.Conditions) == 0 {
 		meta.SetStatusCondition(&{{ lower .Resource.Kind }}.Status.Conditions, metav1.Condition{Type: typeAvailable{{ .Resource.Kind }}, Status: metav1.ConditionUnknown, Reason: "Reconciling", Message: "Starting reconciliation"})
 		if err = r.Status().Update(ctx, {{ lower .Resource.Kind }}); err != nil {
 			log.Error(err, "Failed to update {{ .Resource.Kind }} status")
@@ -177,10 +179,11 @@ func (r *{{ .Resource.Kind }}Reconciler) Reconcile(ctx context.Context, req ctrl
 	if !controllerutil.ContainsFinalizer({{ lower .Resource.Kind }}, {{ lower .Resource.Kind }}Finalizer) {
 		log.Info("Adding Finalizer for {{ .Resource.Kind }}")
 		if ok := controllerutil.AddFinalizer({{ lower .Resource.Kind }}, {{ lower .Resource.Kind }}Finalizer); !ok {
-			log.Error(err, "Failed to add finalizer into the custom resource")
-			return ctrl.Result{Requeue: true}, nil
+			err = fmt.Errorf("finalizer for {{ .Resource.Kind }} was not added")
+			log.Error(err, "Failed to add finalizer for {{ .Resource.Kind }}")
+			return ctrl.Result{}, err
 		}
-		
+
 		if err = r.Update(ctx, {{ lower .Resource.Kind }}); err != nil {
 			log.Error(err, "Failed to update custom resource to add finalizer")
 			return ctrl.Result{}, err
@@ -224,7 +227,7 @@ func (r *{{ .Resource.Kind }}Reconciler) Reconcile(ctx context.Context, req ctrl
 			meta.SetStatusCondition(&{{ lower .Resource.Kind }}.Status.Conditions, metav1.Condition{Type: typeDegraded{{ .Resource.Kind }},
 				Status: metav1.ConditionTrue, Reason: "Finalizing",
 				Message: fmt.Sprintf("Finalizer operations for custom resource %s name were successfully accomplished", {{ lower .Resource.Kind }}.Name)})
-			
+
 			if err := r.Status().Update(ctx, {{ lower .Resource.Kind }}); err != nil {
 				log.Error(err, "Failed to update {{ .Resource.Kind }} status")
 				return ctrl.Result{}, err
@@ -232,8 +235,9 @@ func (r *{{ .Resource.Kind }}Reconciler) Reconcile(ctx context.Context, req ctrl
 
 			log.Info("Removing Finalizer for {{ .Resource.Kind }} after successfully perform the operations")
 			if ok:= controllerutil.RemoveFinalizer({{ lower .Resource.Kind }}, {{ lower .Resource.Kind }}Finalizer); !ok{
+				err = fmt.Errorf("finalizer for {{ .Resource.Kind }} was not removed")
 				log.Error(err, "Failed to remove finalizer for {{ .Resource.Kind }}")
-				return ctrl.Result{Requeue: true}, nil
+				return ctrl.Result{}, err
 			}
 
 			if err := r.Update(ctx, {{ lower .Resource.Kind }}); err != nil {
@@ -280,7 +284,7 @@ func (r *{{ .Resource.Kind }}Reconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	} else if err != nil {
 		log.Error(err, "Failed to get Deployment")
-		// Let's return the error for the reconciliation be re-trigged again
+		// Let's return the error for the reconciliation be re-triggered again
 		return ctrl.Result{}, err
 	}
 
@@ -359,9 +363,9 @@ func (r *{{ .Resource.Kind }}Reconciler) doFinalizerOperationsFor{{ .Resource.Ki
 // deploymentFor{{ .Resource.Kind }} returns a {{ .Resource.Kind }} Deployment object
 func (r *{{ .Resource.Kind }}Reconciler) deploymentFor{{ .Resource.Kind }}(
 	{{ lower .Resource.Kind }} *{{ .Resource.ImportAlias }}.{{ .Resource.Kind }}) (*appsv1.Deployment, error) {
-	ls := labelsFor{{ .Resource.Kind }}({{ lower .Resource.Kind }}.Name)
+	ls := labelsFor{{ .Resource.Kind }}()
 	replicas := {{ lower .Resource.Kind }}.Spec.Size
-	
+
 	// Get the Operand image
 	image, err := imageFor{{ .Resource.Kind }}()
 	if err != nil {
@@ -389,30 +393,30 @@ func (r *{{ .Resource.Kind }}Reconciler) deploymentFor{{ .Resource.Kind }}(
 					// makefile target docker-buildx. Also, you can use docker manifest inspect <image>
 					// to check what are the platforms supported.
 					// More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
-					//Affinity: &corev1.Affinity{
-					//	NodeAffinity: &corev1.NodeAffinity{
-					//		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-					//			NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					//				{
-					//					MatchExpressions: []corev1.NodeSelectorRequirement{
-					//						{
-					//							Key:      "kubernetes.io/arch",
-					//							Operator: "In",
-					//							Values:   []string{"amd64", "arm64", "ppc64le", "s390x"},
-					//						},
-					//						{
-					//							Key:      "kubernetes.io/os",
-					//							Operator: "In",
-					//							Values:   []string{"linux"},
-					//						},
-					//					},
-					//				},
-					//			},
-					//		},
-					//	},
-					//},
+					// Affinity: &corev1.Affinity{
+					//	 NodeAffinity: &corev1.NodeAffinity{
+					//		 RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					//			 NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					//				 {
+					//					 MatchExpressions: []corev1.NodeSelectorRequirement{
+					//						 {
+					//							 Key:      "kubernetes.io/arch",
+					//							 Operator: "In",
+					//							 Values:   []string{"amd64", "arm64", "ppc64le", "s390x"},
+					//						 },
+					//						 {
+					//							 Key:      "kubernetes.io/os",
+					//							 Operator: "In",
+					//							 Values:   []string{"linux"},
+					//						 },
+					//					 },
+					//				 },
+					//		 	 },
+					//		 },
+					//	 },
+					// },
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &[]bool{true}[0],
+						RunAsNonRoot: ptr.To(true),
 						// IMPORTANT: seccomProfile was introduced with Kubernetes 1.19
 						// If you are looking for to produce solutions to be supported
 						// on lower versions you must remove this option.
@@ -425,7 +429,7 @@ func (r *{{ .Resource.Kind }}Reconciler) deploymentFor{{ .Resource.Kind }}(
 			},
 		},
 	}
-	
+
 	// Set the ownerRef for the Deployment
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
 	if err := ctrl.SetControllerReference({{ lower .Resource.Kind }}, dep, r.Scheme); err != nil {
@@ -436,13 +440,14 @@ func (r *{{ .Resource.Kind }}Reconciler) deploymentFor{{ .Resource.Kind }}(
 
 // labelsFor{{ .Resource.Kind }} returns the labels for selecting the resources
 // More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
-func labelsFor{{ .Resource.Kind }}(name string) map[string]string {
+func labelsFor{{ .Resource.Kind }}() map[string]string {
 	var imageTag string
 	image, err := imageFor{{ .Resource.Kind }}()
 	if err == nil {
 		imageTag = strings.Split(image, ":")[1]
 	}
-	return map[string]string{"app.kubernetes.io/name": "{{ .ProjectName }}",
+	return map[string]string{
+		"app.kubernetes.io/name": "{{ .ProjectName }}",
 		"app.kubernetes.io/version": imageTag,
 		"app.kubernetes.io/managed-by": "{{ .Resource.Kind }}Controller",
 	}
@@ -460,16 +465,32 @@ func imageFor{{ .Resource.Kind }}() (string, error) {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-// Note that the Deployment will be also watched in order to ensure its
-// desirable state on the cluster
+// The whole idea is to be watching the resources that matter for the controller.
+// When a resource that the controller is interested in changes, the Watch triggers
+// the controller’s reconciliation loop, ensuring that the actual state of the resource
+// matches the desired state as defined in the controller’s logic.
+//
+// Notice how we configured the Manager to monitor events such as the creation, update,
+// or deletion of a Custom Resource (CR) of the {{ .Resource.Kind }} kind, as well as any changes
+// to the Deployment that the controller manages and owns.
 func (r *{{ .Resource.Kind }}Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		{{ if not (isEmptyStr .Resource.Path) -}}
+		// Watch the {{ .Resource.Kind }} CR(s) and trigger reconciliation whenever it
+		// is created, updated, or deleted
 		For(&{{ .Resource.ImportAlias }}.{{ .Resource.Kind }}{}).
 		{{- else -}}
 		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
 		// For().
 		{{- end }}
+		{{- if and (.MultiGroup) (not (isEmptyStr .Resource.Group)) }}
+		Named("{{ lower .Resource.Group }}-{{ lower .Resource.Kind }}").
+		{{- else }}
+		Named("{{ lower .Resource.Kind }}").
+		{{- end }}
+		// Watch the Deployment managed by the {{ .Resource.Kind }}Reconciler. If any changes occur to the Deployment
+		// owned and managed by this controller, it will trigger reconciliation, ensuring that the cluster
+		// state aligns with the desired state. See that the ownerRef was set when the Deployment was created.
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
