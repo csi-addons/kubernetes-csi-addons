@@ -4,14 +4,17 @@ CSI-Addons Operator can consume configuration from a ConfigMap named `csi-addons
 in the same namespace as the operator. This enables configuration of the operator to persist across
 upgrades. The ConfigMap can support the following configuration options:
 
-| Option                      | Default value | Description                                      |
-| --------------------------- | ------------- | ------------------------------------------------ |
-| `reclaim-space-timeout`     | `"3m"`        | Timeout for reclaimspace operation               |
-| `max-concurrent-reconciles` | `"100"`       | Maximum number of concurrent reconciles          |
-| `max-group-pvcs`            | `"100"`       | Maximum number of PVCs allowed in a volume group |
+| Option                      | Default value | Description                                               |
+| --------------------------- | ------------- | --------------------------------------------------------- |
+| `reclaim-space-timeout`     | `"3m"`        | Timeout for reclaimspace operation                        |
+| `max-concurrent-reconciles` | `"100"`       | Maximum number of concurrent reconciles                   |
+| `max-group-pvcs`            | `"100"`       | Maximum number of PVCs allowed in a volume group          |
+| `schedule-precedence`       | `"sc-only"`   | The order in which the schedule annotation should be read |
 
-[`csi-addons-config` ConfigMap](../deploy/controller/csi-addons-config.yaml) is provided as an example.
+[`csi-addons-config` ConfigMap](../config/manager/csi-addons-config.yaml) is provided as an example.
 
 > Note: The operator pod needs to be restarted for any change in configuration to take effect.
 >
 > Note: `max-group-pvcs` default value is set based on ceph's support/testing. User can tweak this value based on the supported count for their storage vendor.
+>
+> Note: `schedule-precedence` when set to `"sc-only"` will read the reclaimspace and key rotation schedule annotations only from the storage class. To keep using the previous mode of operation i.e. to parse the annotations in the order of PVC > Namespace > StorageClasses one must remove the key from the ConfigMap.
