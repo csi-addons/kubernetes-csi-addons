@@ -1,11 +1,14 @@
+# This ConfigMap is installed in the same namespace as the operator by OLM
+# to configure csi-addons controller and persist changes across upgrades
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: csi-addons-config
   # replace the namespace with the namespace where the operator is deployed.
-  namespace: csi-addons-system
+  # namespace: csi-addons-system
 data:
   "reclaim-space-timeout": "3m"
   "max-concurrent-reconciles": "100"
   "max-group-pvcs": "100"
+  "schedule-precedence": "sc-only"

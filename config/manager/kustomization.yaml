@@ -10,6 +10,7 @@ namePrefix: csi-addons-
 
 resources:
 - manager.yaml
+- csi-addons-config.yaml
 #- metrics_service.yaml
 
 #patches:
