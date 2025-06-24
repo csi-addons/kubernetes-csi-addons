@@ -19,6 +19,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
@@ -45,7 +46,8 @@ const (
 	defaultMaxConcurrentReconciles = 100
 	defaultReclaimSpaceTimeout     = time.Minute * 3
 	SchedulePrecedenceKey          = "schedule-precedence"
-	ScheduleSCOnly                 = "sc-only"
+	ScheduleSC                     = "storageclass"
+	SchedulePVC                    = "pvc"
 	MaxGroupPVCKey                 = "max-group-pvcs"
 	defaultMaxGroupPVC             = 100 // based on ceph's support/testing
 )
@@ -56,7 +58,7 @@ func NewConfig() Config {
 		Namespace:               defaultNamespace,
 		ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
 		MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-		SchedulePrecedence:      "",
+		SchedulePrecedence:      SchedulePVC,
 		MaxGroupPVC:             defaultMaxGroupPVC,
 	}
 }
@@ -98,10 +100,9 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 			cfg.MaxConcurrentReconciles = maxConcurrentReconciles
 
 		case SchedulePrecedenceKey:
-			if val != ScheduleSCOnly {
-				return fmt.Errorf("invalid value %q for key %q", val, SchedulePrecedenceKey)
+			if err := cfg.validateAndSetSchedulePrecedence(val); err != nil {
+				return err
 			}
-			cfg.SchedulePrecedence = val
 
 		case MaxGroupPVCKey:
 			maxGroupPVCs, err := strconv.Atoi(val)
@@ -117,6 +118,34 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 		default:
 			return fmt.Errorf("unknown config key %q", key)
 		}
+	}
+
+	return nil
+}
+
+// validateAndSetSchedulePrecedence is a helper function to check for
+// valid values for schedule-precedence ConfigMap key.
+// It also preserves backwards compatibility in cases where users might be using
+// once valid values for it i.e. "sc-only" and "".
+func (cfg *Config) validateAndSetSchedulePrecedence(val string) error {
+	validVals := []string{
+		SchedulePVC,
+		ScheduleSC,
+		"sc-only", // This is kept to avoid breaking changes and should be removed in later releases
+		"",        // Same as above
+	}
+
+	if !slices.Contains(validVals, val) {
+		return fmt.Errorf("invalid value %q for key %q", val, SchedulePrecedenceKey)
+	}
+	cfg.SchedulePrecedence = val
+
+	// FIXME: Remove in later releases
+	switch val {
+	case "sc-only":
+		cfg.SchedulePrecedence = ScheduleSC
+	case "":
+		cfg.SchedulePrecedence = SchedulePVC
 	}
 
 	return nil
