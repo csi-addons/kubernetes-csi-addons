@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -185,8 +184,7 @@ func TestVolumeGroupReplication(t *testing.T) {
 				assert.Equal(t, pvc.Name, mockVGRPersistentVolumeClaim.Name)
 			}
 			// Check PVC annotation
-			expectedOwner := fmt.Sprintf("%s/%s", volumeGroupReplication.Namespace, volumeGroupReplication.Name)
-			assert.Equal(t, expectedOwner, pvc.Annotations[replicationv1alpha1.VolumeGroupReplicationNameAnnotation])
+			assert.Equal(t, volumeGroupReplication.Name, pvc.Annotations[replicationv1alpha1.VolumeGroupReplicationNameAnnotation])
 			// Check VGRContent Created
 			assert.NotEmpty(t, vgr.Spec.VolumeGroupReplicationContentName)
 		} else {
