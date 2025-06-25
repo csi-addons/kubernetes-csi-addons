@@ -233,8 +233,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 		switch instance.Spec.DataSource.Kind {
 		case pvcDataSource:
-			reqOwner := fmt.Sprintf("%s/%s", instance.Namespace, instance.Name)
-			err = annotatePVCWithOwner(r.Client, ctx, logger, reqOwner, pvc, replicationv1alpha1.VolumeReplicationNameAnnotation)
+			err = annotatePVCWithOwner(r.Client, ctx, logger, instance.Name, pvc, replicationv1alpha1.VolumeReplicationNameAnnotation)
 			if err != nil {
 				logger.Error(err, "Failed to annotate PVC owner")
 				return ctrl.Result{}, err
