@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package network_policy
+package networkpolicy
 
 import (
 	"path/filepath"
@@ -22,17 +22,17 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
-var _ machinery.Template = &NetworkPolicyAllowWebhooks{}
+var _ machinery.Template = &PolicyAllowWebhooks{}
 
-// NetworkPolicyAllowWebhooks in scaffolds a file that defines the NetworkPolicy
+// PolicyAllowWebhooks in scaffolds a file that defines the NetworkPolicy
 // to allow the webhook server can communicate
-type NetworkPolicyAllowWebhooks struct {
+type PolicyAllowWebhooks struct {
 	machinery.TemplateMixin
 	machinery.ProjectNameMixin
 }
 
-// SetTemplateDefaults implements file.Template
-func (f *NetworkPolicyAllowWebhooks) SetTemplateDefaults() error {
+// SetTemplateDefaults implements machinery.Template
+func (f *PolicyAllowWebhooks) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("config", "network-policy", "allow-webhook-traffic.yaml")
 	}
@@ -57,6 +57,7 @@ spec:
   podSelector:
     matchLabels:
       control-plane: controller-manager
+      app.kubernetes.io/name: {{ .ProjectName }}
   policyTypes:
     - Ingress
   ingress:
