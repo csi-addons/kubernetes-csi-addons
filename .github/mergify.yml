@@ -3,11 +3,11 @@ defaults:
   actions:
     queue:
       name: default
-      method: rebase
-      update_method: rebase
 
 queue_rules:
   - name: default
+    merge_method: rebase
+    update_method: rebase
     conditions:
       - "status-success=codespell"
       - "status-success=build_bundle"
