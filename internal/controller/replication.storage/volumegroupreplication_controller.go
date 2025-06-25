@@ -602,8 +602,7 @@ func (r *VolumeGroupReplicationReconciler) updateFinalizerAndAnnotationOnPVCs(vg
 
 	// Annotate each new PVC with owner and add finalizer to it
 	for _, pvc := range toAddPVCs {
-		reqOwner := fmt.Sprintf("%s/%s", vgr.Namespace, vgr.Name)
-		err := annotatePVCWithOwner(r.Client, r.ctx, r.log, reqOwner, &pvc, replicationv1alpha1.VolumeGroupReplicationNameAnnotation)
+		err := annotatePVCWithOwner(r.Client, r.ctx, r.log, vgr.Name, &pvc, replicationv1alpha1.VolumeGroupReplicationNameAnnotation)
 		if err != nil {
 			r.log.Error(err, "Failed to add VGR owner annotation on PVC")
 			return nil, err

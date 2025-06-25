@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
@@ -181,7 +180,6 @@ func TestGetVolumeHandle(t *testing.T) {
 func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 	t.Parallel()
 	vrName := "test-vr"
-	vrNamespace := "test-ns"
 
 	testcases := []struct {
 		name          string
@@ -200,7 +198,7 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 					Name:      "pvc-name",
 					Namespace: mockNamespace,
 					Annotations: map[string]string{
-						replicationv1alpha1.VolumeReplicationNameAnnotation: fmt.Sprintf("%s/%s", vrNamespace, vrName),
+						replicationv1alpha1.VolumeReplicationNameAnnotation: vrName,
 					},
 				},
 			},
@@ -232,8 +230,7 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 		ctx := context.TODO()
 		logger := log.FromContext(ctx)
 		reconciler := createFakeVolumeReplicationReconciler(t, testPVC, volumeReplication)
-		reqOwner := fmt.Sprintf("%s/%s", volumeReplication.Namespace, volumeReplication.Name)
-		err := annotatePVCWithOwner(reconciler.Client, ctx, logger, reqOwner, testPVC, replicationv1alpha1.VolumeReplicationNameAnnotation)
+		err := annotatePVCWithOwner(reconciler.Client, ctx, logger, volumeReplication.Name, testPVC, replicationv1alpha1.VolumeReplicationNameAnnotation)
 		if tc.errorExpected {
 			assert.Error(t, err)
 		} else {
@@ -248,7 +245,7 @@ func TestVolumeReplicationReconciler_annotatePVCWithOwner(t *testing.T) {
 			err = reconciler.Get(ctx, pvcNamespacedName, testPVC)
 			assert.NoError(t, err)
 
-			assert.Equal(t, testPVC.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], reqOwner)
+			assert.Equal(t, testPVC.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation], volumeReplication.Name)
 		}
 
 		err = removeOwnerFromPVCAnnotation(reconciler.Client, ctx, log.FromContext(context.TODO()), testPVC, replicationv1alpha1.VolumeReplicationNameAnnotation)
