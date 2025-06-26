@@ -195,6 +195,29 @@ message GetVolumeReplicationInfoResponse{
   // The value of this field MUST NOT be negative.
   // This field is OPTIONAL.
   int64 last_sync_bytes = 3;
+  // Represents the type of replication status that can be returned
+  // by a storage vendor.
+  enum Status {
+    // UNKNOWN indicates that the SP does not know the current
+    // replication status.
+    UNKNOWN = 0;
+    // HEALTHY indicates that the replication is working properly.
+    HEALTHY = 1;
+    // DEGRADED indicates that the replication has stopped working
+    // and it may require user intervention.
+    DEGRADED = 2;
+    // ERROR indicates that there is an error in replication
+    // and it may require user intervention.
+    ERROR = 3;
+  }
+  // Represents the current replication status as reported by 
+  // the backend storage system.
+  // This field is REQUIRED.
+  Status status = 4;
+  // Contains a human readable message that describes the current
+  // state of replication
+  // This field is OPTIONAL.
+  string status_message = 5;
 }
 
 // Specifies what source the replication will be created from. One of the
