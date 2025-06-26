@@ -250,6 +250,42 @@ func setFailedResyncCondition(conditions *[]metav1.Condition, observedGeneration
 	})
 }
 
+// sets ConditionUnknown for ConditionReplicating condition in VR status.Conditions.
+func setUnknownReplicationCondition(conditions *[]metav1.Condition, observedGeneration int64, dataSource, statusMessage string) {
+	source := getSource(dataSource)
+	setStatusCondition(conditions, &metav1.Condition{
+		Message:            fmt.Sprintf("%s %s: %s", source, v1alpha1.MessageUnknownReplicationState, statusMessage),
+		Type:               v1alpha1.ConditionReplicating,
+		Reason:             v1alpha1.Replicating,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionUnknown,
+	})
+}
+
+// sets ConditionTrue for ConditionReplicating condition in VR status.Conditions
+func setHealthyReplicationCondition(conditions *[]metav1.Condition, observedGeneration int64, dataSource, statusMessage string) {
+	source := getSource(dataSource)
+	setStatusCondition(conditions, &metav1.Condition{
+		Message:            fmt.Sprintf("%s %s: %s", source, v1alpha1.MessageReplicating, statusMessage),
+		Type:               v1alpha1.ConditionReplicating,
+		Reason:             v1alpha1.Replicating,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionTrue,
+	})
+}
+
+// sets ConditionFalse for ConditionReplicating condition in VR status.Conditions
+func setDegradedReplicationCondition(conditions *[]metav1.Condition, observedGeneration int64, dataSource, statusMessage string) {
+	source := getSource(dataSource)
+	setStatusCondition(conditions, &metav1.Condition{
+		Message:            fmt.Sprintf("%s %s: %s", source, v1alpha1.MessageNotReplicating, statusMessage),
+		Type:               v1alpha1.ConditionReplicating,
+		Reason:             v1alpha1.NotReplicating,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionFalse,
+	})
+}
+
 func setStatusCondition(existingConditions *[]metav1.Condition, newCondition *metav1.Condition) {
 	if existingConditions == nil {
 		existingConditions = &[]metav1.Condition{}

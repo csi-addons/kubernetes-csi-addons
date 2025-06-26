@@ -255,6 +255,8 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 		LastSyncTime:     lastsynctime,
 		LastSyncDuration: resp.GetLastSyncDuration(),
 		LastSyncBytes:    resp.GetLastSyncBytes(),
+		Status:           proto.GetVolumeReplicationInfoResponse_Status(resp.GetStatus()),
+		StatusMessage:    resp.StatusMessage,
 	}, nil
 }
 
