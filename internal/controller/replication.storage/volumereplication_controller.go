@@ -455,6 +455,11 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 					instance.Status.LastSyncBytes = &tb
 				}
 			}
+			// Check for nil, as info might be nil for knownGRPCErrors.
+			if info != nil {
+				// We set Replicating condition only for primary state and not for secondary state.
+				setReplicationCondition(vr.instance, vr.instance.Spec.DataSource.Kind, info.StatusMessage, info.Status)
+			}
 			requeueForInfo = true
 		} else if !util.IsUnimplementedError(err) {
 			logger.Error(err, "Failed to get volume replication info")
@@ -773,6 +778,18 @@ func setFailureCondition(instance *replicationv1alpha1.VolumeReplication, errMes
 		setFailedDemotionCondition(&instance.Status.Conditions, instance.Generation, dataSource, errMessage, errFromCephCSI)
 	case replicationv1alpha1.Resync:
 		setFailedResyncCondition(&instance.Status.Conditions, instance.Generation, dataSource, errMessage, errFromCephCSI)
+	}
+}
+
+// setReplicationCondition sets the replication condition in VR's status.Conditions for the PVC/VolumeGroup dataSource based on the replicationStatus value.
+func setReplicationCondition(instance *replicationv1alpha1.VolumeReplication, dataSource, statusMessage string, replicationStatus proto.GetVolumeReplicationInfoResponse_Status) {
+	switch replicationStatus {
+	case proto.GetVolumeReplicationInfoResponse_UNKNOWN:
+		setUnknownReplicationCondition(&instance.Status.Conditions, instance.Generation, dataSource, statusMessage)
+	case proto.GetVolumeReplicationInfoResponse_HEALTHY:
+		setHealthyReplicationCondition(&instance.Status.Conditions, instance.Generation, dataSource, statusMessage)
+	case proto.GetVolumeReplicationInfoResponse_DEGRADED, proto.GetVolumeReplicationInfoResponse_ERROR:
+		setDegradedReplicationCondition(&instance.Status.Conditions, instance.Generation, dataSource, statusMessage)
 	}
 }
 
