@@ -449,6 +449,11 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 					instance.Status.LastSyncBytes = &tb
 				}
 			}
+			msg := info.StatusMessage
+			if msg == "" {
+				msg = "message not provided by vendor"
+			}
+			setReplicationCondition(vr.instance, vr.instance.Spec.DataSource.Kind, msg, info.Status)
 			requeueForInfo = true
 		} else if !util.IsUnimplementedError(err) {
 			logger.Error(err, "Failed to get volume replication info")
@@ -769,6 +774,17 @@ func setFailureCondition(instance *replicationv1alpha1.VolumeReplication, errMes
 		setFailedDemotionCondition(&instance.Status.Conditions, instance.Generation, dataSource, errMessage, errFromCephCSI)
 	case replicationv1alpha1.Resync:
 		setFailedResyncCondition(&instance.Status.Conditions, instance.Generation, dataSource, errMessage, errFromCephCSI)
+	}
+}
+
+func setReplicationCondition(instance *replicationv1alpha1.VolumeReplication, dataSource, statusMessage string, replicationStatus proto.GetVolumeReplicationInfoResponse_Status) {
+	switch replicationStatus {
+	case proto.GetVolumeReplicationInfoResponse_UNKNOWN:
+		setUnknownReplicationCondition(&instance.Status.Conditions, instance.Generation, dataSource, statusMessage)
+	case proto.GetVolumeReplicationInfoResponse_HEALTHY:
+		setHealthyReplicationCondition(&instance.Status.Conditions, instance.Generation, dataSource, statusMessage)
+	case proto.GetVolumeReplicationInfoResponse_DEGRADED, proto.GetVolumeReplicationInfoResponse_ERROR:
+		setDegradedReplicationCondition(&instance.Status.Conditions, instance.Generation, dataSource, statusMessage)
 	}
 }
 
