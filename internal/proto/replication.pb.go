@@ -23,6 +23,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Represents the type of replication status that can be returned
+// by a storage vendor.
+type GetVolumeReplicationInfoResponse_Status int32
+
+const (
+	// UNKNOWN indicates that the SP does not know the current
+	// replication status.
+	GetVolumeReplicationInfoResponse_UNKNOWN GetVolumeReplicationInfoResponse_Status = 0
+	// HEALTHY indicates that the replication is working properly.
+	GetVolumeReplicationInfoResponse_HEALTHY GetVolumeReplicationInfoResponse_Status = 1
+	// DEGRADED indicates that the replication has stopped working
+	// and it may require user intervention.
+	GetVolumeReplicationInfoResponse_DEGRADED GetVolumeReplicationInfoResponse_Status = 2
+	// ERROR indicates that there is an error in replication
+	// and it may require user intervention.
+	GetVolumeReplicationInfoResponse_ERROR GetVolumeReplicationInfoResponse_Status = 3
+)
+
+// Enum value maps for GetVolumeReplicationInfoResponse_Status.
+var (
+	GetVolumeReplicationInfoResponse_Status_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "HEALTHY",
+		2: "DEGRADED",
+		3: "ERROR",
+	}
+	GetVolumeReplicationInfoResponse_Status_value = map[string]int32{
+		"UNKNOWN":  0,
+		"HEALTHY":  1,
+		"DEGRADED": 2,
+		"ERROR":    3,
+	}
+)
+
+func (x GetVolumeReplicationInfoResponse_Status) Enum() *GetVolumeReplicationInfoResponse_Status {
+	p := new(GetVolumeReplicationInfoResponse_Status)
+	*p = x
+	return p
+}
+
+func (x GetVolumeReplicationInfoResponse_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GetVolumeReplicationInfoResponse_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_replication_proto_enumTypes[0].Descriptor()
+}
+
+func (GetVolumeReplicationInfoResponse_Status) Type() protoreflect.EnumType {
+	return &file_replication_proto_enumTypes[0]
+}
+
+func (x GetVolumeReplicationInfoResponse_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GetVolumeReplicationInfoResponse_Status.Descriptor instead.
+func (GetVolumeReplicationInfoResponse_Status) EnumDescriptor() ([]byte, []int) {
+	return file_replication_proto_rawDescGZIP(), []int{11, 0}
+}
+
 // EnableVolumeReplicationRequest holds the required information to enable
 // replication on a volume.
 type EnableVolumeReplicationRequest struct {
@@ -784,6 +845,14 @@ type GetVolumeReplicationInfoResponse struct {
 	// The value of this field MUST NOT be negative.
 	// This field is OPTIONAL.
 	LastSyncBytes int64 `protobuf:"varint,3,opt,name=last_sync_bytes,json=lastSyncBytes,proto3" json:"last_sync_bytes,omitempty"`
+	// Represents the current replication status as reported by
+	// the backend storage system.
+	// This field is REQUIRED.
+	Status GetVolumeReplicationInfoResponse_Status `protobuf:"varint,4,opt,name=status,proto3,enum=proto.GetVolumeReplicationInfoResponse_Status" json:"status,omitempty"`
+	// Contains a human readable message that describes the current
+	// state of replication
+	// This field is OPTIONAL.
+	StatusMessage string `protobuf:"bytes,5,opt,name=status_message,json=statusMessage,proto3" json:"status_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -837,6 +906,20 @@ func (x *GetVolumeReplicationInfoResponse) GetLastSyncBytes() int64 {
 		return x.LastSyncBytes
 	}
 	return 0
+}
+
+func (x *GetVolumeReplicationInfoResponse) GetStatus() GetVolumeReplicationInfoResponse_Status {
+	if x != nil {
+		return x.Status
+	}
+	return GetVolumeReplicationInfoResponse_UNKNOWN
+}
+
+func (x *GetVolumeReplicationInfoResponse) GetStatusMessage() string {
+	if x != nil {
+		return x.StatusMessage
+	}
+	return ""
 }
 
 // Specifies what source the replication will be created from. One of the
@@ -1099,11 +1182,18 @@ const file_replication_proto_rawDesc = "" +
 	"\vsecret_name\x18\x03 \x01(\tR\n" +
 	"secretName\x12)\n" +
 	"\x10secret_namespace\x18\x04 \x01(\tR\x0fsecretNamespace\x12G\n" +
-	"\x12replication_source\x18\x05 \x01(\v2\x18.proto.ReplicationSourceR\x11replicationSourceJ\x04\b\x01\x10\x02\"\xd5\x01\n" +
+	"\x12replication_source\x18\x05 \x01(\v2\x18.proto.ReplicationSourceR\x11replicationSourceJ\x04\b\x01\x10\x02\"\x81\x03\n" +
 	" GetVolumeReplicationInfoResponse\x12@\n" +
 	"\x0elast_sync_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\flastSyncTime\x12G\n" +
 	"\x12last_sync_duration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x10lastSyncDuration\x12&\n" +
-	"\x0flast_sync_bytes\x18\x03 \x01(\x03R\rlastSyncBytes\"\x97\x02\n" +
+	"\x0flast_sync_bytes\x18\x03 \x01(\x03R\rlastSyncBytes\x12F\n" +
+	"\x06status\x18\x04 \x01(\x0e2..proto.GetVolumeReplicationInfoResponse.StatusR\x06status\x12%\n" +
+	"\x0estatus_message\x18\x05 \x01(\tR\rstatusMessage\";\n" +
+	"\x06Status\x12\v\n" +
+	"\aUNKNOWN\x10\x00\x12\v\n" +
+	"\aHEALTHY\x10\x01\x12\f\n" +
+	"\bDEGRADED\x10\x02\x12\t\n" +
+	"\x05ERROR\x10\x03\"\x97\x02\n" +
 	"\x11ReplicationSource\x12?\n" +
 	"\x06volume\x18\x01 \x01(\v2%.proto.ReplicationSource.VolumeSourceH\x00R\x06volume\x12O\n" +
 	"\fvolume_group\x18\x02 \x01(\v2*.proto.ReplicationSource.VolumeGroupSourceH\x00R\vvolumeGroup\x1a+\n" +
@@ -1132,64 +1222,67 @@ func file_replication_proto_rawDescGZIP() []byte {
 	return file_replication_proto_rawDescData
 }
 
+var file_replication_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_replication_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_replication_proto_goTypes = []any{
-	(*EnableVolumeReplicationRequest)(nil),      // 0: proto.EnableVolumeReplicationRequest
-	(*EnableVolumeReplicationResponse)(nil),     // 1: proto.EnableVolumeReplicationResponse
-	(*DisableVolumeReplicationRequest)(nil),     // 2: proto.DisableVolumeReplicationRequest
-	(*DisableVolumeReplicationResponse)(nil),    // 3: proto.DisableVolumeReplicationResponse
-	(*PromoteVolumeRequest)(nil),                // 4: proto.PromoteVolumeRequest
-	(*PromoteVolumeResponse)(nil),               // 5: proto.PromoteVolumeResponse
-	(*DemoteVolumeRequest)(nil),                 // 6: proto.DemoteVolumeRequest
-	(*DemoteVolumeResponse)(nil),                // 7: proto.DemoteVolumeResponse
-	(*ResyncVolumeRequest)(nil),                 // 8: proto.ResyncVolumeRequest
-	(*ResyncVolumeResponse)(nil),                // 9: proto.ResyncVolumeResponse
-	(*GetVolumeReplicationInfoRequest)(nil),     // 10: proto.GetVolumeReplicationInfoRequest
-	(*GetVolumeReplicationInfoResponse)(nil),    // 11: proto.GetVolumeReplicationInfoResponse
-	(*ReplicationSource)(nil),                   // 12: proto.ReplicationSource
-	nil,                                         // 13: proto.EnableVolumeReplicationRequest.ParametersEntry
-	nil,                                         // 14: proto.DisableVolumeReplicationRequest.ParametersEntry
-	nil,                                         // 15: proto.PromoteVolumeRequest.ParametersEntry
-	nil,                                         // 16: proto.DemoteVolumeRequest.ParametersEntry
-	nil,                                         // 17: proto.ResyncVolumeRequest.ParametersEntry
-	(*ReplicationSource_VolumeSource)(nil),      // 18: proto.ReplicationSource.VolumeSource
-	(*ReplicationSource_VolumeGroupSource)(nil), // 19: proto.ReplicationSource.VolumeGroupSource
-	(*timestamppb.Timestamp)(nil),               // 20: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                 // 21: google.protobuf.Duration
+	(GetVolumeReplicationInfoResponse_Status)(0), // 0: proto.GetVolumeReplicationInfoResponse.Status
+	(*EnableVolumeReplicationRequest)(nil),       // 1: proto.EnableVolumeReplicationRequest
+	(*EnableVolumeReplicationResponse)(nil),      // 2: proto.EnableVolumeReplicationResponse
+	(*DisableVolumeReplicationRequest)(nil),      // 3: proto.DisableVolumeReplicationRequest
+	(*DisableVolumeReplicationResponse)(nil),     // 4: proto.DisableVolumeReplicationResponse
+	(*PromoteVolumeRequest)(nil),                 // 5: proto.PromoteVolumeRequest
+	(*PromoteVolumeResponse)(nil),                // 6: proto.PromoteVolumeResponse
+	(*DemoteVolumeRequest)(nil),                  // 7: proto.DemoteVolumeRequest
+	(*DemoteVolumeResponse)(nil),                 // 8: proto.DemoteVolumeResponse
+	(*ResyncVolumeRequest)(nil),                  // 9: proto.ResyncVolumeRequest
+	(*ResyncVolumeResponse)(nil),                 // 10: proto.ResyncVolumeResponse
+	(*GetVolumeReplicationInfoRequest)(nil),      // 11: proto.GetVolumeReplicationInfoRequest
+	(*GetVolumeReplicationInfoResponse)(nil),     // 12: proto.GetVolumeReplicationInfoResponse
+	(*ReplicationSource)(nil),                    // 13: proto.ReplicationSource
+	nil,                                          // 14: proto.EnableVolumeReplicationRequest.ParametersEntry
+	nil,                                          // 15: proto.DisableVolumeReplicationRequest.ParametersEntry
+	nil,                                          // 16: proto.PromoteVolumeRequest.ParametersEntry
+	nil,                                          // 17: proto.DemoteVolumeRequest.ParametersEntry
+	nil,                                          // 18: proto.ResyncVolumeRequest.ParametersEntry
+	(*ReplicationSource_VolumeSource)(nil),       // 19: proto.ReplicationSource.VolumeSource
+	(*ReplicationSource_VolumeGroupSource)(nil),  // 20: proto.ReplicationSource.VolumeGroupSource
+	(*timestamppb.Timestamp)(nil),                // 21: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),                  // 22: google.protobuf.Duration
 }
 var file_replication_proto_depIdxs = []int32{
-	13, // 0: proto.EnableVolumeReplicationRequest.parameters:type_name -> proto.EnableVolumeReplicationRequest.ParametersEntry
-	12, // 1: proto.EnableVolumeReplicationRequest.replication_source:type_name -> proto.ReplicationSource
-	14, // 2: proto.DisableVolumeReplicationRequest.parameters:type_name -> proto.DisableVolumeReplicationRequest.ParametersEntry
-	12, // 3: proto.DisableVolumeReplicationRequest.replication_source:type_name -> proto.ReplicationSource
-	15, // 4: proto.PromoteVolumeRequest.parameters:type_name -> proto.PromoteVolumeRequest.ParametersEntry
-	12, // 5: proto.PromoteVolumeRequest.replication_source:type_name -> proto.ReplicationSource
-	16, // 6: proto.DemoteVolumeRequest.parameters:type_name -> proto.DemoteVolumeRequest.ParametersEntry
-	12, // 7: proto.DemoteVolumeRequest.replication_source:type_name -> proto.ReplicationSource
-	17, // 8: proto.ResyncVolumeRequest.parameters:type_name -> proto.ResyncVolumeRequest.ParametersEntry
-	12, // 9: proto.ResyncVolumeRequest.replication_source:type_name -> proto.ReplicationSource
-	12, // 10: proto.GetVolumeReplicationInfoRequest.replication_source:type_name -> proto.ReplicationSource
-	20, // 11: proto.GetVolumeReplicationInfoResponse.last_sync_time:type_name -> google.protobuf.Timestamp
-	21, // 12: proto.GetVolumeReplicationInfoResponse.last_sync_duration:type_name -> google.protobuf.Duration
-	18, // 13: proto.ReplicationSource.volume:type_name -> proto.ReplicationSource.VolumeSource
-	19, // 14: proto.ReplicationSource.volume_group:type_name -> proto.ReplicationSource.VolumeGroupSource
-	0,  // 15: proto.Replication.EnableVolumeReplication:input_type -> proto.EnableVolumeReplicationRequest
-	2,  // 16: proto.Replication.DisableVolumeReplication:input_type -> proto.DisableVolumeReplicationRequest
-	4,  // 17: proto.Replication.PromoteVolume:input_type -> proto.PromoteVolumeRequest
-	6,  // 18: proto.Replication.DemoteVolume:input_type -> proto.DemoteVolumeRequest
-	8,  // 19: proto.Replication.ResyncVolume:input_type -> proto.ResyncVolumeRequest
-	10, // 20: proto.Replication.GetVolumeReplicationInfo:input_type -> proto.GetVolumeReplicationInfoRequest
-	1,  // 21: proto.Replication.EnableVolumeReplication:output_type -> proto.EnableVolumeReplicationResponse
-	3,  // 22: proto.Replication.DisableVolumeReplication:output_type -> proto.DisableVolumeReplicationResponse
-	5,  // 23: proto.Replication.PromoteVolume:output_type -> proto.PromoteVolumeResponse
-	7,  // 24: proto.Replication.DemoteVolume:output_type -> proto.DemoteVolumeResponse
-	9,  // 25: proto.Replication.ResyncVolume:output_type -> proto.ResyncVolumeResponse
-	11, // 26: proto.Replication.GetVolumeReplicationInfo:output_type -> proto.GetVolumeReplicationInfoResponse
-	21, // [21:27] is the sub-list for method output_type
-	15, // [15:21] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	14, // 0: proto.EnableVolumeReplicationRequest.parameters:type_name -> proto.EnableVolumeReplicationRequest.ParametersEntry
+	13, // 1: proto.EnableVolumeReplicationRequest.replication_source:type_name -> proto.ReplicationSource
+	15, // 2: proto.DisableVolumeReplicationRequest.parameters:type_name -> proto.DisableVolumeReplicationRequest.ParametersEntry
+	13, // 3: proto.DisableVolumeReplicationRequest.replication_source:type_name -> proto.ReplicationSource
+	16, // 4: proto.PromoteVolumeRequest.parameters:type_name -> proto.PromoteVolumeRequest.ParametersEntry
+	13, // 5: proto.PromoteVolumeRequest.replication_source:type_name -> proto.ReplicationSource
+	17, // 6: proto.DemoteVolumeRequest.parameters:type_name -> proto.DemoteVolumeRequest.ParametersEntry
+	13, // 7: proto.DemoteVolumeRequest.replication_source:type_name -> proto.ReplicationSource
+	18, // 8: proto.ResyncVolumeRequest.parameters:type_name -> proto.ResyncVolumeRequest.ParametersEntry
+	13, // 9: proto.ResyncVolumeRequest.replication_source:type_name -> proto.ReplicationSource
+	13, // 10: proto.GetVolumeReplicationInfoRequest.replication_source:type_name -> proto.ReplicationSource
+	21, // 11: proto.GetVolumeReplicationInfoResponse.last_sync_time:type_name -> google.protobuf.Timestamp
+	22, // 12: proto.GetVolumeReplicationInfoResponse.last_sync_duration:type_name -> google.protobuf.Duration
+	0,  // 13: proto.GetVolumeReplicationInfoResponse.status:type_name -> proto.GetVolumeReplicationInfoResponse.Status
+	19, // 14: proto.ReplicationSource.volume:type_name -> proto.ReplicationSource.VolumeSource
+	20, // 15: proto.ReplicationSource.volume_group:type_name -> proto.ReplicationSource.VolumeGroupSource
+	1,  // 16: proto.Replication.EnableVolumeReplication:input_type -> proto.EnableVolumeReplicationRequest
+	3,  // 17: proto.Replication.DisableVolumeReplication:input_type -> proto.DisableVolumeReplicationRequest
+	5,  // 18: proto.Replication.PromoteVolume:input_type -> proto.PromoteVolumeRequest
+	7,  // 19: proto.Replication.DemoteVolume:input_type -> proto.DemoteVolumeRequest
+	9,  // 20: proto.Replication.ResyncVolume:input_type -> proto.ResyncVolumeRequest
+	11, // 21: proto.Replication.GetVolumeReplicationInfo:input_type -> proto.GetVolumeReplicationInfoRequest
+	2,  // 22: proto.Replication.EnableVolumeReplication:output_type -> proto.EnableVolumeReplicationResponse
+	4,  // 23: proto.Replication.DisableVolumeReplication:output_type -> proto.DisableVolumeReplicationResponse
+	6,  // 24: proto.Replication.PromoteVolume:output_type -> proto.PromoteVolumeResponse
+	8,  // 25: proto.Replication.DemoteVolume:output_type -> proto.DemoteVolumeResponse
+	10, // 26: proto.Replication.ResyncVolume:output_type -> proto.ResyncVolumeResponse
+	12, // 27: proto.Replication.GetVolumeReplicationInfo:output_type -> proto.GetVolumeReplicationInfoResponse
+	22, // [22:28] is the sub-list for method output_type
+	16, // [16:22] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_replication_proto_init() }
@@ -1206,13 +1299,14 @@ func file_replication_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_replication_proto_rawDesc), len(file_replication_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_replication_proto_goTypes,
 		DependencyIndexes: file_replication_proto_depIdxs,
+		EnumInfos:         file_replication_proto_enumTypes,
 		MessageInfos:      file_replication_proto_msgTypes,
 	}.Build()
 	File_replication_proto = out.File
