@@ -337,6 +337,12 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			replicationErr = r.markVolumeAsPrimary(vr)
 		}
 
+		// Set PromotedCondition on VR/VGR, if the promotion was a success, or it was already a primary and the
+		// status was updated due to some intermittent bug
+		if replicationErr == nil {
+			setPromotedCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind)
+		}
+
 	case replicationv1alpha1.Secondary:
 		// For the first time, mark the volume as secondary and requeue the
 		// request. For some storage providers it takes some time to determine
@@ -627,8 +633,6 @@ func (r *VolumeReplicationReconciler) markVolumeAsPrimary(vr *volumeReplicationI
 			}
 		}
 	}
-
-	setPromotedCondition(&vr.instance.Status.Conditions, vr.instance.Generation, vr.instance.Spec.DataSource.Kind)
 
 	return nil
 }
