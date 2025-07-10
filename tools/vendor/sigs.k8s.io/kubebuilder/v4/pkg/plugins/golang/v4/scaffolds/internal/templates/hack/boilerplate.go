@@ -49,20 +49,17 @@ type Boilerplate struct {
 
 // Validate implements file.RequiresValidation
 func (f Boilerplate) Validate() error {
-	if f.License == "" {
-		// A default license will be set later
-	} else if _, found := knownLicenses[f.License]; found {
-		// One of the know licenses
-	} else if _, found := f.Licenses[f.License]; found {
-		// A map containing the requested license was also provided
-	} else {
-		return fmt.Errorf("unknown specified license %s", f.License)
+	if f.License != "" {
+		if _, found := knownLicenses[f.License]; !found {
+			if _, found := f.Licenses[f.License]; !found {
+				return fmt.Errorf("unknown specified license %s", f.License)
+			}
+		}
 	}
-
 	return nil
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Boilerplate) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = DefaultBoilerplatePath

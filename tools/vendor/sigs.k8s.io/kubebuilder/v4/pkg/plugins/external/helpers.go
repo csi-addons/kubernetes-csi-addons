@@ -99,7 +99,7 @@ func makePluginRequest(req external.PluginRequest, path string) (*external.Plugi
 
 	// Error if the plugin failed.
 	if res.Error {
-		return nil, fmt.Errorf(strings.Join(res.ErrorMsgs, "\n"))
+		return nil, fmt.Errorf("%s", strings.Join(res.ErrorMsgs, "\n"))
 	}
 
 	return &res, nil
@@ -127,7 +127,7 @@ func getUniverseMap(fs machinery.Filesystem) (map[string]string, error) {
 		}
 
 		defer func() {
-			if err := file.Close(); err != nil {
+			if err = file.Close(); err != nil {
 				return
 			}
 		}()
@@ -141,7 +141,6 @@ func getUniverseMap(fs machinery.Filesystem) (map[string]string, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

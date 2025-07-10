@@ -62,15 +62,18 @@ func loadConfig(configPath string) ([]templates.CustomMetricItem, error) {
 		return nil, nil
 	}
 
-	// nolint:gosec
+	//nolint:gosec
 	f, err := os.Open(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("error loading plugin config: %w", err)
 	}
 
 	items, err := configReader(f)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config.yaml: %w", err)
+	}
 
-	if err := f.Close(); err != nil {
+	if err = f.Close(); err != nil {
 		return nil, fmt.Errorf("could not close config.yaml: %w", err)
 	}
 
@@ -136,7 +139,7 @@ func fillMissingExpr(item templates.CustomMetricItem) templates.CustomMetricItem
 		case "counter":
 			item.Expr = "sum(rate(" + item.Metric + `{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, pod)`
 		case "histogram":
-			// nolint: lll
+			//nolint:lll
 			item.Expr = "histogram_quantile(0.90, sum by(instance, le) (rate(" + item.Metric + `{job=\"$job\", namespace=\"$namespace\"}[5m])))`
 		default: // gauge
 			item.Expr = item.Metric
@@ -169,7 +172,7 @@ func (s *editScaffolder) Scaffold() error {
 
 	configPath := string(configFilePath)
 
-	var templatesBuilder = []machinery.Builder{
+	templatesBuilder := []machinery.Builder{
 		&templates.RuntimeManifest{},
 		&templates.ResourcesManifest{},
 		&templates.CustomMetricsConfigManifest{ConfigPath: configPath},
