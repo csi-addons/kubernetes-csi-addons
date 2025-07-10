@@ -235,7 +235,7 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 
 	logger.Info("Determining schedule using precedence", "SchedulePrecedence", r.SchedulePrecedence)
 
-	if r.SchedulePrecedence == util.ScheduleSCOnly {
+	if r.SchedulePrecedence == util.ScheduleSC {
 		if schedule, err = r.getScheduleFromSC(ctx, pvc, logger, annotationKey); schedule != "" {
 			return schedule, nil
 		}
@@ -1046,7 +1046,7 @@ func (r *PersistentVolumeClaimReconciler) checkDisabledByAnnotation(
 		return checkAnnotationForValue(storageClass, annotationKey, "false"), nil
 	}
 
-	if r.SchedulePrecedence == util.ScheduleSCOnly {
+	if r.SchedulePrecedence == util.ScheduleSC {
 		disabled, err := isDisabledOnSC()
 		if err != nil {
 			return false, err
