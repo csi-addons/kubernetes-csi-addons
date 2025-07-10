@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"strings"
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/sidecar/service"
@@ -28,6 +29,7 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
 	sideutil "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
+	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition"
 
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
 	"github.com/kubernetes-csi/csi-lib-utils/standardflags"
@@ -61,6 +63,11 @@ func main() {
 		leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 10*time.Second, "Duration, in seconds, that the acting leader will retry refreshing leadership before giving up. Defaults to 10 seconds.")
 		leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 5*time.Second, "Duration, in seconds, the LeaderElector clients should wait between tries of actions. Defaults to 5 seconds.")
 		enableAuthChecks            = flag.Bool("enable-auth", true, "Enable Authorization checks and TLS communication (enabled by default)")
+
+		// volume condition reporting
+		enableVolumeCondition    = flag.Bool("enable-volume-condition", false, "Enable reporting of the volume condition")
+		volumeConditionInterval  = flag.Duration("volume-condition-interval", 1*time.Minute, "Interval between volume condition checks")
+		volumeConditionRecorders = flag.String("volume-condition-recorders", "log,pvcEvent", "location(s) to report volume condition to")
 	)
 	klog.InitFlags(nil)
 
@@ -129,6 +136,40 @@ func main() {
 			klog.Fatalf("failed to start watcher due to error: %v", err)
 		}
 	}()
+
+	// start the volume condition reporter
+	if *enableVolumeCondition {
+		go func() {
+			driver, err := csiClient.GetDriverName()
+			if err != nil {
+				klog.Fatalf("failed to get the drivername from the CSI-plugin: %v", err)
+			}
+
+			recorderOptions := make([]condition.RecorderOption, 0)
+			for _, vcr := range strings.Split(*volumeConditionRecorders, ",") {
+				switch vcr {
+				case "log":
+					recorderOptions = append(recorderOptions, condition.WithLogRecorder())
+				case "pvcEvent":
+					recorderOptions = append(recorderOptions, condition.WithEventRecorder())
+				default:
+					klog.Infof("condition recorder %q is unknown, skipping", vcr)
+				}
+			}
+
+			ctx := context.Background()
+			reporter, err := condition.NewVolumeConditionReporter(ctx, kubeClient, *nodeID, driver, recorderOptions)
+			if err != nil {
+				klog.Fatalf("failed to create volume condition reporter: %v", err)
+			}
+
+			klog.Info("starting volume condition reporter for driver: " + driver)
+			err = reporter.Run(ctx, *volumeConditionInterval)
+			if err != nil {
+				klog.Fatalf("failed to start volume condition reporter: %v", err)
+			}
+		}()
+	}
 
 	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
