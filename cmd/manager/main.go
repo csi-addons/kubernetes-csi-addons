@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -100,7 +101,7 @@ func main() {
 	flag.BoolVar(&enableAdmissionWebhooks, "enable-admission-webhooks", false, "[DEPRECATED] Enable the admission webhooks")
 	flag.BoolVar(&secureMetrics, "metrics-secure", true, "If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&showVersion, "version", false, "Print Version details")
-	flag.StringVar(&cfg.SchedulePrecedence, "schedule-precedence", "", "The order of precedence in which schedule of reclaimspace and keyrotation is considered. Possible values are sc-only")
+	flag.StringVar(&cfg.SchedulePrecedence, "schedule-precedence", util.SchedulePVC, fmt.Sprintf("The order of precedence in which schedule of reclaimspace and keyrotation is considered. Possible values are %q and %q. Defaults to %q", util.SchedulePVC, util.ScheduleSC, util.SchedulePVC))
 	flag.BoolVar(&enableAuth, "enable-auth", true, "Enables TLS and adds bearer token to the headers (enabled by default)")
 	flag.IntVar(&cfg.MaxGroupPVC, "max-group-pvc", cfg.MaxGroupPVC, "Maximum number of PVCs allowed in a volume group")
 	opts := zap.Options{
@@ -110,11 +111,6 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	standardflags.AddAutomaxprocs(setupLog.Info)
 	flag.Parse()
-
-	if cfg.SchedulePrecedence != "" && cfg.SchedulePrecedence != util.ScheduleSCOnly {
-		setupLog.Error(nil, "invalid value for schedule-precedence", "schedule-precedence", cfg.SchedulePrecedence)
-		os.Exit(1)
-	}
 
 	if showVersion {
 		version.PrintVersion()
