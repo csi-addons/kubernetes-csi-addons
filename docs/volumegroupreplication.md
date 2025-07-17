@@ -20,6 +20,9 @@ VolumeGroupReplication is a namespaced resource that contains references to stor
 
 - `selector` is a label selector to filter the pvcs that are to be included in the group replication
 
+`external` represents if the VolumeGroupReplication should be reconciled by the csi-addons controller
+or an external controller managed by the storage vendor.
+
 ```yaml
 apiVersion: replication.storage.openshift.io/v1alpha1
 kind: VolumeGroupReplication

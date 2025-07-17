@@ -46,6 +46,15 @@ spec:
                   AutoResync represents the group to be auto resynced when
                   ReplicationState is "secondary"
                 type: boolean
+              external:
+                default: false
+                description: |-
+                  External represents if VolumeGroupReplication should be reconciled by the csi-addons controller
+                  or an external controller managed by the storage vendor.
+                type: boolean
+                x-kubernetes-validations:
+                - message: source is immutable
+                  rule: self == oldSelf
               replicationState:
                 description: |-
                   ReplicationState represents the replication operation to be performed on the group.
@@ -152,7 +161,6 @@ spec:
             - replicationState
             - source
             - volumeGroupReplicationClassName
-            - volumeReplicationClassName
             type: object
           status:
             description: VolumeGroupReplicationStatus defines the observed state of
