@@ -8,6 +8,9 @@
   using a ConfigMap key `schedule-precedence`. The default is `pvc` which reads the
   annotations in order of PVC > NS > SC. It can be set to `storageclass` to respect only
   the annotations found on the Storage Classes.
+- Allow VolumeGroupReplication to be managed by a storage vendor specific implementation
+  of the controller by specifying `external` as `true` in the VGR's `spec`. The default is
+  `false`, which means VolumeGroupReplication will be reconciled by the csi-addons controller.
 
 ## NOTE
 

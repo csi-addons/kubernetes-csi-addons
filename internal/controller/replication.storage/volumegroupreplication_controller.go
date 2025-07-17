@@ -111,6 +111,12 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		return reconcile.Result{}, err
 	}
 
+	// Skip reconcile if external VGR
+	if instance.Spec.External {
+		r.log.Info("skipping reconcile for non csi-addons managed VGR")
+		return reconcile.Result{}, nil
+	}
+
 	// Get VolumeGroupReplicationClass instance
 	vgrClassObj, err := r.getVolumeGroupReplicationClass(instance.Spec.VolumeGroupReplicationClassName)
 	if err != nil {
@@ -424,6 +430,10 @@ func (r *VolumeGroupReplicationReconciler) SetupWithManager(mgr ctrl.Manager) er
 
 			// Check if the pvc labels match any VGRs based on selectors present in it's annotation
 			for _, vgr := range vgrObjsList.Items {
+				// Skip reconcile for PVC that belongs to an external VGR
+				if vgr.Spec.External {
+					continue
+				}
 				if vgr.Annotations != nil && vgr.Annotations[pvcSelector] != "" {
 					labelSelector, err := labels.Parse(vgr.Annotations[pvcSelector])
 					if err != nil {
