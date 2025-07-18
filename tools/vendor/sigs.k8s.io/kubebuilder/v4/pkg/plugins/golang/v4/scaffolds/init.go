@@ -17,6 +17,7 @@ limitations under the License.
 package scaffolds
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -28,18 +29,20 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins"
 	kustomizecommonv2 "sigs.k8s.io/kubebuilder/v4/pkg/plugins/common/kustomize/v2"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/cmd"
+	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/github"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/hack"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/test/e2e"
 	"sigs.k8s.io/kubebuilder/v4/pkg/plugins/golang/v4/scaffolds/internal/templates/test/utils"
 )
 
 const (
+	// GolangciLintVersion is the golangci-lint version to be used in the project
+	GolangciLintVersion = "v1.63.4"
 	// ControllerRuntimeVersion is the kubernetes-sigs/controller-runtime version to be used in the project
-	ControllerRuntimeVersion = "v0.19.0"
+	ControllerRuntimeVersion = "v0.20.4"
 	// ControllerToolsVersion is the kubernetes-sigs/controller-tools version to be used in the project
-	ControllerToolsVersion = "v0.16.1"
-	// EnvtestK8SVersion is the k8s version used to do the scaffold
-	EnvtestK8SVersion = "1.31.0"
+	ControllerToolsVersion = "v0.17.2"
 
 	imageName = "controller:latest"
 )
@@ -53,18 +56,20 @@ type initScaffolder struct {
 	boilerplatePath string
 	license         string
 	owner           string
+	commandName     string
 
 	// fs is the filesystem that will be used by the scaffolder
 	fs machinery.Filesystem
 }
 
 // NewInitScaffolder returns a new Scaffolder for project initialization operations
-func NewInitScaffolder(config config.Config, license, owner string) plugins.Scaffolder {
+func NewInitScaffolder(config config.Config, license, owner, commandName string) plugins.Scaffolder {
 	return &initScaffolder{
 		config:          config,
 		boilerplatePath: hack.DefaultBoilerplatePath,
 		license:         license,
 		owner:           owner,
+		commandName:     commandName,
 	}
 }
 
@@ -110,7 +115,15 @@ func (s *initScaffolder) Scaffold() error {
 
 		boilerplate, err := afero.ReadFile(s.fs.FS, s.boilerplatePath)
 		if err != nil {
-			return err
+			if errors.Is(err, afero.ErrFileNotFound) {
+				log.Warnf("Unable to find %s: %s.\n"+"This file is used to generate the license header in the project.\n"+
+					"Note that controller-gen will also use this. Therefore, ensure that you "+
+					"add the license file or configure your project accordingly.",
+					s.boilerplatePath, err)
+				boilerplate = []byte("")
+			} else {
+				return fmt.Errorf("unable to load boilerplate: %w", err)
+			}
 		}
 		// Initialize the machinery.Scaffold that will write the files to disk
 		scaffold = machinery.NewScaffold(s.fs,
@@ -140,7 +153,7 @@ func (s *initScaffolder) Scaffold() error {
 	}
 
 	return scaffold.Execute(
-		&templates.Main{
+		&cmd.Main{
 			ControllerRuntimeVersion: ControllerRuntimeVersion,
 		},
 		&templates.GoMod{
@@ -152,15 +165,24 @@ func (s *initScaffolder) Scaffold() error {
 			BoilerplatePath:          s.boilerplatePath,
 			ControllerToolsVersion:   ControllerToolsVersion,
 			KustomizeVersion:         kustomizeVersion,
+			GolangciLintVersion:      GolangciLintVersion,
 			ControllerRuntimeVersion: ControllerRuntimeVersion,
 			EnvtestVersion:           getControllerRuntimeReleaseBranch(),
 		},
 		&templates.Dockerfile{},
 		&templates.DockerIgnore{},
-		&templates.Readme{},
+		&templates.Readme{CommandName: s.commandName},
 		&templates.Golangci{},
 		&e2e.Test{},
+		&e2e.WebhookTestUpdater{WireWebhook: false},
 		&e2e.SuiteTest{},
+		&github.E2eTestCi{},
+		&github.TestCi{},
+		&github.LintCi{
+			GolangciLintVersion: GolangciLintVersion,
+		},
 		&utils.Utils{},
+		&templates.DevContainer{},
+		&templates.DevContainerPostInstallScript{},
 	)
 }

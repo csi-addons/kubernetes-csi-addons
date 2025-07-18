@@ -43,9 +43,9 @@ type initScaffolder struct {
 }
 
 // NewInitScaffolder returns a new Scaffolder for project initialization operations
-func NewInitScaffolder(config config.Config) plugins.Scaffolder {
+func NewInitScaffolder(cfg config.Config) plugins.Scaffolder {
 	return &initScaffolder{
-		config: config,
+		config: cfg,
 	}
 }
 
@@ -78,12 +78,14 @@ func (s *initScaffolder) Scaffold() error {
 		&rbac.ServiceAccount{},
 		&manager.Kustomization{},
 		&kdefault.ManagerMetricsPatch{},
+		&kdefault.CertManagerMetricsPatch{},
 		&manager.Config{Image: imageName},
 		&kdefault.Kustomization{},
 		&network_policy.Kustomization{},
-		&network_policy.NetworkPolicyAllowMetrics{},
+		&network_policy.PolicyAllowMetrics{},
 		&prometheus.Kustomization{},
 		&prometheus.Monitor{},
+		&prometheus.ServiceMonitorPatch{},
 	}
 
 	return scaffold.Execute(templates...)
