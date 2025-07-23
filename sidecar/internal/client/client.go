@@ -137,12 +137,7 @@ func (c *clientImpl) HasControllerService() (bool, error) {
 		return false, err
 	}
 
-	caps := rsp.GetCapabilities()
-	if len(caps) == 0 {
-		return false, errors.New("driver does not have any capabilities")
-	}
-
-	for _, c := range caps {
+	for _, c := range rsp.GetCapabilities() {
 		svc := c.GetService()
 		if svc != nil && svc.GetType() == identity.Capability_Service_CONTROLLER_SERVICE {
 			return true, nil
