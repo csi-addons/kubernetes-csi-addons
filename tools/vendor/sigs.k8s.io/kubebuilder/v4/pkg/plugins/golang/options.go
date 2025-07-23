@@ -23,38 +23,43 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/model/resource"
 )
 
-var (
-	coreGroups = map[string]string{
-		"admission":             "k8s.io",
-		"admissionregistration": "k8s.io",
-		"apps":                  "",
-		"auditregistration":     "k8s.io",
-		"apiextensions":         "k8s.io",
-		"authentication":        "k8s.io",
-		"authorization":         "k8s.io",
-		"autoscaling":           "",
-		"batch":                 "",
-		"certificates":          "k8s.io",
-		"coordination":          "k8s.io",
-		"core":                  "",
-		"events":                "k8s.io",
-		"extensions":            "",
-		"imagepolicy":           "k8s.io",
-		"networking":            "k8s.io",
-		"node":                  "k8s.io",
-		"metrics":               "k8s.io",
-		"policy":                "",
-		"rbac.authorization":    "k8s.io",
-		"scheduling":            "k8s.io",
-		"setting":               "k8s.io",
-		"storage":               "k8s.io",
-	}
-)
+var coreGroups = map[string]string{
+	"admission":             "k8s.io",
+	"admissionregistration": "k8s.io",
+	"apps":                  "",
+	"auditregistration":     "k8s.io",
+	"apiextensions":         "k8s.io",
+	"authentication":        "k8s.io",
+	"authorization":         "k8s.io",
+	"autoscaling":           "",
+	"batch":                 "",
+	"certificates":          "k8s.io",
+	"coordination":          "k8s.io",
+	"core":                  "",
+	"events":                "k8s.io",
+	"extensions":            "",
+	"imagepolicy":           "k8s.io",
+	"networking":            "k8s.io",
+	"node":                  "k8s.io",
+	"metrics":               "k8s.io",
+	"policy":                "",
+	"rbac.authorization":    "k8s.io",
+	"scheduling":            "k8s.io",
+	"setting":               "k8s.io",
+	"storage":               "k8s.io",
+}
 
 // Options contains the information required to build a new resource.Resource.
 type Options struct {
 	// Plural is the resource's kind plural form.
 	Plural string
+
+	// ExternalAPIPath allows to inform a path for APIs not defined in the project
+	ExternalAPIPath string
+
+	// ExternalAPIPath allows to inform the resource domain to build the Qualified Group
+	// to generate the RBAC markers
+	ExternalAPIDomain string
 
 	// Namespaced is true if the resource should be namespaced.
 	Namespaced bool
@@ -65,6 +70,9 @@ type Options struct {
 	DoDefaulting bool
 	DoValidation bool
 	DoConversion bool
+
+	// Spoke versions for conversion webhook
+	Spoke []string
 }
 
 // UpdateResource updates the provided resource with the options
@@ -74,7 +82,6 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 	}
 
 	if opts.DoAPI {
-		//nolint:staticcheck
 		res.Path = resource.APIPackagePath(c.GetRepository(), res.Group, res.Version, c.IsMultiGroup())
 
 		res.API = &resource.API{
@@ -89,7 +96,6 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 	}
 
 	if opts.DoDefaulting || opts.DoValidation || opts.DoConversion {
-		//nolint:staticcheck
 		res.Path = resource.APIPackagePath(c.GetRepository(), res.Group, res.Version, c.IsMultiGroup())
 
 		res.Webhooks.WebhookVersion = "v1"
@@ -101,7 +107,12 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 		}
 		if opts.DoConversion {
 			res.Webhooks.Conversion = true
+			res.Webhooks.Spoke = opts.Spoke
 		}
+	}
+
+	if len(opts.ExternalAPIPath) > 0 {
+		res.External = true
 	}
 
 	// domain and path may need to be changed in case we are referring to a builtin core resource:
@@ -109,15 +120,21 @@ func (opts Options) UpdateResource(res *resource.Resource, c config.Config) {
 	//  - Check if we already scaffolded the resource            => project resource
 	//  - Check if the resource group is a well-known core group => builtin core resource
 	//  - In any other case, default to                          => project resource
-	// TODO: need to support '--resource-pkg-path' flag for specifying resourcePath
 	if !opts.DoAPI {
 		var alreadyHasAPI bool
 		loadedRes, err := c.GetResource(res.GVK)
 		alreadyHasAPI = err == nil && loadedRes.HasAPI()
 		if !alreadyHasAPI {
-			if domain, found := coreGroups[res.Group]; found {
-				res.Domain = domain
-				res.Path = path.Join("k8s.io", "api", res.Group, res.Version)
+			if res.External {
+				res.Path = opts.ExternalAPIPath
+				res.Domain = opts.ExternalAPIDomain
+			} else {
+				// Handle core types
+				if domain, found := coreGroups[res.Group]; found {
+					res.Core = true
+					res.Domain = domain
+					res.Path = path.Join("k8s.io", "api", res.Group, res.Version)
+				}
 			}
 		}
 	}

@@ -27,7 +27,7 @@ type Dockerfile struct {
 	machinery.TemplateMixin
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Dockerfile) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = "Dockerfile"
@@ -39,7 +39,7 @@ func (f *Dockerfile) SetTemplateDefaults() error {
 }
 
 const dockerfileTemplate = `# Build the manager binary
-FROM golang:1.22 AS builder
+FROM docker.io/golang:1.23 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -54,7 +54,7 @@ RUN go mod download
 # Copy the go source
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
-COPY internal/controller/ internal/controller/
+COPY internal/ internal/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
