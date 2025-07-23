@@ -53,6 +53,9 @@ const (
 	volumeGroupReplicationContent = "VolumeGroupReplicationContent"
 	volumeGroupReplicationRef     = "replication.storage.openshift.io/volumegroupref"
 	pvcSelector                   = "pvcSelector"
+	// This annotation is added to a VGRC that has been dynamically provisioned by
+	// csi-addons. Its value is name of driver that created the volume group.
+	annDynamicallyProvisioned = "replication.storage.openshift.io/provisioned-by"
 )
 
 // VolumeGroupReplicationReconciler reconciles a VolumeGroupReplication object
@@ -666,7 +669,7 @@ func (r *VolumeGroupReplicationReconciler) cleanupGroupPVC(vgr *replicationv1alp
 }
 
 func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationContentCR(vgr *replicationv1alpha1.VolumeGroupReplication,
-	vgrContentObj *replicationv1alpha1.VolumeGroupReplicationContent, vgrClass string, pvHandlesList []string) error {
+	vgrContentObj *replicationv1alpha1.VolumeGroupReplicationContent, driver string, pvHandlesList []string) error {
 	vgrRef := fmt.Sprintf("%s/%s", vgr.Namespace, vgr.Name)
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, vgrContentObj, func() error {
 		if vgr.Spec.VolumeGroupReplicationContentName != "" && vgrContentObj.CreationTimestamp.IsZero() {
@@ -682,7 +685,7 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 					Namespace:  vgr.Namespace,
 					UID:        vgr.UID,
 				},
-				Provisioner:                     vgrClass,
+				Provisioner:                     driver,
 				VolumeGroupReplicationClassName: vgr.Spec.VolumeGroupReplicationClassName,
 				Source: replicationv1alpha1.VolumeGroupReplicationContentSource{
 					VolumeHandles: pvHandlesList,
@@ -695,6 +698,7 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 		if vgrContentObj.Annotations[volumeGroupReplicationRef] != vgrRef {
 			metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, volumeGroupReplicationRef, vgrRef)
 		}
+		metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, annDynamicallyProvisioned, driver)
 
 		if vgrContentObj.Spec.VolumeGroupReplicationRef == nil {
 			vgrContentObj.Spec.VolumeGroupReplicationRef = &corev1.ObjectReference{
