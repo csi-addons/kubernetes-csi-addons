@@ -49,6 +49,7 @@ jobs:
           wait pods
           -l app.kubernetes.io/name=csi-addons
           --for=condition=Ready=True
+          --timeout=5m
 
       - name: Log the status of the failed controller pod
         if: ${{ failure() }}
