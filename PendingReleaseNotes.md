@@ -11,6 +11,10 @@
 - Allow VolumeGroupReplication to be managed by a storage vendor specific implementation
   of the controller by specifying `external` as `true` in the VGR's `spec`. The default is
   `false`, which means VolumeGroupReplication will be reconciled by the csi-addons controller.
+- The sidecar now has the capability to report the volume condition in the logs of the
+  sidecar, and as an Event towards the PersistentVolumeClaim. This feature can be enabled by
+  passing the `--enable-volume-condition=true` command line flag to the sidecar. The
+  CSI-driver needs to support the `VOLUME_CONDITION` Node capability for this to work.
 
 ## NOTE
 
