@@ -87,6 +87,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+        terminationMessagePolicy: FallbackToLogsOnError
       securityContext:
         runAsNonRoot: true
       serviceAccountName: csi-addons-controller-manager
