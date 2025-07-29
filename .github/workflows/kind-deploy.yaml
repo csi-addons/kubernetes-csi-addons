@@ -42,6 +42,15 @@ jobs:
       - name: Deploy the controller and CRDs
         run: make deploy TAG=${{ env.TAG }}
 
+      - name: Wait for controller pod creation
+        run: >
+          kubectl
+          -n csi-addons-system
+          wait pods
+          -l app.kubernetes.io/name=csi-addons
+          --for=create
+          --timeout=5m
+
       - name: Wait for running controller pod
         run: >
           kubectl
