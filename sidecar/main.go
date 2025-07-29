@@ -164,7 +164,7 @@ func main() {
 				case volumeConditionPVCEventRecorder:
 					recorderOptions = append(recorderOptions, condition.WithEventRecorder())
 				default:
-					klog.Infof("condition recorder %q is unknown, skipping", vcr)
+					klog.Fatalf("condition recorder %q is unknown", vcr)
 				}
 			}
 
