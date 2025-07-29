@@ -122,14 +122,25 @@ func (k *kubelet) ResolvePersistentVolumeName(driver, volumeID string) (string, 
 	return pvName, nil
 }
 
+// isMountPoint checks if [path] is a mountpoint. This function tries to be
+// safe, and not access the potential mountpoint (as that may hang when the
+// volume is unhealthy).
 func (k *kubelet) isMountPoint(path string) bool {
-	isMnt, err := k.mounter.IsMountPoint(path)
+	// Mounter.List() reads entries from /proc/mounts, and does not try to
+	// stat() the path.
+	mps, err := k.mounter.List()
 	if err != nil {
-		klog.Errorf("failed to check if %q is a mountpoint: %v", path, err)
+		klog.Errorf("failed to list mountpoints: %v", err)
 		return false
 	}
 
-	return isMnt
+	for _, mp := range mps {
+		if mp.Path == path {
+			return true
+		}
+	}
+
+	return false
 }
 
 // getPublishDetails tries to find the directory where the volume is mounted.
