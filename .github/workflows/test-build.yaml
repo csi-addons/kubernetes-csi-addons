@@ -20,6 +20,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install build dependencies
+        run: sudo apt install -y libgpgme-dev
+
       - name: Generate the bundle contents
         run: make bundle
 

@@ -28,7 +28,7 @@ type Golangci struct {
 	machinery.ProjectNameMixin
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *Golangci) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = ".golangci.yml"
@@ -41,7 +41,6 @@ func (f *Golangci) SetTemplateDefaults() error {
 	return nil
 }
 
-//nolint:lll
 const golangciTemplate = `run:
   timeout: 5m
   allow-parallel-runners: true
@@ -65,7 +64,7 @@ linters:
   enable:
     - dupl
     - errcheck
-    - exportloopref
+    - copyloopvar
     - ginkgolinter
     - goconst
     - gocyclo

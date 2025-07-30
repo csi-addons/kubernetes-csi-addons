@@ -64,8 +64,7 @@ func GetNonEmptyLines(output string) []string {
 
 // InsertCode searches target content in the file and insert `toInsert` after the target.
 func InsertCode(filename, target, code string) error {
-	// false positive
-	// nolint:gosec
+	//nolint:gosec // false positive
 	contents, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -75,15 +74,13 @@ func InsertCode(filename, target, code string) error {
 		return fmt.Errorf("string %s not found in %s", target, string(contents))
 	}
 	out := string(contents[:idx+len(target)]) + code + string(contents[idx+len(target):])
-	// false positive
-	// nolint:gosec
-	return os.WriteFile(filename, []byte(out), 0644)
+	//nolint:gosec // false positive
+	return os.WriteFile(filename, []byte(out), 0o644)
 }
 
 // InsertCodeIfNotExist insert code if it does not already exists
 func InsertCodeIfNotExist(filename, target, code string) error {
-	// false positive
-	// nolint:gosec
+	//nolint:gosec // false positive
 	contents, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -113,12 +110,12 @@ func AppendCodeIfNotExist(filename, code string) error {
 
 // AppendCodeAtTheEnd appends the given code at the end of the file.
 func AppendCodeAtTheEnd(filename, code string) error {
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
+		if err = f.Close(); err != nil {
 			return
 		}
 	}()
@@ -130,8 +127,7 @@ func AppendCodeAtTheEnd(filename, code string) error {
 // UncommentCode searches for target in the file and remove the comment prefix
 // of the target content. The target content may span multiple lines.
 func UncommentCode(filename, target, prefix string) error {
-	// false positive
-	// nolint:gosec
+	//nolint:gosec // false positive
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -154,15 +150,14 @@ func UncommentCode(filename, target, prefix string) error {
 		return nil
 	}
 	for {
-		_, err := out.WriteString(strings.TrimPrefix(scanner.Text(), prefix))
-		if err != nil {
+		if _, err = out.WriteString(strings.TrimPrefix(scanner.Text(), prefix)); err != nil {
 			return err
 		}
 		// Avoid writing a newline in case the previous line was the last in target.
 		if !scanner.Scan() {
 			break
 		}
-		if _, err := out.WriteString("\n"); err != nil {
+		if _, err = out.WriteString("\n"); err != nil {
 			return err
 		}
 	}
@@ -171,9 +166,8 @@ func UncommentCode(filename, target, prefix string) error {
 	if err != nil {
 		return err
 	}
-	// false positive
-	// nolint:gosec
-	return os.WriteFile(filename, out.Bytes(), 0644)
+	//nolint:gosec // false positive
+	return os.WriteFile(filename, out.Bytes(), 0o644)
 }
 
 // CommentCode searches for target in the file and adds the comment prefix
@@ -202,8 +196,7 @@ func CommentCode(filename, target, prefix string) error {
 	// Add the comment prefix to each line of the target code
 	scanner := bufio.NewScanner(bytes.NewBufferString(target))
 	for scanner.Scan() {
-		_, err := out.WriteString(prefix + scanner.Text() + "\n")
-		if err != nil {
+		if _, err = out.WriteString(prefix + scanner.Text() + "\n"); err != nil {
 			return err
 		}
 	}
@@ -215,7 +208,7 @@ func CommentCode(filename, target, prefix string) error {
 	}
 
 	// Write the modified content back to the file
-	return os.WriteFile(filename, out.Bytes(), 0644)
+	return os.WriteFile(filename, out.Bytes(), 0o644)
 }
 
 // EnsureExistAndReplace check if the content exists and then do the replace
@@ -226,41 +219,21 @@ func EnsureExistAndReplace(input, match, replace string) (string, error) {
 	return strings.Replace(input, match, replace, -1), nil
 }
 
-func HasFragment(path, target string) (bool, error) {
-	_, err := os.Stat(path)
-	if err != nil {
-		return false, err
-	}
-
-	// false positive
-	// nolint:gosec
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return false, err
-	}
-
-	if !strings.Contains(string(b), target) {
-		return false, nil
-	}
-	return true, nil
-}
-
 // ReplaceInFile replaces all instances of old with new in the file at path.
-func ReplaceInFile(path, old, new string) error {
+func ReplaceInFile(path, oldValue, newValue string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
-	// false positive
-	// nolint:gosec
+	//nolint:gosec // false positive
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(string(b), old) {
+	if !strings.Contains(string(b), oldValue) {
 		return errors.New("unable to find the content to be replaced")
 	}
-	s := strings.Replace(string(b), old, new, -1)
+	s := strings.Replace(string(b), oldValue, newValue, -1)
 	err = os.WriteFile(path, []byte(s), info.Mode())
 	if err != nil {
 		return err
@@ -279,8 +252,7 @@ func ReplaceRegexInFile(path, match, replace string) error {
 	if err != nil {
 		return err
 	}
-	// false positive
-	// nolint:gosec
+	//nolint:gosec // false positive
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -298,7 +270,7 @@ func ReplaceRegexInFile(path, match, replace string) error {
 
 // HasFileContentWith check if given `text` can be found in file
 func HasFileContentWith(path, text string) (bool, error) {
-	// nolint:gosec
+	//nolint:gosec
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return false, err

@@ -20,7 +20,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"sigs.k8s.io/kubebuilder/v4/pkg/config"
@@ -285,7 +287,7 @@ func (factory *executionHooksFactory) preRunEFunc(
 		}
 
 		// Pre-scaffold hook.
-		// nolint:revive
+		//nolint:revive
 		if err := factory.forEach(func(subcommand plugin.Subcommand) error {
 			if subcommand, hasPreScaffold := subcommand.(plugin.HasPreScaffold); hasPreScaffold {
 				return subcommand.PreScaffold(factory.fs)
@@ -303,7 +305,7 @@ func (factory *executionHooksFactory) preRunEFunc(
 func (factory *executionHooksFactory) runEFunc() func(*cobra.Command, []string) error {
 	return func(*cobra.Command, []string) error {
 		// Scaffold hook.
-		// nolint:revive
+		//nolint:revive
 		if err := factory.forEach(func(subcommand plugin.Subcommand) error {
 			return subcommand.Scaffold(factory.fs)
 		}, "unable to scaffold with"); err != nil {
@@ -323,7 +325,7 @@ func (factory *executionHooksFactory) postRunEFunc() func(*cobra.Command, []stri
 		}
 
 		// Post-scaffold hook.
-		// nolint:revive
+		//nolint:revive
 		if err := factory.forEach(func(subcommand plugin.Subcommand) error {
 			if subcommand, hasPostScaffold := subcommand.(plugin.HasPostScaffold); hasPostScaffold {
 				return subcommand.PostScaffold()
@@ -335,4 +337,41 @@ func (factory *executionHooksFactory) postRunEFunc() func(*cobra.Command, []stri
 
 		return nil
 	}
+}
+
+func updateProjectFileForAlphaGenerate() error {
+	projectFilePath := "PROJECT"
+
+	content, err := os.ReadFile(projectFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read PROJECT file: %w", err)
+	}
+
+	projectStr := string(content)
+
+	// Define outdated plugin versions that need replacement
+	outdatedPlugins := []string{"go.kubebuilder.io/v3", "go.kubebuilder.io/v3-alpha", "go.kubebuilder.io/v2"}
+	updated := false
+
+	for _, oldPlugin := range outdatedPlugins {
+		if strings.Contains(projectStr, oldPlugin) {
+			log.Warnf("Detected '%s' in PROJECT file.", oldPlugin)
+			log.Warnf("Kubebuilder v4 no longer supports this. It will be replaced with 'go.kubebuilder.io/v4'.")
+
+			projectStr = strings.ReplaceAll(projectStr, oldPlugin, "go.kubebuilder.io/v4")
+			updated = true
+			break
+		}
+	}
+
+	// Only update the file if changes were made
+	if updated {
+		err = os.WriteFile(projectFilePath, []byte(projectStr), 0o644)
+		if err != nil {
+			return fmt.Errorf("failed to update PROJECT file: %w", err)
+		}
+		log.Infof("PROJECT file updated successfully.")
+	}
+
+	return nil
 }

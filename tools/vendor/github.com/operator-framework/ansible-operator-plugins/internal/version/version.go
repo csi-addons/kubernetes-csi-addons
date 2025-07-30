@@ -28,5 +28,5 @@ var (
 	// and release process, this variable will be removed.
 
 	// TODO: find a way to make this automated. For now manually update this before releases.
-	ImageVersion = "v1.37.2"
+	ImageVersion = "v1.38.1"
 )
