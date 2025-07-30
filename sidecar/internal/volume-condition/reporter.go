@@ -188,7 +188,7 @@ func (cvr *volumeConditionReporter) recordVolumeCondition(ctx context.Context, v
 	for _, recorder := range cvr.recorders {
 		err = recorder.record(ctx, pv, vc)
 		if err != nil {
-			klog.Warningf(
+			klog.Errorf(
 				"%T failed to record volume condition for persistent volume %q: %v",
 				recorder,
 				pv.Name,
