@@ -41,6 +41,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
+var (
+	// available recorders for the --volume-condition-recorders flag
+	volumeConditionLogRecorder      = "log"
+	volumeConditionPVCEventRecorder = "pvcEvent"
+
+	defaultVolumeConditionRecorders = strings.Join([]string{
+		volumeConditionLogRecorder,
+		volumeConditionPVCEventRecorder,
+	}, ",")
+)
+
 func main() {
 	var (
 		defaultTimeout     = time.Minute * 3
@@ -67,7 +78,7 @@ func main() {
 		// volume condition reporting
 		enableVolumeCondition    = flag.Bool("enable-volume-condition", false, "Enable reporting of the volume condition")
 		volumeConditionInterval  = flag.Duration("volume-condition-interval", 1*time.Minute, "Interval between volume condition checks")
-		volumeConditionRecorders = flag.String("volume-condition-recorders", "log,pvcEvent", "location(s) to report volume condition to")
+		volumeConditionRecorders = flag.String("volume-condition-recorders", defaultVolumeConditionRecorders, "location(s) to report volume condition to")
 	)
 	klog.InitFlags(nil)
 
@@ -148,12 +159,12 @@ func main() {
 			recorderOptions := make([]condition.RecorderOption, 0)
 			for _, vcr := range strings.Split(*volumeConditionRecorders, ",") {
 				switch vcr {
-				case "log":
+				case volumeConditionLogRecorder:
 					recorderOptions = append(recorderOptions, condition.WithLogRecorder())
-				case "pvcEvent":
+				case volumeConditionPVCEventRecorder:
 					recorderOptions = append(recorderOptions, condition.WithEventRecorder())
 				default:
-					klog.Infof("condition recorder %q is unknown, skipping", vcr)
+					klog.Fatalf("condition recorder %q is unknown", vcr)
 				}
 			}
 
