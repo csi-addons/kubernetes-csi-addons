@@ -6,7 +6,7 @@ BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
 TOOLS_IMG ?= quay.io/csiaddons/tools
 
 # set TAG to a release for consumption in the bundle
-TAG ?= latest
+TAG ?= v0.13.0
 
 # In case the *_IMG variables can contain a full qualified container-image
 # resource (includes a ":"), the container-images should not use the TAG
