@@ -463,6 +463,12 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			requeueForInfo = true
 		} else if !util.IsUnimplementedError(err) {
 			logger.Error(err, "Failed to get volume replication info")
+			// Set UNKNOWN Replicating condition if any error occurred while fetching volume info.
+			setReplicationCondition(vr.instance, vr.instance.Spec.DataSource.Kind, err.Error(), proto.GetVolumeReplicationInfoResponse_UNKNOWN)
+			statusErr := r.updateReplicationStatus(instance, logger, GetReplicationState(instance.Spec.ReplicationState), msg)
+			if statusErr != nil {
+				return ctrl.Result{}, statusErr
+			}
 			return ctrl.Result{}, err
 		}
 	}
