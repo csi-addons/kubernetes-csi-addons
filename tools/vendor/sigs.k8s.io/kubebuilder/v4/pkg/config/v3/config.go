@@ -52,6 +52,7 @@ func (ss *stringSlice) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// Cfg defines the Project Config (PROJECT file)
 type Cfg struct {
 	// Version
 	Version config.Version `json:"version"`
@@ -160,13 +161,15 @@ func (c Cfg) ResourcesLength() int {
 
 // HasResource implements config.Config
 func (c Cfg) HasResource(gvk resource.GVK) bool {
+	found := false
 	for _, res := range c.Resources {
 		if gvk.IsEqualTo(res.GVK) {
-			return true
+			found = true
+			break
 		}
 	}
 
-	return false
+	return found
 }
 
 // GetResource implements config.Config
@@ -296,8 +299,8 @@ func (c Cfg) DecodePluginConfig(key string, configObj interface{}) error {
 	}
 
 	// Get the object blob by key and unmarshal into the object.
-	if pluginConfig, hasKey := c.Plugins[key]; hasKey {
-		b, err := yaml.Marshal(pluginConfig)
+	if pluginCfg, hasKey := c.Plugins[key]; hasKey {
+		b, err := yaml.Marshal(pluginCfg)
 		if err != nil {
 			return fmt.Errorf("failed to convert extra fields object to bytes: %w", err)
 		}
@@ -328,7 +331,7 @@ func (c *Cfg) EncodePluginConfig(key string, configObj interface{}) error {
 	return nil
 }
 
-// Marshal implements config.Config
+// MarshalYAML implements config.Config
 func (c Cfg) MarshalYAML() ([]byte, error) {
 	for i, r := range c.Resources {
 		// If API is empty, omit it (prevents `api: {}`).
@@ -349,7 +352,7 @@ func (c Cfg) MarshalYAML() ([]byte, error) {
 	return content, nil
 }
 
-// Unmarshal implements config.Config
+// UnmarshalYAML implements config.Config
 func (c *Cfg) UnmarshalYAML(b []byte) error {
 	if err := yaml.UnmarshalStrict(b, c); err != nil {
 		return config.UnmarshalError{Err: err}
