@@ -410,6 +410,9 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if requeueForResync {
 		logger.Info("volume is not ready to use, requeuing for resync")
+		// Remove replicating condition if it exists for secondary state
+		updatedConditions := removeCondition(&vr.instance.Status.Conditions, replicationv1alpha1.ConditionReplicating)
+		vr.instance.Status.Conditions = updatedConditions
 
 		err = r.updateReplicationStatus(instance, logger, GetCurrentReplicationState(instance.Status.State), "volume is degraded")
 		if err != nil {
@@ -474,6 +477,9 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 	if instance.Spec.ReplicationState == replicationv1alpha1.Secondary {
 		instance.Status.LastSyncTime = nil
+		// Remove replicating condition if it exists for secondary state
+		updatedConditions := removeCondition(&vr.instance.Status.Conditions, replicationv1alpha1.ConditionReplicating)
+		vr.instance.Status.Conditions = updatedConditions
 	}
 	err = r.updateReplicationStatus(instance, logger, GetReplicationState(instance.Spec.ReplicationState), msg)
 	if err != nil {
