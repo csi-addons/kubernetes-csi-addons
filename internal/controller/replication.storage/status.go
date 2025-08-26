@@ -18,6 +18,7 @@ package controller
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
@@ -317,4 +318,11 @@ func findCondition(existingConditions []metav1.Condition, conditionType string) 
 	}
 
 	return nil
+}
+
+// removes the given condition from Conditions slice.
+func removeCondition(conditions *[]metav1.Condition, conditionType string) []metav1.Condition {
+	return slices.DeleteFunc(*conditions, func(condition metav1.Condition) bool {
+		return condition.Type == conditionType
+	})
 }
