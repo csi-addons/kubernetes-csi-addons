@@ -291,18 +291,26 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			}
 		}
 
-		// Remove the owner annotation and the finalizer from pvcs that are part of VGR
-		if instance.Status.PersistentVolumeClaimsRefList != nil {
-			err = r.cleanupGroupPVC(instance)
-			if err != nil {
-				return reconcile.Result{}, err
+		// Check if owner annotations are removed from the VGR resource
+		if isSafeToDeleteVGR(instance) {
+			// Remove the owner annotation and the finalizer from pvcs that are part of VGR,
+			// as the dependent resources like VR, VGRContent are already deleted and we can
+			// safely delete/remove finalizer from VGR in the next step.
+			if instance.Status.PersistentVolumeClaimsRefList != nil {
+				err = r.cleanupGroupPVC(instance)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
 			}
-		}
 
-		// Just log error, and exit reconcile without error. The dependent resource will update the VGR
-		// to remove their names from the CR, that will trigger a reconcile.
-		if err = removeFinalizerFromVGR(r.Client, r.log, instance); err != nil {
-			r.log.Error(err, "failed to remove VolumeGroupReplication finalizer")
+			// Just log error, and exit reconcile without error. The dependent resource will update the VGR
+			// to remove their names from the CR, that will trigger a reconcile.
+			if err = removeFinalizerFromVGR(r.Client, r.log, instance); err != nil {
+				return reconcile.Result{}, nil
+			}
+		} else {
+			r.log.Info("can't delete volumeGroupReplication object yet, as the"+
+				"dependent resources are not yet deleted (%s/%s)", instance.Namespace, instance.Name)
 			return reconcile.Result{
 				RequeueAfter: 10 * time.Second,
 			}, nil
