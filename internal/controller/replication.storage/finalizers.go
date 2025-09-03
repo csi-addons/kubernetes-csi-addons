@@ -117,12 +117,6 @@ func addFinalizerToVGR(client client.Client, logger logr.Logger, vgr *replicatio
 func removeFinalizerFromVGR(client client.Client, logger logr.Logger, vgr *replicationv1alpha1.VolumeGroupReplication) error {
 	if slices.Contains(vgr.Finalizers, vgrReplicationFinalizer) {
 		logger.Info("removing finalizer from volumeGroupReplication object", "Finalizer", vgrReplicationFinalizer)
-		// Check if owner annotations are removed from the VGR resource
-		if vgr.Annotations[replicationv1alpha1.VolumeGroupReplicationContentNameAnnotation] != "" ||
-			vgr.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] != "" {
-			return fmt.Errorf("failed to remove finalizer from volumeGroupReplication object"+
-				",dependent resources are not yet deleted (%s/%s)", vgr.Namespace, vgr.Name)
-		}
 		vgr.Finalizers = util.RemoveFromSlice(vgr.Finalizers, vgrReplicationFinalizer)
 		if err := client.Update(context.TODO(), vgr); err != nil {
 			return fmt.Errorf("failed to remove finalizer (%s) from VolumeGroupReplication resource"+
@@ -164,4 +158,12 @@ func removeFinalizerFromVGRContent(client client.Client, logger logr.Logger, vgr
 	}
 
 	return nil
+}
+
+func isSafeToDeleteVGR(vgr *replicationv1alpha1.VolumeGroupReplication) bool {
+	if vgr.Annotations[replicationv1alpha1.VolumeGroupReplicationContentNameAnnotation] != "" ||
+		vgr.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] != "" {
+		return false
+	}
+	return true
 }
