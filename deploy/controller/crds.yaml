@@ -1846,6 +1846,9 @@ spec:
     - jsonPath: .spec.provisioner
       name: provisioner
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -1933,8 +1936,11 @@ spec:
     - jsonPath: .spec.volumeReplicationClass
       name: volumeReplicationClass
       type: string
+    - jsonPath: .spec.dataSource.kind
+      name: SourceKind
+      type: string
     - jsonPath: .spec.dataSource.name
-      name: pvcName
+      name: SourceName
       type: string
     - jsonPath: .spec.replicationState
       name: desiredState
