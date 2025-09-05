@@ -20,6 +20,9 @@ spec:
     - jsonPath: .spec.provisioner
       name: provisioner
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:

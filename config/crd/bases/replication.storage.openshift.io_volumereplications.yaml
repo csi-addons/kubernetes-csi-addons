@@ -23,8 +23,11 @@ spec:
     - jsonPath: .spec.volumeReplicationClass
       name: volumeReplicationClass
       type: string
+    - jsonPath: .spec.dataSource.kind
+      name: SourceKind
+      type: string
     - jsonPath: .spec.dataSource.name
-      name: pvcName
+      name: SourceName
       type: string
     - jsonPath: .spec.replicationState
       name: desiredState
