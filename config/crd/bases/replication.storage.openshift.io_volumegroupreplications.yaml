@@ -11,10 +11,28 @@ spec:
     kind: VolumeGroupReplication
     listKind: VolumeGroupReplicationList
     plural: volumegroupreplications
+    shortNames:
+    - vgr
     singular: volumegroupreplication
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.volumeGroupReplicationClassName
+      name: VolumeGroupReplicationClass
+      type: string
+    - jsonPath: .spec.volumeGroupReplicationContentName
+      name: VolumeGroupReplicationContent
+      type: string
+    - jsonPath: .spec.replicationState
+      name: desiredState
+      type: string
+    - jsonPath: .status.state
+      name: currentState
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: VolumeGroupReplication is the Schema for the volumegroupreplications
