@@ -64,6 +64,12 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, err
 	}
 
+	// Check if resource is being deleted
+	if !krcJob.DeletionTimestamp.IsZero() {
+		logger.Info("EncryptionKeyRotationCronJob is being deleted, exiting reconcile", "namespace", krcJob.Namespace, "name", krcJob.Name)
+		return ctrl.Result{}, nil
+	}
+
 	// Set default values for the optionals
 	if krcJob.Spec.FailedJobsHistoryLimit == nil {
 		*krcJob.Spec.FailedJobsHistoryLimit = defaultFailedJobsHistoryLimit
