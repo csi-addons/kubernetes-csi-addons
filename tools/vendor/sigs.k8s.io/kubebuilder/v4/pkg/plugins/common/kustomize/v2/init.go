@@ -49,11 +49,11 @@ func (p *initSubcommand) UpdateMetadata(cliMeta plugin.CLIMetadata, subcmdMeta *
 NOTE: This plugin requires kustomize version v5 and kubectl >= 1.22.
 `
 	subcmdMeta.Examples = fmt.Sprintf(`  # Initialize a common project with your domain and name in copyright
-  %[1]s init --plugins common/v3 --domain example.org
+  %[1]s init --plugins %[2]s --domain example.org
 
   # Initialize a common project defining a specific project version
-  %[1]s init --plugins common/v3 --project-version 3
-`, cliMeta.CommandName)
+  %[1]s init --plugins %[2]s --project-version 3
+`, cliMeta.CommandName, plugin.KeyFor(Plugin{}))
 }
 
 func (p *initSubcommand) BindFlags(fs *pflag.FlagSet) {
@@ -65,23 +65,24 @@ func (p *initSubcommand) InjectConfig(c config.Config) error {
 	p.config = c
 
 	if err := p.config.SetDomain(p.domain); err != nil {
-		return err
+		return fmt.Errorf("error setting domain: %w", err)
 	}
 
 	// Assign a default project name
 	if p.name == "" {
 		dir, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("error getting current directory: %v", err)
+			return fmt.Errorf("error getting current directory: %w", err)
 		}
 		p.name = strings.ToLower(filepath.Base(dir))
 	}
 	// Check if the project name is a valid k8s namespace (DNS 1123 label).
 	if err := validation.IsDNS1123Label(p.name); err != nil {
-		return fmt.Errorf("project name (%s) is invalid: %v", p.name, err)
+		return fmt.Errorf("project name %q is invalid: %v", p.name, err)
 	}
+
 	if err := p.config.SetProjectName(p.name); err != nil {
-		return err
+		return fmt.Errorf("error setting project name: %w", err)
 	}
 
 	return nil
@@ -90,5 +91,9 @@ func (p *initSubcommand) InjectConfig(c config.Config) error {
 func (p *initSubcommand) Scaffold(fs machinery.Filesystem) error {
 	scaffolder := scaffolds.NewInitScaffolder(p.config)
 	scaffolder.InjectFS(fs)
-	return scaffolder.Scaffold()
+	if err := scaffolder.Scaffold(); err != nil {
+		return fmt.Errorf("failed to scaffold init subcommand: %w", err)
+	}
+
+	return nil
 }
