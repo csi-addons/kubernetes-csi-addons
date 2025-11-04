@@ -18,16 +18,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// Package automaxprocs automatically sets GOMAXPROCS to match the Linux
-// container CPU quota, if any.
-package automaxprocs // import "go.uber.org/automaxprocs"
+//go:build linux
+// +build linux
 
-import (
-	"log"
+package automaxprocs
 
-	"go.uber.org/automaxprocs/maxprocs"
-)
+import "fmt"
 
-func init() {
-	maxprocs.Set(maxprocs.Logger(log.Printf))
+type cgroupSubsysFormatInvalidError struct {
+	line string
+}
+
+type mountPointFormatInvalidError struct {
+	line string
+}
+
+type pathNotExposedFromMountPointError struct {
+	mountPoint string
+	root       string
+	path       string
+}
+
+func (err cgroupSubsysFormatInvalidError) Error() string {
+	return fmt.Sprintf("invalid format for CGroupSubsys: %q", err.line)
+}
+
+func (err mountPointFormatInvalidError) Error() string {
+	return fmt.Sprintf("invalid format for MountPoint: %q", err.line)
+}
+
+func (err pathNotExposedFromMountPointError) Error() string {
+	return fmt.Sprintf("path %q is not a descendant of mount point root %q and cannot be exposed from %q", err.path, err.root, err.mountPoint)
 }
