@@ -118,6 +118,13 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
+	// Check if the PVC is being deleted
+	if !pvc.DeletionTimestamp.IsZero() {
+		logger.Info("PVC is being deleted, exiting reconcile", "namespace", pvc.Namespace, "name", pvc.Name)
+		// requeue the request
+		return ctrl.Result{}, nil
+	}
+
 	// Validate PVC in bound state
 	if pvc.Status.Phase != corev1.ClaimBound {
 		logger.Info("PVC is not in bound state", "PVCPhase", pvc.Status.Phase)
