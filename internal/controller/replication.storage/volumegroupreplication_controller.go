@@ -309,8 +309,8 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 				return reconcile.Result{}, nil
 			}
 		} else {
-			r.log.Info("can't delete volumeGroupReplication object yet, as the"+
-				"dependent resources are not yet deleted (%s/%s)", instance.Namespace, instance.Name)
+			r.log.Info("cannot delete volumeGroupReplication object yet, as the "+
+				"dependent resources are not yet deleted", "namespace", instance.Namespace, "name", instance.Name)
 			return reconcile.Result{
 				RequeueAfter: 10 * time.Second,
 			}, nil
