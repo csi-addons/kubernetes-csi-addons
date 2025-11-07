@@ -16,7 +16,7 @@ jobs:
       - name: codespell
         uses: codespell-project/actions-codespell@master
         with:
-          skip: .git,go.mod,go.sum,vendor
+          skip: .git,go.mod,go.sum,vendor,*.svg
           ignore_words_list: NotIn
           check_filenames: true
           check_hidden: true
