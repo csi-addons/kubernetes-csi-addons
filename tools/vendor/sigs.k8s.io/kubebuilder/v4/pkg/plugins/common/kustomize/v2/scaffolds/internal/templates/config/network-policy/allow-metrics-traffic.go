@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package network_policy
+package networkpolicy
 
 import (
 	"path/filepath"
@@ -22,17 +22,17 @@ import (
 	"sigs.k8s.io/kubebuilder/v4/pkg/machinery"
 )
 
-var _ machinery.Template = &NetworkPolicyAllowMetrics{}
+var _ machinery.Template = &PolicyAllowMetrics{}
 
-// NetworkPolicyAllowMetrics scaffolds a file that defines the NetworkPolicy
+// PolicyAllowMetrics scaffolds a file that defines the NetworkPolicy
 // to allow access to the metrics endpoint
-type NetworkPolicyAllowMetrics struct {
+type PolicyAllowMetrics struct {
 	machinery.TemplateMixin
 	machinery.ProjectNameMixin
 }
 
-// SetTemplateDefaults implements file.Template
-func (f *NetworkPolicyAllowMetrics) SetTemplateDefaults() error {
+// SetTemplateDefaults implements machinery.Template
+func (f *PolicyAllowMetrics) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("config", "network-policy", "allow-metrics-traffic.yaml")
 	}
@@ -44,7 +44,7 @@ func (f *NetworkPolicyAllowMetrics) SetTemplateDefaults() error {
 
 const metricsNetworkPolicyTemplate = `# This NetworkPolicy allows ingress traffic
 # with Pods running on namespaces labeled with 'metrics: enabled'. Only Pods on those
-# namespaces are able to gathering data from the metrics endpoint.
+# namespaces are able to gather data from the metrics endpoint.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -57,6 +57,7 @@ spec:
   podSelector:
     matchLabels:
       control-plane: controller-manager
+      app.kubernetes.io/name: {{ .ProjectName }}
   policyTypes:
     - Ingress
   ingress:
