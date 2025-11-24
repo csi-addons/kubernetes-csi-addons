@@ -1,0 +1,89 @@
+/*
+Copyright 2025 The Kubernetes-CSI-Addons Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package utils
+
+import (
+	"testing"
+
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+func TestSetSpec(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      client.Object
+		schedule string
+		pvcName  string
+		validate func(t *testing.T, obj client.Object)
+	}{
+		{
+			name:     "SetSpec with EncryptionKeyRotationCronJob",
+			obj:      &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{},
+			schedule: "@weekly",
+			pvcName:  "test-pvc",
+			validate: func(t *testing.T, obj client.Object) {
+				ekrCronJob := obj.(*csiaddonsv1alpha1.EncryptionKeyRotationCronJob)
+				if ekrCronJob.Spec.Schedule != "@weekly" {
+					t.Errorf("expected schedule '@weekly', got '%s'", ekrCronJob.Spec.Schedule)
+				}
+				if ekrCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim != "test-pvc" {
+					t.Errorf("expected pvcName 'test-pvc', got '%s'", ekrCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim)
+				}
+				// We set it by default when setting spec
+				if ekrCronJob.Annotations[CSIAddonsStateAnnotation] != CSIAddonsStateManaged {
+					t.Error("expected CSIAddonsStateManaged annotation")
+				}
+			},
+		},
+		{
+			name:     "SetSpec with ReclaimSpaceCronJob",
+			obj:      &csiaddonsv1alpha1.ReclaimSpaceCronJob{},
+			schedule: "@daily",
+			pvcName:  "another-pvc",
+			validate: func(t *testing.T, obj client.Object) {
+				rsCronJob := obj.(*csiaddonsv1alpha1.ReclaimSpaceCronJob)
+				if rsCronJob.Spec.Schedule != "@daily" {
+					t.Errorf("expected schedule '@daily', got '%s'", rsCronJob.Spec.Schedule)
+				}
+				if rsCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim != "another-pvc" {
+					t.Errorf("expected pvcName 'another-pvc', got '%s'", rsCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim)
+				}
+				// We set it by default when setting spec
+				if rsCronJob.Annotations[CSIAddonsStateAnnotation] != CSIAddonsStateManaged {
+					t.Error("expected CSIAddonsStateManaged annotation")
+				}
+			},
+		},
+		{
+			name:     "SetSpec with nil object",
+			obj:      nil,
+			schedule: "@monthly",
+			pvcName:  "test-pvc",
+			validate: func(t *testing.T, obj client.Object) {
+				// No validation needed, we should not panic
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetSpec(tt.obj, tt.schedule, tt.pvcName)
+			tt.validate(t, tt.obj)
+		})
+	}
+}

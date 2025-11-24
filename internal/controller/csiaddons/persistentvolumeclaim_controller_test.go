@@ -23,6 +23,7 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -128,7 +129,7 @@ func TestExtractOwnerNameFromPVCObj(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob](tt.args.rawObj)
+			got := utils.ExtractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob](tt.args.rawObj)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -185,7 +186,7 @@ func TestGetScheduleFromAnnotation(t *testing.T) {
 			args: args{
 				logger: &logger,
 				annotations: map[string]string{
-					rsCronJobScheduleTimeAnnotation: "@weekly",
+					utils.RsCronJobScheduleTimeAnnotation: "@weekly",
 				},
 			},
 			want:  "@weekly",
@@ -196,7 +197,7 @@ func TestGetScheduleFromAnnotation(t *testing.T) {
 			args: args{
 				logger: &logger,
 				annotations: map[string]string{
-					rsCronJobScheduleTimeAnnotation: "@daytime",
+					utils.RsCronJobScheduleTimeAnnotation: "@daytime",
 				},
 			},
 			want:  defaultSchedule,
@@ -205,7 +206,7 @@ func TestGetScheduleFromAnnotation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getScheduleFromAnnotation(rsCronJobScheduleTimeAnnotation, tt.args.logger, tt.args.annotations)
+			got, got1 := getScheduleFromAnnotation(utils.RsCronJobScheduleTimeAnnotation, tt.args.logger, tt.args.annotations)
 			assert.Equal(t, tt.want, got)
 			assert.Equal(t, tt.want1, got1)
 		})
@@ -226,22 +227,22 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		{
 			name: "pvc annotation set",
 			args: args{
-				pvcAnnotations: map[string]string{rsCronJobScheduleTimeAnnotation: "@daily"},
+				pvcAnnotations: map[string]string{utils.RsCronJobScheduleTimeAnnotation: "@daily"},
 			},
 			want: "@daily",
 		},
 		{
 			name: "sc annotation set",
 			args: args{
-				scAnnotations: map[string]string{rsCronJobScheduleTimeAnnotation: "@monthly"},
+				scAnnotations: map[string]string{utils.RsCronJobScheduleTimeAnnotation: "@monthly"},
 			},
 			want: "@monthly",
 		},
 		{
 			name: "pvc & sc annotation set",
 			args: args{
-				pvcAnnotations: map[string]string{rsCronJobScheduleTimeAnnotation: "@daily"},
-				scAnnotations:  map[string]string{rsCronJobScheduleTimeAnnotation: "@weekly"},
+				pvcAnnotations: map[string]string{utils.RsCronJobScheduleTimeAnnotation: "@daily"},
+				scAnnotations:  map[string]string{utils.RsCronJobScheduleTimeAnnotation: "@weekly"},
 			},
 			want: "@daily",
 		},
@@ -299,7 +300,7 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 			err = r.Update(ctx, pvc)
 			assert.NoError(t, err)
 
-			schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
+			schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, utils.RsCronJobScheduleTimeAnnotation)
 			assert.NoError(t, error)
 			assert.Equal(t, tt.want, schedule)
 		})
@@ -309,8 +310,8 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		emptyScName := ""
 		pvc.Spec.StorageClassName = &emptyScName
 		pvc.Annotations = nil
-		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
-		assert.ErrorIs(t, error, ErrScheduleNotFound)
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, utils.RsCronJobScheduleTimeAnnotation)
+		assert.ErrorIs(t, error, utils.ErrScheduleNotFound)
 		assert.Equal(t, "", schedule)
 	})
 
@@ -319,8 +320,8 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		sc.Name = "non-existent-sc"
 		pvc.Spec.StorageClassName = &sc.Name
 		pvc.Annotations = nil
-		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
-		assert.ErrorIs(t, error, ErrScheduleNotFound)
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, utils.RsCronJobScheduleTimeAnnotation)
+		assert.ErrorIs(t, error, utils.ErrScheduleNotFound)
 		assert.Equal(t, "", schedule)
 	})
 
@@ -328,79 +329,10 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 	t.Run("StorageClassName is nil", func(t *testing.T) {
 		pvc.Spec.StorageClassName = nil
 		pvc.Annotations = nil
-		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, rsCronJobScheduleTimeAnnotation)
-		assert.ErrorIs(t, error, ErrScheduleNotFound)
+		schedule, error := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, utils.RsCronJobScheduleTimeAnnotation)
+		assert.ErrorIs(t, error, utils.ErrScheduleNotFound)
 		assert.Equal(t, "", schedule)
 	})
-}
-
-func TestAnnotationValueChanged(t *testing.T) {
-	tests := []struct {
-		name           string
-		oldAnnotations map[string]string
-		newAnnotations map[string]string
-		keys           []string
-		expected       bool
-	}{
-		{
-			name:           "No changes",
-			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
-			newAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
-			keys:           []string{"key1", "key2"},
-			expected:       false,
-		},
-		{
-			name:           "Value changed",
-			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
-			newAnnotations: map[string]string{"key1": "value1", "key2": "newvalue2"},
-			keys:           []string{"key1", "key2"},
-			expected:       true,
-		},
-		{
-			name:           "Key added",
-			oldAnnotations: map[string]string{"key1": "value1"},
-			newAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
-			keys:           []string{"key1", "key2"},
-			expected:       true,
-		},
-		{
-			name:           "Key removed",
-			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2"},
-			newAnnotations: map[string]string{"key1": "value1"},
-			keys:           []string{"key1", "key2"},
-			expected:       true,
-		},
-		{
-			name:           "Change in non-specified key",
-			oldAnnotations: map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"},
-			newAnnotations: map[string]string{"key1": "value1", "key2": "value2", "key3": "newvalue3"},
-			keys:           []string{"key1", "key2"},
-			expected:       false,
-		},
-		{
-			name:           "Empty keys slice",
-			oldAnnotations: map[string]string{"key1": "value1"},
-			newAnnotations: map[string]string{"key1": "newvalue1"},
-			keys:           []string{},
-			expected:       false,
-		},
-		{
-			name:           "Nil maps",
-			oldAnnotations: nil,
-			newAnnotations: nil,
-			keys:           []string{"key1"},
-			expected:       false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := annotationValueChanged(tt.oldAnnotations, tt.newAnnotations, tt.keys)
-			if result != tt.expected {
-				t.Errorf("AnnotationValueChanged() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
 }
 
 func TestCreateAnnotationPredicate(t *testing.T) {
@@ -470,8 +402,8 @@ func TestCreateAnnotationPredicate(t *testing.T) {
 }
 
 func TestConstructKRCronJob(t *testing.T) {
-	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
-	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+	failedJobHistoryLimit := utils.DefaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := utils.DefaultSuccessfulJobsHistoryLimit
 	tests := []struct {
 		name      string
 		cronName  string
@@ -491,7 +423,7 @@ func TestConstructKRCronJob(t *testing.T) {
 					Name:      "test-kr-cron",
 					Namespace: "default",
 					Annotations: map[string]string{
-						csiAddonsStateAnnotation: csiAddonsStateManaged,
+						utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
@@ -521,7 +453,7 @@ func TestConstructKRCronJob(t *testing.T) {
 					Name:      "empty-schedule-cron",
 					Namespace: "kube-system",
 					Annotations: map[string]string{
-						csiAddonsStateAnnotation: csiAddonsStateManaged,
+						utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
@@ -551,7 +483,7 @@ func TestConstructKRCronJob(t *testing.T) {
 					Name:      "special-!@#$%^&*()-cron",
 					Namespace: "test-ns",
 					Annotations: map[string]string{
-						csiAddonsStateAnnotation: csiAddonsStateManaged,
+						utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 					},
 				},
 				Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
@@ -580,8 +512,8 @@ func TestConstructKRCronJob(t *testing.T) {
 	}
 }
 func TestConstructRSCronJob(t *testing.T) {
-	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
-	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+	failedJobHistoryLimit := utils.DefaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := utils.DefaultSuccessfulJobsHistoryLimit
 	tests := []struct {
 		name      string
 		cronName  string
@@ -601,7 +533,7 @@ func TestConstructRSCronJob(t *testing.T) {
 					Name:      "test-rs-cron",
 					Namespace: "default",
 					Annotations: map[string]string{
-						csiAddonsStateAnnotation: csiAddonsStateManaged,
+						utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
@@ -631,7 +563,7 @@ func TestConstructRSCronJob(t *testing.T) {
 					Name:      "empty-schedule-cron",
 					Namespace: "kube-system",
 					Annotations: map[string]string{
-						csiAddonsStateAnnotation: csiAddonsStateManaged,
+						utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
@@ -661,7 +593,7 @@ func TestConstructRSCronJob(t *testing.T) {
 					Name:      "special-!@#$%^&*()-cron",
 					Namespace: "test-ns",
 					Annotations: map[string]string{
-						csiAddonsStateAnnotation: csiAddonsStateManaged,
+						utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 					},
 				},
 				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
