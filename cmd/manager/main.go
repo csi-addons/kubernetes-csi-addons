@@ -38,11 +38,13 @@ import (
 
 	"github.com/kubernetes-csi/csi-lib-utils/standardflags"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -178,6 +180,19 @@ func main() {
 			Port:    9443,
 			TLSOpts: tlsOpts,
 		}),
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					// Pods are fetched by the CSIAddonsNode controller
+					// Since we do not do this frequently the cache for it can be disabled
+					// This benefits us a lot as there can be a large number of pods that are present in the cache
+					&corev1.Pod{},
+					// Namespaces are fetched by the old PVC reconciler
+					// TODO: Remove this when the reconciler is phased out
+					&corev1.Namespace{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -223,14 +238,26 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "ReclaimSpaceCronJob")
 		os.Exit(1)
 	}
-	if err = (&controllers.PersistentVolumeClaimReconciler{
-		Client:             mgr.GetClient(),
-		Scheme:             mgr.GetScheme(),
-		ConnPool:           connPool,
-		SchedulePrecedence: cfg.SchedulePrecedence,
-	}).SetupWithManager(mgr, ctrlOptions); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
-		os.Exit(1)
+	if cfg.SchedulePrecedence == util.ScheduleSC {
+		setupLog.Info("Using new PVC controller for precedence", "schedulePrecedence", cfg.SchedulePrecedence)
+		if err = (&controllers.PVCReconiler{
+			Client:   mgr.GetClient(),
+			Scheme:   mgr.GetScheme(),
+			ConnPool: connPool,
+		}).SetupWithManager(mgr, ctrlOptions); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
+			os.Exit(1)
+		}
+	} else {
+		if err = (&controllers.PersistentVolumeClaimReconciler{
+			Client:             mgr.GetClient(),
+			Scheme:             mgr.GetScheme(),
+			ConnPool:           connPool,
+			SchedulePrecedence: cfg.SchedulePrecedence,
+		}).SetupWithManager(mgr, ctrlOptions); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
+			os.Exit(1)
+		}
 	}
 	if err = (&replicationController.VolumeReplicationReconciler{
 		Client:   mgr.GetClient(),
