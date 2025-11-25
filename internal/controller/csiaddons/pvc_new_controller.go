@@ -105,13 +105,25 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	// Reconcile for dependent features
 	// Reconcile - Key rotation
+	keyRotationName := fmt.Sprintf("%s-keyrotation", pvc.Name)
 	keyRotationSched := sc.Annotations[utils.KrcJobScheduleTimeAnnotation]
 	keyRotationEnabled := sc.Annotations[utils.KrEnableAnnotation]
 	keyRotationChild := &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-keyrotation", pvc.Name),
+			Name:      keyRotationName,
 			Namespace: pvc.Namespace,
 		},
+	}
+
+	// FIXME: This is a shim and should be removed in later releases
+	// along with the field indexers on child objects
+	if requeue, err := utils.CleanOldJobs(ctx,
+		r.Client,
+		logger,
+		req,
+		&csiaddonsv1alpha1.EncryptionKeyRotationCronJobList{},
+		keyRotationName); err != nil || requeue {
+		return ctrl.Result{Requeue: requeue}, err
 	}
 
 	if err := r.reconcileFeature(ctx, logger, pvc, keyRotationChild, keyRotationSched, keyRotationEnabled); err != nil {
@@ -119,15 +131,27 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	}
 
 	// Reconcile - Reclaim space
+	reclaimSpaceName := fmt.Sprintf("%s-reclaimspace", pvc.Name)
 	reclaimSpaceSched := sc.Annotations[utils.RsCronJobScheduleTimeAnnotation]
-	relciamSpaceChild := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+	reclaimSpaceChild := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-reclaimspace", pvc.Name),
+			Name:      reclaimSpaceName,
 			Namespace: pvc.Namespace,
 		},
 	}
 
-	if err := r.reconcileFeature(ctx, logger, pvc, relciamSpaceChild, reclaimSpaceSched, "true"); err != nil {
+	// FIXME: This is a shim and should be removed in later releases
+	// along with the field indexers on child objects
+	if requeue, err := utils.CleanOldJobs(ctx,
+		r.Client,
+		logger,
+		req,
+		&csiaddonsv1alpha1.ReclaimSpaceCronJobList{},
+		reclaimSpaceName); err != nil || requeue {
+		return ctrl.Result{Requeue: requeue}, err
+	}
+
+	if err := r.reconcileFeature(ctx, logger, pvc, reclaimSpaceChild, reclaimSpaceSched, "true"); err != nil {
 		return ctrl.Result{}, err
 	}
 
