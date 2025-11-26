@@ -92,7 +92,6 @@ type NetworkFenceSpec struct {
 	// Secret is a kubernetes secret, which is required to perform the fence/unfence operation.
 	// +kubebuilder:deprecatedversion:warning="specifying secrets in networkfence is deprecated, please use networkFenceClassName instead"
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="secrets are immutable"
 	Secret SecretSpec `json:"secret,omitempty"`
 
 	// Parameters is used to pass additional parameters to the CSI driver.
