@@ -771,8 +771,6 @@ spec:
                       rule: self == oldSelf
                 type: object
                 x-kubernetes-validations:
-                - message: secrets are immutable
-                  rule: self == oldSelf
                 - message: secret is immutable
                   rule: self == oldSelf
             required:
