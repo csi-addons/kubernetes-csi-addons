@@ -23,6 +23,7 @@ import (
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -72,14 +73,14 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 
 	// Set default values for the optionals
 	if krcJob.Spec.FailedJobsHistoryLimit == nil {
-		*krcJob.Spec.FailedJobsHistoryLimit = defaultFailedJobsHistoryLimit
+		*krcJob.Spec.FailedJobsHistoryLimit = utils.DefaultFailedJobsHistoryLimit
 	}
 	if krcJob.Spec.SuccessfulJobsHistoryLimit == nil {
-		*krcJob.Spec.SuccessfulJobsHistoryLimit = defaultSuccessfulJobsHistoryLimit
+		*krcJob.Spec.SuccessfulJobsHistoryLimit = utils.DefaultSuccessfulJobsHistoryLimit
 	}
 
 	var childJobs csiaddonsv1alpha1.EncryptionKeyRotationJobList
-	err = r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name})
+	err = r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{utils.JobOwnerKey: req.Name})
 	if err != nil {
 		logger.Error(err, "failed to fetch list of encryptionkeyrotationjob")
 		return ctrl.Result{}, err
@@ -367,7 +368,7 @@ func (r *EncryptionKeyRotationCronJobReconciler) constructEncryptionKeyRotationJ
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *EncryptionKeyRotationCronJobReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &csiaddonsv1alpha1.EncryptionKeyRotationJob{}, jobOwnerKey, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &csiaddonsv1alpha1.EncryptionKeyRotationJob{}, utils.JobOwnerKey, func(rawObj client.Object) []string {
 		job, ok := rawObj.(*csiaddonsv1alpha1.EncryptionKeyRotationJob)
 		if !ok {
 			return nil

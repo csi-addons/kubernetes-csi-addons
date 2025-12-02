@@ -28,6 +28,7 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	"github.com/go-logr/logr"
@@ -63,19 +64,8 @@ type PersistentVolumeClaimReconciler struct {
 type Operation string
 
 var (
-	rsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
-	rsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
-	rsCSIAddonsDriverAnnotation     = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
-
-	krEnableAnnotation           = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/enable"
-	krcJobScheduleTimeAnnotation = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
-	krcJobNameAnnotation         = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
-	krCSIAddonsDriverAnnotation  = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
-
-	ErrConnNotFoundRequeueNeeded = errors.New("connection not found, requeue needed")
-	ErrScheduleNotFound          = errors.New("schedule not found")
-
-	csiAddonsStateAnnotation = csiaddonsv1alpha1.GroupVersion.Group + "/state"
+	rsCSIAddonsDriverAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
+	krCSIAddonsDriverAnnotation = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/drivers"
 )
 
 const (
@@ -83,9 +73,6 @@ const (
 
 	relciamSpaceOp Operation = "reclaimspace"
 	keyRotationOp  Operation = "keyrotation"
-
-	// Represents the CRs that are managed by the PVC controller
-	csiAddonsStateManaged = "managed"
 )
 
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;patch
@@ -250,7 +237,7 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 			return "", err
 		}
 
-		return "", ErrScheduleNotFound
+		return "", utils.ErrScheduleNotFound
 	}
 
 	// Check on PVC
@@ -263,7 +250,7 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 	if schedule, err = r.getScheduleFromNS(ctx, pvc, logger, driverName, annotationKey); schedule != "" {
 		return schedule, nil
 	}
-	if !errors.Is(err, ErrScheduleNotFound) {
+	if !errors.Is(err, utils.ErrScheduleNotFound) {
 		return "", err
 	}
 
@@ -276,7 +263,7 @@ func (r *PersistentVolumeClaimReconciler) determineScheduleAndRequeue(
 	}
 
 	// If nothing matched, we did not find schedule
-	return "", ErrScheduleNotFound
+	return "", utils.ErrScheduleNotFound
 }
 
 // storageClassEventHandler returns an EventHandler that responds to changes
@@ -305,9 +292,9 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 			}
 
 			annotationsToWatch := []string{
-				rsCronJobScheduleTimeAnnotation,
-				krcJobScheduleTimeAnnotation,
-				krEnableAnnotation,
+				utils.RsCronJobScheduleTimeAnnotation,
+				utils.KrcJobScheduleTimeAnnotation,
+				utils.KrEnableAnnotation,
 			}
 
 			var requests []reconcile.Request
@@ -340,13 +327,13 @@ func (r *PersistentVolumeClaimReconciler) setupIndexers(mgr ctrl.Manager) error 
 	}{
 		{
 			obj:     &csiaddonsv1alpha1.ReclaimSpaceCronJob{},
-			field:   jobOwnerKey,
-			indexFn: extractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob],
+			field:   utils.JobOwnerKey,
+			indexFn: utils.ExtractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob],
 		},
 		{
 			obj:     &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{},
-			field:   jobOwnerKey,
-			indexFn: extractOwnerNameFromPVCObj[*csiaddonsv1alpha1.EncryptionKeyRotationCronJob],
+			field:   utils.JobOwnerKey,
+			indexFn: utils.ExtractOwnerNameFromPVCObj[*csiaddonsv1alpha1.EncryptionKeyRotationCronJob],
 		},
 		{
 			obj:   &corev1.PersistentVolumeClaim{},
@@ -382,8 +369,8 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 		return err
 	}
 
-	pvcPred := createAnnotationPredicate(rsCronJobScheduleTimeAnnotation, krcJobScheduleTimeAnnotation, krEnableAnnotation)
-	scPred := createAnnotationPredicate(rsCronJobScheduleTimeAnnotation, krcJobScheduleTimeAnnotation, krEnableAnnotation)
+	pvcPred := createAnnotationPredicate(utils.RsCronJobScheduleTimeAnnotation, utils.KrcJobScheduleTimeAnnotation, utils.KrEnableAnnotation)
+	scPred := createAnnotationPredicate(utils.RsCronJobScheduleTimeAnnotation, utils.KrcJobScheduleTimeAnnotation, utils.KrEnableAnnotation)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.PersistentVolumeClaim{}).
@@ -410,7 +397,7 @@ func (r *PersistentVolumeClaimReconciler) findChildCronJob(
 	err := r.List(ctx,
 		&childJobs,
 		client.InNamespace(req.Namespace),
-		client.MatchingFields{jobOwnerKey: req.Name})
+		client.MatchingFields{utils.JobOwnerKey: req.Name})
 	if err != nil {
 		logger.Error(err, "failed to list child reclaimSpaceCronJobs")
 
@@ -477,15 +464,15 @@ func getScheduleFromAnnotation(
 
 // constructKRCronJob constructs an EncryptionKeyRotationCronJob object
 func constructKRCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1alpha1.EncryptionKeyRotationCronJob {
-	failedJobHistoryLimit := defaultFailedJobsHistoryLimit
-	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+	failedJobHistoryLimit := utils.DefaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := utils.DefaultSuccessfulJobsHistoryLimit
 
 	return &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Annotations: map[string]string{
-				csiAddonsStateAnnotation: csiAddonsStateManaged,
+				utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 			},
 		},
 		Spec: csiaddonsv1alpha1.EncryptionKeyRotationCronJobSpec{
@@ -507,15 +494,15 @@ func constructKRCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1a
 
 // constructRSCronJob constructs a ReclaimSpaceCronJob object
 func constructRSCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1alpha1.ReclaimSpaceCronJob {
-	failedJobsHistoryLimit := defaultFailedJobsHistoryLimit
-	successfulJobsHistoryLimit := defaultSuccessfulJobsHistoryLimit
+	failedJobsHistoryLimit := utils.DefaultFailedJobsHistoryLimit
+	successfulJobsHistoryLimit := utils.DefaultSuccessfulJobsHistoryLimit
 
 	return &csiaddonsv1alpha1.ReclaimSpaceCronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Annotations: map[string]string{
-				csiAddonsStateAnnotation: csiAddonsStateManaged,
+				utils.CSIAddonsStateAnnotation: utils.CSIAddonsStateManaged,
 			},
 		},
 		Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
@@ -531,25 +518,6 @@ func constructRSCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1a
 			SuccessfulJobsHistoryLimit: &successfulJobsHistoryLimit,
 		},
 	}
-}
-
-// extractOwnerNameFromPVCObj extracts owner.Name from the object if it is
-// of type `T` and has a PVC as its owner.
-func extractOwnerNameFromPVCObj[T client.Object](rawObj client.Object) []string {
-	// extract the owner from job object.
-	job, ok := rawObj.(T)
-	if !ok {
-		return nil
-	}
-	owner := metav1.GetControllerOf(job)
-	if owner == nil {
-		return nil
-	}
-	if owner.APIVersion != "v1" || owner.Kind != "PersistentVolumeClaim" {
-		return nil
-	}
-
-	return []string{owner.Name}
 }
 
 // generateCronJobName returns unique name by suffixing parent name
@@ -611,17 +579,17 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 	}
 	if rsCronJob != nil {
 		*logger = logger.WithValues("ReclaimSpaceCronJobName", rsCronJob.Name)
-		if state, ok := rsCronJob.GetAnnotations()[csiAddonsStateAnnotation]; ok && state != csiAddonsStateManaged {
+		if state, ok := rsCronJob.GetAnnotations()[utils.CSIAddonsStateAnnotation]; ok && state != utils.CSIAddonsStateManaged {
 			logger.Info("ReclaimSpaceCronJob is not managed, exiting reconcile")
 			return ctrl.Result{}, nil
 		}
 	}
 
-	schedule, err := r.determineScheduleAndRequeue(ctx, logger, pvc, pv.Spec.CSI.Driver, rsCronJobScheduleTimeAnnotation)
-	if errors.Is(err, ErrConnNotFoundRequeueNeeded) {
+	schedule, err := r.determineScheduleAndRequeue(ctx, logger, pvc, pv.Spec.CSI.Driver, utils.RsCronJobScheduleTimeAnnotation)
+	if errors.Is(err, utils.ErrConnNotFoundRequeueNeeded) {
 		return ctrl.Result{Requeue: true}, nil
 	}
-	if errors.Is(err, ErrScheduleNotFound) {
+	if errors.Is(err, utils.ErrScheduleNotFound) {
 		// if schedule is not found,
 		// delete cron job.
 		if rsCronJob != nil {
@@ -631,10 +599,10 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 			}
 		}
 		// delete name from annotation.
-		_, nameFound := pvc.Annotations[rsCronJobNameAnnotation]
+		_, nameFound := pvc.Annotations[utils.RsCronJobNameAnnotation]
 		if nameFound {
 			// remove name annotation by patching it to null.
-			patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q: null}}}`, rsCronJobNameAnnotation))
+			patch := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q: null}}}`, utils.RsCronJobNameAnnotation))
 			err = r.Patch(ctx, pvc, client.RawPatch(types.StrategicMergePatchType, patch))
 			if err != nil {
 				logger.Error(err, "Failed to remove annotation")
@@ -671,7 +639,7 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 
 		// Update schedule on the pvc
 		err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
-			rsCronJobScheduleTimeAnnotation: schedule,
+			utils.RsCronJobScheduleTimeAnnotation: schedule,
 		}, pvc)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -686,8 +654,8 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 	// adding annotation is required for the case when pvc does not have
 	// have schedule annotation but namespace has.
 	err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
-		rsCronJobNameAnnotation:         rsCronJobName,
-		rsCronJobScheduleTimeAnnotation: schedule,
+		utils.RsCronJobNameAnnotation:         rsCronJobName,
+		utils.RsCronJobScheduleTimeAnnotation: schedule,
 	}, pvc)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -721,7 +689,7 @@ func (r *PersistentVolumeClaimReconciler) findChildEncryptionKeyRotationCronJob(
 	var childJobs csiaddonsv1alpha1.EncryptionKeyRotationCronJobList
 	var activeJob *csiaddonsv1alpha1.EncryptionKeyRotationCronJob
 
-	err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name})
+	err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{utils.JobOwnerKey: req.Name})
 	if err != nil {
 		logger.Error(err, "failed to list child encryptionkeyrotationcronjobs")
 		return activeJob, fmt.Errorf("failed to list encryptionkeyrotationcronjobs: %v", err)
@@ -760,13 +728,13 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	}
 	if krcJob != nil {
 		*logger = logger.WithValues("EncryptionKeyrotationCronJobName", krcJob.Name)
-		if state, ok := krcJob.GetAnnotations()[csiAddonsStateAnnotation]; ok && state != csiAddonsStateManaged {
+		if state, ok := krcJob.GetAnnotations()[utils.CSIAddonsStateAnnotation]; ok && state != utils.CSIAddonsStateManaged {
 			logger.Info("EncryptionKeyRotationCronJob is not managed, exiting reconcile")
 			return nil
 		}
 	}
 
-	disabled, err := r.checkDisabledByAnnotation(ctx, logger, pvc, krEnableAnnotation)
+	disabled, err := r.checkDisabledByAnnotation(ctx, logger, pvc, utils.KrEnableAnnotation)
 	if err != nil {
 		return err
 	}
@@ -786,8 +754,8 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	}
 
 	// Determine schedule
-	sched, err := r.determineScheduleAndRequeue(ctx, logger, pvc, pv.Spec.CSI.Driver, krcJobScheduleTimeAnnotation)
-	if errors.Is(err, ErrScheduleNotFound) {
+	sched, err := r.determineScheduleAndRequeue(ctx, logger, pvc, pv.Spec.CSI.Driver, utils.KrcJobScheduleTimeAnnotation)
+	if errors.Is(err, utils.ErrScheduleNotFound) {
 		// No schedule, delete the job
 		if krcJob != nil {
 			err = r.Delete(ctx, krcJob)
@@ -825,7 +793,7 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 
 		// update the schedule on the pvc
 		err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
-			krcJobScheduleTimeAnnotation: sched,
+			utils.KrcJobScheduleTimeAnnotation: sched,
 		}, pvc)
 		if err != nil {
 			return err
@@ -836,8 +804,8 @@ func (r *PersistentVolumeClaimReconciler) processKeyRotation(
 	// Add the annotation to the pvc, this will help us optimize reconciles
 	krcJobName := generateCronJobName(req.Name)
 	err = r.patchAnnotationsToResource(ctx, logger, map[string]string{
-		krcJobNameAnnotation:         krcJobName,
-		krcJobScheduleTimeAnnotation: sched,
+		utils.KrcJobNameAnnotation:         krcJobName,
+		utils.KrcJobScheduleTimeAnnotation: sched,
 	}, pvc)
 	if err != nil {
 		return err
@@ -878,20 +846,6 @@ func annotationValueMissingOrDiff(scAnnotations, pvcAnnotations map[string]strin
 	return false
 }
 
-// AnnotationValueChanged checks if any of the specified keys have different values
-// between the old and new annotations maps.
-func annotationValueChanged(oldAnnotations, newAnnotations map[string]string, keys []string) bool {
-	for _, key := range keys {
-		oldVal, oldExists := oldAnnotations[key]
-		newVal, newExists := newAnnotations[key]
-
-		if oldExists != newExists || oldVal != newVal {
-			return true
-		}
-	}
-	return false
-}
-
 // CreateAnnotationPredicate returns a predicate.Funcs that checks if any of the specified
 // annotation keys have different values between the old and new annotations maps.
 func createAnnotationPredicate(annotations ...string) predicate.Funcs {
@@ -904,7 +858,7 @@ func createAnnotationPredicate(annotations ...string) predicate.Funcs {
 			oldAnnotations := e.ObjectOld.GetAnnotations()
 			newAnnotations := e.ObjectNew.GetAnnotations()
 
-			return annotationValueChanged(oldAnnotations, newAnnotations, annotations)
+			return utils.AnnotationValueChanged(oldAnnotations, newAnnotations, annotations)
 		},
 	}
 }
@@ -923,7 +877,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromSC(
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.Error(err, "StorageClass not found", "StorageClass", storageClassName)
-				return "", ErrScheduleNotFound
+				return "", utils.ErrScheduleNotFound
 			}
 
 			logger.Error(err, "Failed to get StorageClass", "StorageClass", storageClassName)
@@ -935,7 +889,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromSC(
 		}
 	}
 
-	return "", ErrScheduleNotFound
+	return "", utils.ErrScheduleNotFound
 }
 
 func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
@@ -966,7 +920,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 		// requeuing the request.
 		// Depending on requeue value, it will return ErrorConnNotFoundRequeueNeeded.
 		switch annotationKey {
-		case krcJobScheduleTimeAnnotation:
+		case utils.KrcJobScheduleTimeAnnotation:
 			requeue, keyRotationSupported, err := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, keyRotationOp)
 			if err != nil {
 				return "", err
@@ -975,9 +929,9 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 				return schedule, nil
 			}
 			if requeue {
-				return "", ErrConnNotFoundRequeueNeeded
+				return "", utils.ErrConnNotFoundRequeueNeeded
 			}
-		case rsCronJobScheduleTimeAnnotation:
+		case utils.RsCronJobScheduleTimeAnnotation:
 			requeue, supportReclaimspace, err := r.checkDriverSupportCapability(logger, ns.Annotations, driverName, relciamSpaceOp)
 			if err != nil {
 				return "", err
@@ -990,7 +944,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 			if requeue {
 				// The request needs to be requeued for checking
 				// driver support again.
-				return "", ErrConnNotFoundRequeueNeeded
+				return "", utils.ErrConnNotFoundRequeueNeeded
 			}
 		default:
 			logger.Info("Unknown annotation key", "AnnotationKey", annotationKey)
@@ -998,7 +952,7 @@ func (r *PersistentVolumeClaimReconciler) getScheduleFromNS(
 		}
 	}
 
-	return "", ErrScheduleNotFound
+	return "", utils.ErrScheduleNotFound
 }
 
 func (r *PersistentVolumeClaimReconciler) getScheduleFromPVC(

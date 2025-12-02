@@ -25,6 +25,7 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
@@ -40,8 +41,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -164,6 +167,12 @@ func (r *ReclaimSpaceJobReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptio
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&csiaddonsv1alpha1.ReclaimSpaceJob{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		// This is to avoid "stop-the-world" events and wait for cache sync when we list VA
+		Watches(
+			&scv1.VolumeAttachment{},
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(utils.SilentPredicate()),
+		).
 		WithOptions(ctrlOptions).
 		Complete(r)
 }

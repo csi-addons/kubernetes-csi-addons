@@ -23,6 +23,7 @@ import (
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 
 	"github.com/go-logr/logr"
 	"github.com/robfig/cron/v3"
@@ -41,13 +42,6 @@ type ReclaimSpaceCronJobReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
-
-const (
-	jobOwnerKey = ".metadata.controller"
-	// default values for Spec parameters.
-	defaultFailedJobsHistoryLimit     int32 = 1
-	defaultSuccessfulJobsHistoryLimit int32 = 3
-)
 
 var (
 	apiGVStr                = csiaddonsv1alpha1.GroupVersion.String()
@@ -88,14 +82,14 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	// set history limit defaults, if not specified.
 	if rsCronJob.Spec.FailedJobsHistoryLimit == nil {
-		*rsCronJob.Spec.FailedJobsHistoryLimit = defaultFailedJobsHistoryLimit
+		*rsCronJob.Spec.FailedJobsHistoryLimit = utils.DefaultFailedJobsHistoryLimit
 	}
 	if rsCronJob.Spec.SuccessfulJobsHistoryLimit == nil {
-		*rsCronJob.Spec.SuccessfulJobsHistoryLimit = defaultSuccessfulJobsHistoryLimit
+		*rsCronJob.Spec.SuccessfulJobsHistoryLimit = utils.DefaultSuccessfulJobsHistoryLimit
 	}
 
 	var childJobs csiaddonsv1alpha1.ReclaimSpaceJobList
-	err = r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name})
+	err = r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{utils.JobOwnerKey: req.Name})
 	if err != nil {
 		logger.Error(err, "Failed to list child ReclaimSpaceJobs")
 		return ctrl.Result{}, err
@@ -198,7 +192,7 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ReclaimSpaceCronJobReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller.Options) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &csiaddonsv1alpha1.ReclaimSpaceJob{}, jobOwnerKey, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &csiaddonsv1alpha1.ReclaimSpaceJob{}, utils.JobOwnerKey, func(rawObj client.Object) []string {
 		// extract the owner from job object.
 		job, ok := rawObj.(*csiaddonsv1alpha1.ReclaimSpaceJob)
 		if !ok {
