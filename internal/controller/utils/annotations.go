@@ -18,6 +18,7 @@ package utils
 
 import (
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -52,4 +53,14 @@ func AnnotationValueChanged(oldAnnotations, newAnnotations map[string]string, ke
 		}
 	}
 	return false
+}
+
+// IsManagedByController checks whether an object is managed by the controller.
+// It returns false if the object has the CSIAddonsStateAnnotation set to a value
+// other than CSIAddonsStateManaged. If the annotation is missing it returns true.
+func IsManagedByController(obj client.Object) bool {
+	if v, ok := obj.GetAnnotations()[CSIAddonsStateAnnotation]; ok && v != CSIAddonsStateManaged {
+		return false
+	}
+	return true
 }

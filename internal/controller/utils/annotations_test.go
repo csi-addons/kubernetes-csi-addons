@@ -16,7 +16,14 @@ limitations under the License.
 
 package utils
 
-import "testing"
+import (
+	"testing"
+
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
 func TestAnnotationValueChanged(t *testing.T) {
 	tests := []struct {
@@ -82,6 +89,69 @@ func TestAnnotationValueChanged(t *testing.T) {
 			result := AnnotationValueChanged(tt.oldAnnotations, tt.newAnnotations, tt.keys)
 			if result != tt.expected {
 				t.Errorf("AnnotationValueChanged() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsManagedByController(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      client.Object
+		expected bool
+	}{
+		{
+			name: "No annotations",
+			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: nil,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "No CSIAddonsStateAnnotation",
+			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"other": "value"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "CSIAddonsStateAnnotation set to managed",
+			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{CSIAddonsStateAnnotation: CSIAddonsStateManaged},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "CSIAddonsStateAnnotation set to unmanaged",
+			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{CSIAddonsStateAnnotation: "unmanaged"},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "CSIAddonsStateAnnotation set to empty string",
+			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{CSIAddonsStateAnnotation: ""},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsManagedByController(tt.obj)
+			if result != tt.expected {
+				t.Errorf("IsManagedByController() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
