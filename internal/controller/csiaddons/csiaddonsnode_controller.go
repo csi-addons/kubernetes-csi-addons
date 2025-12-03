@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
@@ -40,6 +41,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+)
+
+const (
+	CSIAddonsNodeConnectionMaxRetries    = 3
+	CSIAddonsNodeConnectionSleepInterval = 2 * time.Second
+
+	// The duration after which a new reconcile should be triggered
+	// to validate the cluster state. Used only when reconciliation
+	// completes without any errors.
+	CSIAddonsNodeRequeueAfter = time.Hour
 )
 
 var (
@@ -126,22 +137,42 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	logger.Info("Connecting to sidecar")
-	newConn, err := connection.NewConnection(ctx, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
-	if err != nil {
-		logger.Error(err, "Failed to establish connection with sidecar")
+	// The reconciler is stateless and if we delete an object that is still valid
+	// it will be recreated (by the sidecar). Use an in-memory retry loop to keep
+	// things simple. If we wanted to preserve state we would have had to rely
+	// on the CRD's status/annotations.
+	var newConn *connection.Connection
+	var connErr error
+	for i := range CSIAddonsNodeConnectionMaxRetries {
+		logger.Info("Connecting to sidecar", "attempt", i)
+		newConn, connErr = connection.NewConnection(ctx, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
 
-		errMessage := util.GetErrorMessage(err)
-		csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateFailed
-		csiAddonsNode.Status.Message = fmt.Sprintf("Failed to establish connection with sidecar: %v", errMessage)
-		statusErr := r.Status().Update(ctx, csiAddonsNode)
-		if statusErr != nil {
-			logger.Error(statusErr, "Failed to update status")
-
-			return ctrl.Result{}, statusErr
+		// Success, exit early. Logged later after getting fence client status
+		if connErr == nil {
+			break
 		}
 
-		return ctrl.Result{}, err
+		// Do not spam the socket
+		if i < CSIAddonsNodeConnectionMaxRetries-1 {
+			time.Sleep(CSIAddonsNodeConnectionSleepInterval)
+		}
+	}
+
+	// If we were still unable to connect after max retries
+	if connErr != nil {
+		logger.Error(connErr, fmt.Sprintf("Failed to establish connection with sidecar after %d attempts, deleting the object", CSIAddonsNodeConnectionMaxRetries))
+
+		// We do not update the status anymore as we consider deletion
+		// as the resolution after max attempts.
+		if delErr := r.Delete(ctx, csiAddonsNode); client.IgnoreNotFound(delErr) != nil {
+			logger.Error(delErr, "failed to delete CSIAddonsNode object after max retries")
+
+			return ctrl.Result{}, delErr
+		}
+
+		// Object is deleted, stop the reconcile phase
+		logger.Info("successfully deleted CSIAddonsNode object due to reaching max reconnection attempts")
+		return ctrl.Result{}, nil
 	}
 
 	nfsc, err := r.getNetworkFenceClientStatus(ctx, &logger, newConn, csiAddonsNode)
@@ -165,7 +196,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: CSIAddonsNodeRequeueAfter}, nil
 }
 
 // getNetworkFenceClassesForDriver gets the networkfenceclasses for the driver.
