@@ -185,6 +185,15 @@ func (r *PVCReconiler) reconcileFeature(
 	}
 	logger.Info("determined the state to reconcile with", "shouldExist", shouldExist, "exists", exists)
 
+	// We allow the user to mark a feature as unmanged by editing an existing resource
+	// and setting the CSIAddonsStateAnnotation to: unmanaged
+	// Return and do nothing in such cases
+	if exists && !utils.IsManagedByController(existingObj) {
+		logger.Info("The existing object is not managed by the controller, doing nothing for it.", "objName", existingObj.GetName(), "objNamespace", existingObj.GetNamespace())
+
+		return nil
+	}
+
 	// Object should not be present in the cluster, garbage collect or return
 	if !shouldExist {
 		if exists {
