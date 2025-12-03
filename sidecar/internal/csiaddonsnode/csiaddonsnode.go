@@ -147,6 +147,16 @@ func (mgr *Manager) newCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) erro
 		node.Spec.DeepCopyInto(&csiaddonNode.Spec)
 		// set the ownerReferences
 		csiaddonNode.OwnerReferences = node.OwnerReferences
+		if csiaddonNode.Annotations == nil {
+			csiaddonNode.Annotations = make(map[string]string)
+		}
+		// Set the createdByPodUID and lastUpdatedAt annotations
+		// to track which pod created this csiaddonsnode object,
+		// when it was created. It also triggers a reconcile
+		// for the controller to reconnect to the sidecar.
+		annotationPrefix := "sidecar." + csiaddonsv1alpha1.GroupVersion.Group
+		csiaddonNode.Annotations[annotationPrefix+"/createdByPodUID"] = mgr.PodUID
+		csiaddonNode.Annotations[annotationPrefix+"/lastUpdatedAt"] = time.Now().Format(time.RFC3339)
 		return nil
 	})
 
