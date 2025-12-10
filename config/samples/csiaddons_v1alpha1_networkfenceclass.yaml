@@ -9,4 +9,4 @@ spec:
   provisioner: driver.example.com
   parameters:
     csiaddons.openshift.io/networkfence-secret-name: secret
-    csiaddons.openshift.io/network-secret-namespace: default
+    csiaddons.openshift.io/networkfence-secret-namespace: default
