@@ -537,18 +537,38 @@ func (r *VolumeGroupReplicationReconciler) getMatchingPVCsFromSource(instance *r
 		return nil, "", err
 	}
 
-	// Update events if PVC is marked for deletion, but contains the pvc selector label of group
+	// Update events if PVC is marked for deletion, but contains the pvc selector label of group and
+	// also remove the PVCs from the list if they are already marked for deletion before being part
+	// of the group
+	removeDeletingPVC := []corev1.PersistentVolumeClaim{}
 	for _, pvc := range pvcList.Items {
 		if !pvc.DeletionTimestamp.IsZero() {
-			// PVC is marked for deletion, but not deleted because it is still a part of
-			// group using label selectors. Add an event to the PVC mentioning the same
-			msg := fmt.Sprintf("PersistentVolumeClaim is part of the group(%s/%s) using matching label selector. Remove label from PersistentVolumeClaim (%s/%s) to allow deletion",
-				instance.Namespace, instance.Name, pvc.Namespace, pvc.Name)
-			r.Recorder.Event(&pvc, "Warning", "PersistentVolumeClaimDeletionBlocked", msg)
+			if slices.Contains(pvc.Finalizers, vgrReplicationFinalizer) {
+				// PVC is marked for deletion, but not deleted because it is still a part of
+				// group using label selectors. Add an event to the PVC mentioning the same
+				msg := fmt.Sprintf("PersistentVolumeClaim is part of the group(%s/%s) using matching label selector. Remove label from PersistentVolumeClaim (%s/%s) to allow deletion",
+					instance.Namespace, instance.Name, pvc.Namespace, pvc.Name)
+				r.Recorder.Event(&pvc, "Warning", "PersistentVolumeClaimDeletionBlocked", msg)
+			} else {
+				removeDeletingPVC = append(removeDeletingPVC, pvc)
+			}
 		}
 	}
 
-	return pvcList.Items, selector.String(), nil
+	updatedPVCList := []corev1.PersistentVolumeClaim{}
+	if len(removeDeletingPVC) > 0 {
+		for _, pvc := range pvcList.Items {
+			if !slices.ContainsFunc(removeDeletingPVC, func(removePVC corev1.PersistentVolumeClaim) bool {
+				return removePVC.Name == pvc.Name
+			}) {
+				updatedPVCList = append(updatedPVCList, pvc)
+			}
+		}
+	} else {
+		updatedPVCList = pvcList.Items
+	}
+
+	return updatedPVCList, selector.String(), nil
 }
 
 // getPVHandles fetches the PV handles for the respective PVCs
