@@ -21,9 +21,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
@@ -42,7 +45,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+const (
+	// The base duration to use for exponential backoff while retrying connection
+	baseRetryDelay = 2 * time.Second
+
+	// Maximum attempts to make while retrying the connection
+	maxRetries = 3
+
+	// The duration after which a new reconcile should be triggered
+	// to validate the cluster state. Used only when reconciliation
+	// completes without any errors.
+	baseRequeueAfter = 1 * time.Hour
+)
+
 var (
+	connRetryAnnotation    = "csiaddonsnode" + csiaddonsv1alpha1.GroupVersion.Group + "/connection-retries"
 	csiAddonsNodeFinalizer = csiaddonsv1alpha1.GroupVersion.Group + "/csiaddonsnode"
 )
 
@@ -128,12 +145,31 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	logger.Info("Connecting to sidecar")
 	newConn, err := connection.NewConnection(ctx, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
+
+	// If error occurs, we retry with exponential backoff until we reach `maxRetries`
+	// Store the transient state in annotation and also update the status to reflect the same
 	if err != nil {
-		logger.Error(err, "Failed to establish connection with sidecar")
+		currentRetries := getRetryCountFromAnnotation(csiAddonsNode)
+		logger.Error(err, "Failed to establish connection with sidecar", "attempt", currentRetries+1)
+
+		// If reached max retries, abort and cleanup
+		if currentRetries >= maxRetries {
+			logger.Info(fmt.Sprintf("Failed to establish connection with sidecar after %d attempts, deleting the object", maxRetries))
+
+			if delErr := r.Delete(ctx, csiAddonsNode); client.IgnoreNotFound(delErr) != nil {
+				logger.Error(delErr, "failed to delete CSIAddonsNode object after max retries")
+
+				return ctrl.Result{}, delErr
+			}
+
+			// Object is deleted, stop the reconcile phase
+			logger.Info("successfully deleted CSIAddonsNode object due to reaching max reconnection attempts")
+			return ctrl.Result{}, nil
+		}
 
 		errMessage := util.GetErrorMessage(err)
-		csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateFailed
-		csiAddonsNode.Status.Message = fmt.Sprintf("Failed to establish connection with sidecar: %v", errMessage)
+		csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateRetrying
+		csiAddonsNode.Status.Message = fmt.Sprintf("Connection failed: %v. Retrying attempt %d/%d.", errMessage, currentRetries+1, maxRetries)
 		statusErr := r.Status().Update(ctx, csiAddonsNode)
 		if statusErr != nil {
 			logger.Error(statusErr, "Failed to update status")
@@ -141,7 +177,29 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, statusErr
 		}
 
-		return ctrl.Result{}, err
+		// Internal counter for connection attempts
+		if csiAddonsNode.Annotations == nil {
+			csiAddonsNode.Annotations = make(map[string]string)
+		}
+		csiAddonsNode.Annotations[connRetryAnnotation] = strconv.Itoa(currentRetries + 1)
+
+		if updErr := r.Update(ctx, csiAddonsNode); updErr != nil {
+			logger.Error(updErr, "failed to update retry annotation")
+
+			return ctrl.Result{}, updErr
+		}
+
+		// Calculate backoff; baseRetryDelay * 1, 2, 4....
+		backoff := baseRetryDelay * time.Duration(math.Pow(2, float64(currentRetries)))
+		logger.Info("Requeuing request for attempting the connection again", "backoff", backoff)
+
+		return ctrl.Result{RequeueAfter: backoff}, nil
+	}
+
+	// Success path, cleanup the retry artifacts
+	needsCleanup := false
+	if _, ok := csiAddonsNode.GetAnnotations()[connRetryAnnotation]; ok {
+		needsCleanup = true
 	}
 
 	nfsc, err := r.getNetworkFenceClientStatus(ctx, &logger, newConn, csiAddonsNode)
@@ -165,7 +223,18 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	if needsCleanup {
+		// Clean annotations
+		delete(csiAddonsNode.Annotations, connRetryAnnotation)
+		if updErr := r.Update(ctx, csiAddonsNode); updErr != nil {
+			logger.Error(updErr, "failed to clean the retry annotation")
+
+			return ctrl.Result{}, updErr
+		}
+	}
+
+	// Reconciled successfully, requeue to validate state periodically
+	return ctrl.Result{RequeueAfter: baseRequeueAfter}, nil
 }
 
 // getNetworkFenceClassesForDriver gets the networkfenceclasses for the driver.
@@ -415,4 +484,13 @@ func parseCapabilities(caps []*identity.Capability) []string {
 	}
 
 	return capabilities
+}
+
+func getRetryCountFromAnnotation(node *csiaddonsv1alpha1.CSIAddonsNode) int {
+	if val, ok := node.GetAnnotations()[connRetryAnnotation]; ok {
+		if count, err := strconv.Atoi(val); err == nil {
+			return count
+		}
+	}
+	return 0
 }
