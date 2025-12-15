@@ -62,32 +62,35 @@ func loadConfig(configPath string) ([]templates.CustomMetricItem, error) {
 		return nil, nil
 	}
 
-	// nolint:gosec
+	//nolint:gosec
 	f, err := os.Open(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("error loading plugin config: %w", err)
 	}
 
 	items, err := configReader(f)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config.yaml: %w", err)
+	}
 
-	if err := f.Close(); err != nil {
+	if err = f.Close(); err != nil {
 		return nil, fmt.Errorf("could not close config.yaml: %w", err)
 	}
 
-	return items, err
+	return items, nil
 }
 
 func configReader(reader io.Reader) ([]templates.CustomMetricItem, error) {
 	yamlFile, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading config.yaml: %w", err)
 	}
 
 	config := templates.CustomMetricsConfig{}
 
 	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing config.yaml: %w", err)
 	}
 
 	validatedMetricItems := validateCustomMetricItems(config.CustomMetrics)
@@ -97,7 +100,7 @@ func configReader(reader io.Reader) ([]templates.CustomMetricItem, error) {
 
 func validateCustomMetricItems(rawItems []templates.CustomMetricItem) []templates.CustomMetricItem {
 	// 1. Filter items of missing `Metric` or `Type`
-	filterResult := []templates.CustomMetricItem{}
+	var filterResult []templates.CustomMetricItem
 	for _, item := range rawItems {
 		if hasFields(item) {
 			filterResult = append(filterResult, item)
@@ -136,7 +139,7 @@ func fillMissingExpr(item templates.CustomMetricItem) templates.CustomMetricItem
 		case "counter":
 			item.Expr = "sum(rate(" + item.Metric + `{job=\"$job\", namespace=\"$namespace\"}[5m])) by (instance, pod)`
 		case "histogram":
-			// nolint: lll
+			//nolint:lll
 			item.Expr = "histogram_quantile(0.90, sum by(instance, le) (rate(" + item.Metric + `{job=\"$job\", namespace=\"$namespace\"}[5m])))`
 		default: // gauge
 			item.Expr = item.Metric
@@ -167,9 +170,9 @@ func (s *editScaffolder) Scaffold() error {
 	// Initialize the machinery.Scaffold that will write the files to disk
 	scaffold := machinery.NewScaffold(s.fs)
 
-	configPath := string(configFilePath)
+	configPath := configFilePath
 
-	var templatesBuilder = []machinery.Builder{
+	templatesBuilder := []machinery.Builder{
 		&templates.RuntimeManifest{},
 		&templates.ResourcesManifest{},
 		&templates.CustomMetricsConfigManifest{ConfigPath: configPath},
@@ -182,5 +185,9 @@ func (s *editScaffolder) Scaffold() error {
 		_, _ = fmt.Fprintf(os.Stderr, "Error on scaffolding manifest for custom metris:\n%v", err)
 	}
 
-	return scaffold.Execute(templatesBuilder...)
+	if err = scaffold.Execute(templatesBuilder...); err != nil {
+		return fmt.Errorf("error scaffolding Grafana manifests: %w", err)
+	}
+
+	return nil
 }
