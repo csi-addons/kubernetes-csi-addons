@@ -124,3 +124,66 @@ func TestParseCapabilities(t *testing.T) {
 		})
 	}
 }
+func TestGetRetryCountFromReason(t *testing.T) {
+	tests := []struct {
+		name    string
+		reason  string
+		want    int
+		wantErr bool
+	}{
+		{
+			name:    "empty reason",
+			reason:  "",
+			want:    0,
+			wantErr: false,
+		},
+		{
+			name:    "valid reason",
+			reason:  "retry: 2",
+			want:    2,
+			wantErr: false,
+		},
+		{
+			name:    "valid with extra spaces",
+			reason:  "retry:    5",
+			want:    5,
+			wantErr: false,
+		},
+		{
+			name:    "valid with trailing spaces",
+			reason:  "something:  10  ",
+			want:    10,
+			wantErr: false,
+		},
+		{
+			name:    "no colon",
+			reason:  "retry 3",
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:    "non-integer value",
+			reason:  "retry: abc",
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:    "multiple colons",
+			reason:  "prefix: 7:extra",
+			want:    0,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getRetryCountFromReason(tt.reason)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}

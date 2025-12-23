@@ -29,6 +29,11 @@ const (
 
 	// Failed represents the Connection Failed state.
 	CSIAddonsNodeStateFailed CSIAddonsNodeState = "Failed"
+
+	// Retrying represents the Connection Retrying state.
+	CSIAddonsNodeStateRetrying CSIAddonsNodeState = "Retrying"
+
+	CSIAddonsNodeStateRetryingFmtStr = "currentAttempt: %d"
 )
 
 type CSIAddonsNodeDriver struct {
