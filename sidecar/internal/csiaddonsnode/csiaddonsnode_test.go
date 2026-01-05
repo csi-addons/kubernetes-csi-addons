@@ -143,7 +143,7 @@ func Test_getCSIAddonsNode(t *testing.T) {
 func setupManager(driverName, name, namespace, uid, kind string) (*Manager, error) {
 	mgr := &Manager{
 		Client:       NewMockClient(driverName),
-		KubeClient:   fake.NewSimpleClientset(),
+		KubeClient:   fake.NewClientset(),
 		PodName:      name,
 		PodNamespace: namespace,
 		PodUID:       uid,
