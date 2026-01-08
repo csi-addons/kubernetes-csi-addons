@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +43,12 @@ func (r VolumeReplicationReconciler) getPVCDataSource(ctx context.Context, logge
 	}
 	// Validate PVC in bound state
 	if pvc.Status.Phase != corev1.ClaimBound {
-		return pvc, nil, fmt.Errorf("PVC %q is not bound to any PV", req.Name)
+		return nil, nil, fmt.Errorf("PVC %q is not bound to any PV", req.Name)
+	}
+
+	// Validate if PVC is not already marked for deletion
+	if !pvc.DeletionTimestamp.IsZero() && !slices.Contains(pvc.Finalizers, pvcReplicationFinalizer) {
+		return nil, nil, fmt.Errorf("PVC %q is marked for deletion, cannot be part of VolumeReplication", req.Name)
 	}
 
 	// Get PV object for the PVC
@@ -54,7 +60,7 @@ func (r VolumeReplicationReconciler) getPVCDataSource(ctx context.Context, logge
 			logger.Error(err, "PV not found", "PV Name", pvName)
 		}
 
-		return pvc, nil, err
+		return nil, nil, err
 	}
 
 	return pvc, pv, nil
