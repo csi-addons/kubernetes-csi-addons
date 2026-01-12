@@ -19,12 +19,16 @@ package utils
 import (
 	"context"
 	"errors"
+	"hash/fnv"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/robfig/cron/v3"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiTypes "k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -184,4 +188,34 @@ func CleanOldJobs(
 	}
 
 	return shouldRequeue, nil
+}
+
+// GetStaggeredNext returns a deterministic, UID-based staggered time computed from a schedule.
+// The staggered window is capped at a maximum of 2hrs but is adjusted for smaller intervals.
+func GetStaggeredNext(uid apiTypes.UID, nextTime time.Time, sched cron.Schedule) time.Time {
+	// cron does not expose interval directly
+	// We can determine it by subtracting two consecutive intervals
+	afterNext := sched.Next(nextTime)
+	interval := afterNext.Sub(nextTime)
+
+	// We do not want the stagger window to be any larger than a max of 2hrs
+	const maxCap = 2 * time.Hour
+	staggerWindow := min(interval, maxCap)
+
+	// To prevent the schedule from jumping in bw the reconciles,
+	// we use the UID and hash it, this way it remains deterministic
+	h := fnv.New32a()
+	if _, err := h.Write([]byte(string(uid))); err != nil {
+		return nextTime
+	}
+	hash := h.Sum32()
+
+	// Just a safety net
+	stgrWindowSeconds := int64(staggerWindow.Seconds())
+	if stgrWindowSeconds <= 0 {
+		return nextTime
+	}
+	offsetSeconds := int64(hash) % stgrWindowSeconds // Modulo ensures it to be < stgrWindowSeconds
+
+	return nextTime.Add(time.Duration(offsetSeconds) * time.Second)
 }
