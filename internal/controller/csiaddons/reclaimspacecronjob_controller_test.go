@@ -22,9 +22,12 @@ import (
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
+	"github.com/robfig/cron/v3"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 )
 
@@ -113,6 +116,13 @@ func TestGetScheduledTimeForRSJob(t *testing.T) {
 func TestGetNextSchedule(t *testing.T) {
 	now := time.Now()
 	expectedLastMissed := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	mustParse := func(sched string) cron.Schedule {
+		s, err := cron.ParseStandard(sched)
+		if err != nil {
+			t.Fatalf("Failed to parse cron spec %q: %v", sched, err)
+		}
+		return s
+	}
 	type args struct {
 		rsCronJob *csiaddonsv1alpha1.ReclaimSpaceCronJob
 		now       time.Time
@@ -128,6 +138,9 @@ func TestGetNextSchedule(t *testing.T) {
 			name: "Valid schedule, no deadline, last schedule time exists",
 			args: args{
 				rsCronJob: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: types.UID("valid-sched-1"),
+					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule: "0 0 * * *",
 					},
@@ -145,6 +158,9 @@ func TestGetNextSchedule(t *testing.T) {
 			name: "Valid schedule, deadline not exceeded, last schedule time exists",
 			args: args{
 				rsCronJob: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: types.UID("valid-sched-2"),
+					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule:                "0 0 * * *",
 						StartingDeadlineSeconds: ptr.To(int64(3600)),
@@ -163,6 +179,9 @@ func TestGetNextSchedule(t *testing.T) {
 			name: "Valid schedule, deadline exceeded, last schedule time exists, missed schedules < 100",
 			args: args{
 				rsCronJob: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: types.UID("valid-sched-3"),
+					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule:                "*/1 * * * *",
 						StartingDeadlineSeconds: ptr.To(int64(6000)),
@@ -181,6 +200,9 @@ func TestGetNextSchedule(t *testing.T) {
 			name: "Valid schedule, deadline exceeded, last schedule time exists, missed schedules > 100",
 			args: args{
 				rsCronJob: &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: types.UID("valid-sched-4"),
+					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule:                "*/1 * * * *",
 						StartingDeadlineSeconds: ptr.To(int64(6060)),
@@ -203,11 +225,19 @@ func TestGetNextSchedule(t *testing.T) {
 				t.Errorf("getNextSchedule() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
+			if tt.wantErr {
+				return
+			}
+
 			if !gotLastMissed.Equal(tt.lastMissed) && !gotLastMissed.Equal(time.Time{}) {
 				t.Errorf("getNextSchedule() got last missed = %v, want %v", gotLastMissed, tt.lastMissed)
 			}
-			if !gotNextSchedule.Equal(tt.nextSchedule) {
-				t.Errorf("getNextSchedule() got next schedule = %v, want %v", gotNextSchedule, tt.nextSchedule)
+
+			sched := mustParse(tt.args.rsCronJob.Spec.Schedule)
+			staggered := utils.GetStaggeredNext(tt.args.rsCronJob.UID, tt.nextSchedule, sched)
+			if !gotNextSchedule.Equal(staggered) {
+				t.Errorf("getNextSchedule() got next schedule = %v, want %v", gotNextSchedule, staggered)
 			}
 		})
 	}
