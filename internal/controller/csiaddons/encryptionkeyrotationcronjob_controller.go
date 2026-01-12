@@ -313,8 +313,11 @@ func getNextScheduleForKeyRotation(
 			earliestTime = schedulingDeadline
 		}
 	}
+
+	rawNext := sched.Next(now)
+	staggeredNext := utils.GetStaggeredNext(krcJob.UID, rawNext, sched)
 	if earliestTime.After(now) {
-		return time.Time{}, sched.Next(now), nil
+		return time.Time{}, staggeredNext, nil
 	}
 
 	starts := 0
@@ -333,7 +336,7 @@ func getNextScheduleForKeyRotation(
 					" delete and recreate encryptionkeyrotationjob")
 		}
 	}
-	return lastMissed, sched.Next(now), nil
+	return lastMissed, staggeredNext, nil
 }
 
 // constructEncryptionKeyRotationJob forms an EncryptionKeyRotationJob for a given
