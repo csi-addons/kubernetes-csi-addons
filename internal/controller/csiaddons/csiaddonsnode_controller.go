@@ -115,8 +115,8 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger = logger.WithValues("NodeID", nodeID, "DriverName", driverName)
 
 	podName, endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
-	// In case of CR is marked for deletion, we dont need the connection to be established.
-	if err != nil && podName == "" && csiAddonsNode.DeletionTimestamp.IsZero() {
+	// Only requeue if the resource is not being deleted
+	if err != nil && csiAddonsNode.DeletionTimestamp.IsZero() {
 		logger.Error(err, "Failed to resolve endpoint")
 
 		// We will either:
@@ -361,10 +361,8 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		Name:      podname,
 	}, pod)
 	if err != nil {
-		// do not return podname if the pod does not exist
-		if apierrors.IsNotFound(err) {
-			podname = ""
-		}
+		// Return the pod name; it is required to derive the key used to remove
+		// a connection from the connection pool during cleanup.
 		return podname, "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
 	} else if pod.Status.PodIP == "" {
 		return podname, "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
