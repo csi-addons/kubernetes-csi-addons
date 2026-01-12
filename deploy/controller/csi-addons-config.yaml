@@ -9,3 +9,4 @@ data:
   "reclaim-space-timeout": "3m"
   "max-concurrent-reconciles": "100"
   "max-group-pvcs": "100"
+  "csi-addons-node-retry-delay": "5"
