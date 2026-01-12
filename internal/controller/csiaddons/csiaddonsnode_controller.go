@@ -46,9 +46,6 @@ import (
 )
 
 const (
-	// The base duration to use for exponential backoff while retrying connection
-	baseRetryDelay = 2 * time.Second
-
 	// Maximum attempts to make while retrying the connection
 	maxRetries = 3
 
@@ -65,9 +62,10 @@ var (
 // CSIAddonsNodeReconciler reconciles a CSIAddonsNode object
 type CSIAddonsNodeReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	ConnPool   *connection.ConnectionPool
-	EnableAuth bool
+	Scheme         *runtime.Scheme
+	ConnPool       *connection.ConnectionPool
+	EnableAuth     bool
+	BaseRetryDelay time.Duration
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
@@ -508,7 +506,7 @@ func (r *CSIAddonsNodeReconciler) backoffAndRetry(
 	}
 
 	// Calculate backoff; baseRetryDelay * 1, 2, 4....
-	backoff := baseRetryDelay * time.Duration(math.Pow(2, float64(currentRetries)))
+	backoff := r.BaseRetryDelay * time.Duration(math.Pow(2, float64(currentRetries)))
 	logger.Info("Requeuing request for attempting the connection again", "backoff", backoff)
 
 	return ctrl.Result{RequeueAfter: backoff}, nil

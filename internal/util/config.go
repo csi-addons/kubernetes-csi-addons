@@ -36,6 +36,7 @@ type Config struct {
 	MaxConcurrentReconciles int
 	SchedulePrecedence      string
 	MaxGroupPVC             int
+	CSIAddonsNodeRetryDelay int
 }
 
 const (
@@ -50,6 +51,8 @@ const (
 	SchedulePVC                    = "pvc"
 	MaxGroupPVCKey                 = "max-group-pvcs"
 	defaultMaxGroupPVC             = 100 // based on ceph's support/testing
+	defaultCSIAddonsNodeRetryDelay = 5   //seconds
+	CsiaddonsNodeRetryDelayKey     = "csi-addons-node-retry-delay"
 )
 
 // NewConfig returns a new Config object with default values.
@@ -60,6 +63,7 @@ func NewConfig() Config {
 		MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
 		SchedulePrecedence:      SchedulePVC,
 		MaxGroupPVC:             defaultMaxGroupPVC,
+		CSIAddonsNodeRetryDelay: defaultCSIAddonsNodeRetryDelay,
 	}
 }
 
@@ -115,6 +119,11 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 			}
 			cfg.MaxGroupPVC = maxGroupPVCs
 
+		case CsiaddonsNodeRetryDelayKey:
+			if err := cfg.validateAndSetCSIAddonsNodeRetryDelay(val); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("unknown config key %q", key)
 		}
@@ -147,6 +156,20 @@ func (cfg *Config) validateAndSetSchedulePrecedence(val string) error {
 	case "":
 		cfg.SchedulePrecedence = SchedulePVC
 	}
+
+	return nil
+}
+
+func (cfg *Config) validateAndSetCSIAddonsNodeRetryDelay(val string) error {
+	delay, err := strconv.Atoi(val)
+	if err != nil {
+		return fmt.Errorf("failed to parse value: %q for key: %q as int, %w", val, CsiaddonsNodeRetryDelayKey, err)
+	}
+
+	if delay < 1 {
+		return fmt.Errorf("got an invalid value: %q for key: %q", delay, CsiaddonsNodeRetryDelayKey)
+	}
+	cfg.CSIAddonsNodeRetryDelay = delay
 
 	return nil
 }
