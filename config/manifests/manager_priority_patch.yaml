@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      # Name must be an existing priority class in the cluster
+      priorityClassName: system-cluster-critical

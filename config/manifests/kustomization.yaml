@@ -1,6 +1,20 @@
----
 # These resources constitute the fully configured set of manifests
 # used to generate the 'manifests/' directory in a bundle.
 resources:
-  - ../default
-  - ../scorecard
+- ../default
+- ../scorecard
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+# Inject a `priorityClassName` into the controller Deployment so that the pod
+# is scheduled with higher (or lower) priority during cluster resource
+# contention.
+#
+# The default value is `system-cluster-critical`, to change that:
+#   1. Edit `manager_priority_patch.yaml`
+#   2. Set the desired `priorityClassName`
+#
+# Reference:
+# https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption
+#
+- path: manager_priority_patch.yaml
