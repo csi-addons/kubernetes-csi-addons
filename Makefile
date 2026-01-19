@@ -126,7 +126,9 @@ gen-csv-base:
 
 .PHONY: bundle
 bundle: gen-csv-base manifests operator-sdk
+	cd config/manifests && $(KUSTOMIZE) edit add patch --path manager_priority_patch.yaml
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle --manifests --metadata --package=$(PACKAGE_NAME) $(BUNDLE_VERSION)
+	cd config/manifests && $(KUSTOMIZE) edit remove patch --path manager_priority_patch.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
