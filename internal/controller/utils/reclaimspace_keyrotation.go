@@ -17,15 +17,11 @@ limitations under the License.
 package utils
 
 import (
-	"context"
 	"errors"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 
-	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -131,57 +127,4 @@ func ExtractOwnerNameFromPVCObj[T client.Object](rawObj client.Object) []string 
 	}
 
 	return []string{owner.Name}
-}
-
-func CleanOldJobs(
-	ctx context.Context,
-	c client.Client,
-	log logr.Logger,
-	req ctrl.Request,
-	objList client.ObjectList,
-	expectedName string,
-) (bool, error) {
-	// We need to find all the CronJobs in the namespace of the PVC which
-	// are owned by this controller and remove it if it doesn't match the expected name
-	shouldRequeue := false
-
-	if err := c.List(ctx, objList, client.InNamespace(req.Namespace), client.MatchingFields{JobOwnerKey: req.Name}); client.IgnoreNotFound(err) != nil {
-		return shouldRequeue, err
-	}
-
-	items, err := meta.ExtractList(objList)
-	if err != nil {
-		return shouldRequeue, err
-	}
-
-	for _, item := range items {
-		obj, ok := item.(client.Object)
-		if !ok {
-			// As long as objList is a k8s object
-			// we will never hit this
-			continue
-		}
-		objName := obj.GetName()
-
-		// Only delete what we might have created
-		if owner := metav1.GetControllerOf(obj); owner == nil ||
-			owner.Kind != "PersistentVolumeClaim" ||
-			owner.Name != req.Name {
-			log.Info("Found an object without any owner", "jobName", objName)
-
-			continue
-		}
-
-		// If the name does not match, delete the resource
-		if objName != expectedName {
-			if err := c.Delete(ctx, obj); client.IgnoreNotFound(err) != nil {
-				return shouldRequeue, err
-			}
-
-			shouldRequeue = true
-			log.Info("Deleted old job", "jobName", objName)
-		}
-	}
-
-	return shouldRequeue, nil
 }

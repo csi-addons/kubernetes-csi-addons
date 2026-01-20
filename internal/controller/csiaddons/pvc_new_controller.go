@@ -115,17 +115,6 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		},
 	}
 
-	// FIXME: This is a shim and should be removed in later releases
-	// along with the field indexers on child objects
-	if requeue, err := utils.CleanOldJobs(ctx,
-		r.Client,
-		logger,
-		req,
-		&csiaddonsv1alpha1.EncryptionKeyRotationCronJobList{},
-		keyRotationName); err != nil || requeue {
-		return ctrl.Result{Requeue: requeue}, err
-	}
-
 	if err := r.reconcileFeature(ctx, logger, pvc, keyRotationChild, keyRotationSched, keyRotationEnabled); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -138,17 +127,6 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 			Name:      reclaimSpaceName,
 			Namespace: pvc.Namespace,
 		},
-	}
-
-	// FIXME: This is a shim and should be removed in later releases
-	// along with the field indexers on child objects
-	if requeue, err := utils.CleanOldJobs(ctx,
-		r.Client,
-		logger,
-		req,
-		&csiaddonsv1alpha1.ReclaimSpaceCronJobList{},
-		reclaimSpaceName); err != nil || requeue {
-		return ctrl.Result{Requeue: requeue}, err
 	}
 
 	if err := r.reconcileFeature(ctx, logger, pvc, reclaimSpaceChild, reclaimSpaceSched, "true"); err != nil {
