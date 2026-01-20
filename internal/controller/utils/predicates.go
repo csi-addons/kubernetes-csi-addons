@@ -19,8 +19,6 @@ package utils
 import (
 	"context"
 
-	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
-
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -107,18 +105,6 @@ func SetupPVCControllerIndexers(mgr ctrl.Manager) error {
 				}
 				return []string{*pvc.Spec.StorageClassName}
 			},
-		},
-		// FIXME: Remove this shim in later releases
-		{
-			obj:     &csiaddonsv1alpha1.ReclaimSpaceCronJob{},
-			field:   JobOwnerKey,
-			indexFn: ExtractOwnerNameFromPVCObj[*csiaddonsv1alpha1.ReclaimSpaceCronJob],
-		},
-		// FIXME: Remove this shim in later releases
-		{
-			obj:     &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{},
-			field:   JobOwnerKey,
-			indexFn: ExtractOwnerNameFromPVCObj[*csiaddonsv1alpha1.EncryptionKeyRotationCronJob],
 		},
 	}
 
