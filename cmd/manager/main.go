@@ -106,6 +106,7 @@ func main() {
 	flag.StringVar(&cfg.SchedulePrecedence, "schedule-precedence", util.SchedulePVC, fmt.Sprintf("The order of precedence in which schedule of reclaimspace and keyrotation is considered. Possible values are %q and %q. Defaults to %q", util.SchedulePVC, util.ScheduleSC, util.SchedulePVC))
 	flag.BoolVar(&enableAuth, "enable-auth", true, "Enables TLS and adds bearer token to the headers (enabled by default)")
 	flag.IntVar(&cfg.MaxGroupPVC, "max-group-pvc", cfg.MaxGroupPVC, "Maximum number of PVCs allowed in a volume group")
+	flag.IntVar(&cfg.CSIAddonsNodeRetryDelay, util.CsiaddonsNodeRetryDelayKey, cfg.CSIAddonsNodeRetryDelay, "Duration, in seconds, the CSIAddonsNode reconciler must wait before retrying the connection to csi-addons sidecar")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
@@ -204,10 +205,11 @@ func main() {
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
 	if err = (&controllers.CSIAddonsNodeReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		ConnPool:   connPool,
-		EnableAuth: enableAuth,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		ConnPool:       connPool,
+		EnableAuth:     enableAuth,
+		BaseRetryDelay: time.Duration(cfg.CSIAddonsNodeRetryDelay),
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CSIAddonsNode")
 		os.Exit(1)
