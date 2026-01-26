@@ -37,7 +37,7 @@ type CRDViewerRole struct {
 	RoleName string
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *CRDViewerRole) SetTemplateDefaults() error {
 	if f.Path == "" {
 		if f.MultiGroup && f.Resource.Group != "" {
@@ -45,7 +45,6 @@ func (f *CRDViewerRole) SetTemplateDefaults() error {
 		} else {
 			f.Path = filepath.Join("config", "rbac", "%[kind]_viewer_role.yaml")
 		}
-
 	}
 	f.Path = f.Resource.Replacer().Replace(f.Path)
 
@@ -65,7 +64,13 @@ func (f *CRDViewerRole) SetTemplateDefaults() error {
 	return nil
 }
 
-const crdRoleViewerTemplate = `# permissions for end users to view {{ .Resource.Plural }}.
+const crdRoleViewerTemplate = `# This rule is not used by the project {{ .ProjectName }} itself.
+# It is provided to allow the cluster admin to help manage permissions for users.
+#
+# Grants read-only access to {{ .Resource.QualifiedGroup }} resources.
+# This role is intended for users who need visibility into these resources
+# without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
