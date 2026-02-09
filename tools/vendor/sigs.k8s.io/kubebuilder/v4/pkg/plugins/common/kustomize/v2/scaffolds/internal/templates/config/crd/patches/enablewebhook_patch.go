@@ -31,7 +31,7 @@ type EnableWebhookPatch struct {
 	machinery.ResourceMixin
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *EnableWebhookPatch) SetTemplateDefaults() error {
 	if f.Path == "" {
 		if f.MultiGroup && f.Resource.Group != "" {
@@ -39,7 +39,6 @@ func (f *EnableWebhookPatch) SetTemplateDefaults() error {
 		} else {
 			f.Path = filepath.Join("config", "crd", "patches", "webhook_in_%[plural].yaml")
 		}
-
 	}
 	f.Path = f.Resource.Replacer().Replace(f.Path)
 
