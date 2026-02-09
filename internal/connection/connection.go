@@ -20,20 +20,22 @@ import (
 	"context"
 	"crypto/tls"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes/token"
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	// The duration after which a gRPC connection is closed due to inactivity
-	idleTimeout = time.Minute * 5
+// The duration after which a gRPC connection is closed due to inactivity
+// The `WithIdleTimeout` dial option will close the underlying TCP connection
+// and will automatically re-open it whenever a new RPC/Connect() is called.
+// idleTimeout = time.Minute * 5
 )
 
 // Connection struct consists of to NodeID, DriverName, Capabilities for the controller
@@ -50,46 +52,41 @@ type Connection struct {
 	Timeout      time.Duration
 
 	// Holds the internal state of the connection
-	connected  bool
 	enableAuth bool
 	endpoint   string
 	podName    string
-
-	// Used to cancel any existing timers in case of re-connects
-	cancelIdle context.CancelFunc
-	// Holds the last access time of the gRPC Connection
-	// It is tracked and updated by the `accessTimeInterceptor`
-	lastAccessTime atomic.Int64
-}
-
-// accessTimeInterceptor is an unary interceptor which updates the lastAccessTime
-// on `Connection` struct to `time.Now()` on each RPC call
-func accessTimeInterceptor(conn *Connection) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		conn.lastAccessTime.Store(time.Now().UnixNano())
-
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
 }
 
 // Connect creates a new grpc.ClientConn object and sets it as the
 // client property on Connection struct. If a connection is already
-// connected, it is reused as is. It also spawns a go routine to tear
-// down the connection if it has been idling for a specified threshold.
-//
+// connected, it is reused as is.
 // In cases where a new connection is created from the scratch Connect
 // also calls fetchCapabilities on the connection object.
 func (c *Connection) Connect() error {
 	c.Lock()
 	defer c.Unlock()
 
-	// Return early if already connected, the connection will be reused
-	if c.connected {
-		return nil
+	// If the connection is not shutting down, we will be reusing it as-is
+	// This is required in spite of having an idleTimeout as Close() call might hang
+	// if the network is flaky. In that case, we discard the connection and create
+	// a new one.
+	if c.Client != nil {
+		if c.Client.GetState() != connectivity.Shutdown {
+			return nil
+		}
+
+		// We will have to re-create the client
+		c.Client = nil
 	}
 
 	opts := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(accessTimeInterceptor(c)),
+		// TODO: Reuse once the API is stable
+		//
+		// This API is experimental, and hence we are disabling it for now
+		// The default timeout on every gRPC connection in absence of this
+		// dial option is 30 minutes.
+		//
+		// grpc.WithIdleTimeout(idleTimeout),
 	}
 	if c.enableAuth {
 		opts = append(opts, token.WithServiceAccountToken())
@@ -107,58 +104,17 @@ func (c *Connection) Connect() error {
 		return err
 	}
 	c.Client = cc
-	c.connected = true
 
 	// Fetch the caps
 	// Downside is we need to do this on every re-connect
 	if err := c.fetchCapabilities(context.Background()); err != nil {
-		if e := c.Client.Close(); e == nil {
-			c.connected = false
-		}
+		_ = c.Client.Close()
+		c.Client = nil
 
 		return err
 	}
 
-	// Start a goroutine to close the connection after idle timeout
-	// But first, expire any existing timers
-	if c.cancelIdle != nil {
-		c.cancelIdle()
-	}
-	idleCtx, cFunc := context.WithCancel(context.Background())
-	c.cancelIdle = cFunc
-	go c.startIdleTimer(idleCtx)
-
 	return nil
-}
-
-// startIdleTimer starts a ticker with an interval of 30 seconds
-// At each tick, it checks if the connection has been idle for
-// more than `idleTimeout`. If so, the connection is closed.
-func (c *Connection) startIdleTimer(ctx context.Context) {
-	ticker := time.NewTicker(time.Second * 30)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.Lock()
-
-			lastAccess := time.Unix(0, c.lastAccessTime.Load())
-			isIdle := time.Since(lastAccess) > idleTimeout
-			if isIdle && c.connected {
-				// It's okay if there's an error in tearing down the connection
-				// It will be reused by subsequent requests, see Connect() for details
-				if err := c.Client.Close(); err == nil {
-					c.connected = false
-				}
-			}
-			c.Unlock()
-
-		case <-ctx.Done():
-			// Timer was cancelled
-			return
-		}
-	}
 }
 
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
@@ -184,28 +140,21 @@ func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace,
 	return conn, nil
 }
 
-// Close tears down the gRPC connection and terminates the goroutines
-// monitoring the idle timeout by calling cancelIdle()
+// Close tears down the gRPC connection and sets the client
+// to nil to ensure the call to Close() is idempotent.
+// A new client will always be created once Close() is called.
 func (c *Connection) Close() error {
 	c.Lock()
 	defer c.Unlock()
 
-	if c.cancelIdle != nil {
-		// Cancel the context as well
-		c.cancelIdle()
-		c.cancelIdle = nil
+	if c.Client == nil {
+		return nil
 	}
 
-	if c.Client != nil {
-		err := c.Client.Close()
-		if err == nil {
-			c.connected = false
-		}
+	err := c.Client.Close()
+	c.Client = nil
 
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // fetchCapabilities fetches the capability of the connected CSI driver.
