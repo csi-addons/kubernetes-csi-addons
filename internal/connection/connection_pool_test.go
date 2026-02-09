@@ -22,7 +22,23 @@ import (
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
+
+// newMockClient creates a mock gRPC client for testing.
+// This makes Connect() return early
+func newMockClient(t *testing.T) *grpc.ClientConn {
+	t.Helper()
+
+	cc, err := grpc.NewClient("passthrough:///dummy", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("failed to create mock client: %v", err)
+	}
+	t.Cleanup(func() { _ = cc.Close() })
+
+	return cc
+}
 
 func TestNewConnectionPool(t *testing.T) {
 	tests := []struct {
@@ -53,11 +69,11 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
+			Client:       newMockClient(t),
 			Capabilities: []*identity.Capability{},
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
-			connected:    true,
 		}
 
 		cp.Put(key1, conn1)
@@ -99,14 +115,15 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
+			Client:       newMockClient(t),
 			Capabilities: []*identity.Capability{},
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
-			connected:    true,
 		}
 
 		conn2 := &Connection{
+			Client: newMockClient(t),
 			Capabilities: []*identity.Capability{
 				{
 					Type: &identity.Capability_Service_{
@@ -119,7 +136,6 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 			NodeID:     nodeID,
 			DriverName: driverName,
 			Timeout:    0,
-			connected:  true,
 		}
 
 		cp.Put(key1, conn1)
@@ -155,11 +171,11 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
+			Client:       newMockClient(t),
 			Capabilities: []*identity.Capability{},
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
-			connected:    true,
 		}
 		cp.Put(key1, conn1)
 
@@ -185,11 +201,11 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 		nodeID := "one"
 		key1 := "one"
 		conn1 := &Connection{
+			Client:       newMockClient(t),
 			Capabilities: []*identity.Capability{},
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      0,
-			connected:    true,
 		}
 		cp.Put(key1, conn1)
 
@@ -202,11 +218,11 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 		}
 
 		conn2 := &Connection{
+			Client:       newMockClient(t),
 			Capabilities: []*identity.Capability{},
 			NodeID:       nodeID,
 			DriverName:   driverName,
 			Timeout:      1,
-			connected:    true,
 		}
 		cp.Put(key1, conn2)
 		assert.Equal(t, 1, len(conns))
@@ -219,6 +235,8 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 }
 
 func TestConnectionPool_getByDriverName(t *testing.T) {
+	mockClient := newMockClient(t)
+
 	type fields struct {
 		pool   map[string]*Connection
 		rwlock *sync.RWMutex
@@ -237,16 +255,16 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 			fields: fields{
 				pool: map[string]*Connection{
 					"one": {
+						Client:     mockClient,
 						DriverName: "driver-1",
-						connected:  true,
 					},
 					"two": {
+						Client:     mockClient,
 						DriverName: "driver-2",
-						connected:  true,
 					},
 					"three": {
+						Client:     mockClient,
 						DriverName: "driver-1",
-						connected:  true,
 					},
 				},
 				rwlock: &sync.RWMutex{},
@@ -256,12 +274,12 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 			},
 			want: map[string]*Connection{
 				"one": {
+					Client:     mockClient,
 					DriverName: "driver-1",
-					connected:  true,
 				},
 				"three": {
+					Client:     mockClient,
 					DriverName: "driver-1",
-					connected:  true,
 				},
 			},
 		},
@@ -270,12 +288,12 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 			fields: fields{
 				pool: map[string]*Connection{
 					"one": {
+						Client:     mockClient,
 						DriverName: "driver-1",
-						connected:  true,
 					},
 					"two": {
+						Client:     mockClient,
 						DriverName: "driver-2",
-						connected:  true,
 					},
 				},
 				rwlock: &sync.RWMutex{},
