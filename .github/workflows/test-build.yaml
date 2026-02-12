@@ -20,6 +20,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install gpgme for operator-sdk
+        run: sudo apt-get update && sudo apt-get install -y libgpgme-dev
+
       - name: Generate the bundle contents
         run: make bundle
 
