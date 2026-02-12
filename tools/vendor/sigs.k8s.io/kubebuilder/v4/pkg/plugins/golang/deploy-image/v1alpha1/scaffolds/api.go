@@ -17,6 +17,7 @@ limitations under the License.
 package scaffolds
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -53,12 +54,11 @@ type apiScaffolder struct {
 }
 
 // NewDeployImageScaffolder returns a new Scaffolder for declarative
-// nolint: lll
-func NewDeployImageScaffolder(config config.Config, res resource.Resource, image,
+func NewDeployImageScaffolder(cfg config.Config, res resource.Resource, image,
 	command, port, runAsUser string,
 ) plugins.Scaffolder {
 	return &apiScaffolder{
-		config:    config,
+		config:    cfg,
 		resource:  res,
 		image:     image,
 		command:   command,
@@ -80,10 +80,22 @@ func (s *apiScaffolder) Scaffold() error {
 		return err
 	}
 
+	// Define the boilerplate file path
+	boilerplatePath := filepath.Join("hack", "boilerplate.go.txt")
+
 	// Load the boilerplate
-	boilerplate, err := afero.ReadFile(s.fs.FS, filepath.Join("hack", "boilerplate.go.txt"))
+	boilerplate, err := afero.ReadFile(s.fs.FS, boilerplatePath)
 	if err != nil {
-		return fmt.Errorf("error scaffolding API/controller: unable to load boilerplate: %w", err)
+		if errors.Is(err, afero.ErrFileNotFound) {
+			log.Warnf("Unable to find %s : %s .\n"+
+				"This file is used to generate the license header in the project.\n"+
+				"Note that controller-gen will also use this. Therefore, ensure that you "+
+				"add the license file or configure your project accordingly.",
+				boilerplatePath, err)
+			boilerplate = []byte("")
+		} else {
+			return fmt.Errorf("error scaffolding API/controller: unable to load boilerplate: %w", err)
+		}
 	}
 
 	// Initialize the machinery.Scaffold that will write the files to disk
@@ -96,13 +108,13 @@ func (s *apiScaffolder) Scaffold() error {
 	if err := scaffold.Execute(
 		&api.Types{Port: s.port},
 	); err != nil {
-		return fmt.Errorf("error updating APIs: %v", err)
+		return fmt.Errorf("error updating APIs: %w", err)
 	}
 
 	if err := scaffold.Execute(
 		&samples.CRDSample{Port: s.port},
 	); err != nil {
-		return fmt.Errorf("error updating config/samples: %v", err)
+		return fmt.Errorf("error updating config/samples: %w", err)
 	}
 
 	controller := &controllers.Controller{
@@ -112,29 +124,25 @@ func (s *apiScaffolder) Scaffold() error {
 	if err := scaffold.Execute(
 		controller,
 	); err != nil {
-		return fmt.Errorf("error scaffolding controller: %v", err)
+		return fmt.Errorf("error scaffolding controller: %w", err)
 	}
 
 	if err := s.updateControllerCode(*controller); err != nil {
-		return fmt.Errorf("error updating controller: %v", err)
+		return fmt.Errorf("error updating controller: %w", err)
 	}
 
 	defaultMainPath := "cmd/main.go"
 	if err := s.updateMainByAddingEventRecorder(defaultMainPath); err != nil {
-		return fmt.Errorf("error updating main.go: %v", err)
+		return fmt.Errorf("error updating main.go: %w", err)
 	}
 
 	if err := scaffold.Execute(
 		&controllers.ControllerTest{Port: s.port},
 	); err != nil {
-		return fmt.Errorf("error creating controller/**_controller_test.go: %v", err)
+		return fmt.Errorf("error creating controller/**_controller_test.go: %w", err)
 	}
 
-	if err := s.addEnvVarIntoManager(); err != nil {
-		return err
-	}
-
-	return nil
+	return s.addEnvVarIntoManager()
 }
 
 // addEnvVarIntoManager will update the config/manager/manager.yaml by adding
@@ -144,8 +152,7 @@ func (s *apiScaffolder) addEnvVarIntoManager() error {
 	managerPath := filepath.Join("config", "manager", "manager.yaml")
 	err := util.ReplaceInFile(managerPath, `env:`, `env:`)
 	if err != nil {
-		if err := util.InsertCode(managerPath, `name: manager`, `
-        env:`); err != nil {
+		if err = util.InsertCode(managerPath, `name: manager`, "\n        env:"); err != nil {
 			return fmt.Errorf("error scaffolding env key in config/manager/manager.yaml")
 		}
 	}
@@ -162,11 +169,11 @@ func (s *apiScaffolder) addEnvVarIntoManager() error {
 // plugins to do the default scaffolds which an API is created
 func (s *apiScaffolder) scaffoldCreateAPI() error {
 	if err := s.scaffoldCreateAPIFromGolang(); err != nil {
-		return fmt.Errorf("error scaffolding golang files for the new API: %v", err)
+		return fmt.Errorf("error scaffolding golang files for the new API: %w", err)
 	}
 
 	if err := s.scaffoldCreateAPIFromKustomize(); err != nil {
-		return fmt.Errorf("error scaffolding kustomize manifests for the new API: %v", err)
+		return fmt.Errorf("error scaffolding kustomize manifests for the new API: %w", err)
 	}
 	return nil
 }
@@ -183,7 +190,7 @@ func (s *apiScaffolder) updateMainByAddingEventRecorder(defaultMainPath string) 
 		Scheme: mgr.GetScheme(),`, s.resource.Kind),
 		fmt.Sprintf(recorderTemplate, strings.ToLower(s.resource.Kind)),
 	); err != nil {
-		return fmt.Errorf("error scaffolding event recorder in %s: %v", defaultMainPath, err)
+		return fmt.Errorf("error scaffolding event recorder in %q: %w", defaultMainPath, err)
 	}
 
 	return nil
@@ -198,7 +205,7 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 			strings.ToLower(s.resource.Kind), // value for the name of the container
 		),
 	); err != nil {
-		return fmt.Errorf("error scaffolding container in the controller path (%s): %v",
+		return fmt.Errorf("error scaffolding container in the controller path %q: %w",
 			controller.Path, err)
 	}
 
@@ -216,15 +223,15 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 		res = strings.TrimLeft(res, " ")
 
 		if err := util.InsertCode(controller.Path, `SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",
 								},
 							},
 						},`, fmt.Sprintf(commandTemplate, res)); err != nil {
-			return fmt.Errorf("error scaffolding command in the  controller path (%s): %v",
+			return fmt.Errorf("error scaffolding command in the  controller path %q: %w",
 				controller.Path, err)
 		}
 	}
@@ -234,8 +241,8 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 		if err := util.InsertCode(
 			controller.Path,
 			`SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",
@@ -247,7 +254,7 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 				strings.ToLower(s.resource.Kind),
 				strings.ToLower(s.resource.Kind)),
 		); err != nil {
-			return fmt.Errorf("error scaffolding container port in the controller path (%s): %v",
+			return fmt.Errorf("error scaffolding container port in the controller path %q: %w",
 				controller.Path,
 				err)
 		}
@@ -256,10 +263,10 @@ func (s *apiScaffolder) updateControllerCode(controller controllers.Controller) 
 	if len(s.runAsUser) > 0 {
 		if err := util.InsertCode(
 			controller.Path,
-			`RunAsNonRoot:             &[]bool{true}[0],`,
+			`RunAsNonRoot:             ptr.To(true),`,
 			fmt.Sprintf(runAsUserTemplate, s.runAsUser),
 		); err != nil {
-			return fmt.Errorf("error scaffolding user-id in the controller path (%s): %v",
+			return fmt.Errorf("error scaffolding user-id in the controller path %q: %w",
 				controller.Path, err)
 		}
 	}
@@ -277,7 +284,7 @@ func (s *apiScaffolder) scaffoldCreateAPIFromKustomize() error {
 	kustomizeScaffolder.InjectFS(s.fs)
 
 	if err := kustomizeScaffolder.Scaffold(); err != nil {
-		return fmt.Errorf("error scaffolding kustomize files for the APIs: %v", err)
+		return fmt.Errorf("error scaffolding kustomize files for the APIs: %w", err)
 	}
 
 	return nil
@@ -287,7 +294,11 @@ func (s *apiScaffolder) scaffoldCreateAPIFromGolang() error {
 	golangV4Scaffolder := golangv4scaffolds.NewAPIScaffolder(s.config,
 		s.resource, true)
 	golangV4Scaffolder.InjectFS(s.fs)
-	return golangV4Scaffolder.Scaffold()
+	if err := golangV4Scaffolder.Scaffold(); err != nil {
+		return fmt.Errorf("error scaffolding golang files for the APIs: %v", err)
+	}
+
+	return nil
 }
 
 const containerTemplate = `Containers: []corev1.Container{{
@@ -297,8 +308,8 @@ const containerTemplate = `Containers: []corev1.Container{{
 						// Ensure restrictive context for the container
 						// More info: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
 						SecurityContext: &corev1.SecurityContext{
-							RunAsNonRoot:             &[]bool{true}[0],
-							AllowPrivilegeEscalation: &[]bool{false}[0],
+							RunAsNonRoot:             ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							Capabilities: &corev1.Capabilities{
 								Drop: []corev1.Capability{
 									"ALL",
@@ -308,7 +319,7 @@ const containerTemplate = `Containers: []corev1.Container{{
 					}}`
 
 const runAsUserTemplate = `
-							RunAsUser:                &[]int64{%s}[0],`
+							RunAsUser:                ptr.To(int64(%s)),`
 
 const commandTemplate = `
 						Command: []string{%s},`
