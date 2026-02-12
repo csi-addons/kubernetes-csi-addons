@@ -29,7 +29,7 @@ type KustomizeConfig struct {
 	machinery.TemplateMixin
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *KustomizeConfig) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("config", "certmanager", "kustomizeconfig.yaml")
@@ -43,7 +43,6 @@ func (f *KustomizeConfig) SetTemplateDefaults() error {
 	return nil
 }
 
-//nolint:lll
 const kustomizeConfigTemplate = `# This configuration is for teaching kustomize how to update name ref substitution
 nameReference:
 - kind: Issuer

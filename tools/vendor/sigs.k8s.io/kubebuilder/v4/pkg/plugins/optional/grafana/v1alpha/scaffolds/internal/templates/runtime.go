@@ -24,12 +24,12 @@ import (
 
 var _ machinery.Template = &RuntimeManifest{}
 
-// Kustomization scaffolds a file that defines the kustomization scheme for the prometheus folder
+// RuntimeManifest scaffolds a file that defines the kustomization scheme for the prometheus folder
 type RuntimeManifest struct {
 	machinery.TemplateMixin
 }
 
-// SetTemplateDefaults implements file.Template
+// SetTemplateDefaults implements machinery.Template
 func (f *RuntimeManifest) SetTemplateDefaults() error {
 	if f.Path == "" {
 		f.Path = filepath.Join("grafana", "controller-runtime-metrics.json")
@@ -44,7 +44,7 @@ func (f *RuntimeManifest) SetTemplateDefaults() error {
 	return nil
 }
 
-// nolint: lll
+//nolint:lll
 const controllerRuntimeTemplate = `{
   "__inputs": [
     {
