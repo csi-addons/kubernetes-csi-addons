@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,7 +64,7 @@ type VolumeGroupReplicationReconciler struct {
 	Scheme           *runtime.Scheme
 	ctx              context.Context
 	log              logr.Logger
-	Recorder         record.EventRecorder
+	Recorder         events.EventRecorder
 	MaxGroupPVCCount int
 }
 
@@ -548,7 +548,7 @@ func (r *VolumeGroupReplicationReconciler) getMatchingPVCsFromSource(instance *r
 				// group using label selectors. Add an event to the PVC mentioning the same
 				msg := fmt.Sprintf("PersistentVolumeClaim is part of the group(%s/%s) using matching label selector. Remove label from PersistentVolumeClaim (%s/%s) to allow deletion",
 					instance.Namespace, instance.Name, pvc.Namespace, pvc.Name)
-				r.Recorder.Event(&pvc, "Warning", "PersistentVolumeClaimDeletionBlocked", msg)
+				r.Recorder.Eventf(&pvc, nil, "Warning", "PersistentVolumeClaimDeletionBlocked", "deleting PersistentVolumeClaim", msg)
 			} else {
 				removeDeletingPVC = append(removeDeletingPVC, pvc)
 			}
