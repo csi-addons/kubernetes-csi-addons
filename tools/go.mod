@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/operator-framework/operator-sdk v1.42.0
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.0
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.1
 	google.golang.org/protobuf v1.36.11
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20250517180713-32e5e9e948a5
 	sigs.k8s.io/controller-tools v0.18.0
