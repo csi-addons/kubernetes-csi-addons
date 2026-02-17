@@ -243,7 +243,7 @@ OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
 .PHONY: operator-sdk
 operator-sdk:
 # FIXME: Remove `go mod tidy && go mod vendor` once we find the reason why ci workflow fails.
-	cd ./tools && go mod tidy && go mod vendor && go build -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools/tools.go | sed 's/.*_ "//;s/"//')
+	cd ./tools && go mod tidy && go mod vendor && go build -tags containers_image_openpgp -o $(OPERATOR_SDK) ./vendor/$(shell grep operator-sdk tools/tools.go | sed 's/.*_ "//;s/"//')
 
 # protoc-gen-go gets installed from the vendor/ directory.
 PROTOC_GEN_GO = $(shell pwd)/bin/protoc-gen-go
