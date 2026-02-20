@@ -376,8 +376,11 @@ func getNextSchedule(
 			earliestTime = schedulingDeadline
 		}
 	}
+
+	rawNext := sched.Next(now)
+	staggeredNext := utils.GetStaggeredNext(rsCronJob.UID, rawNext, sched)
 	if earliestTime.After(now) {
-		return time.Time{}, sched.Next(now), nil
+		return time.Time{}, staggeredNext, nil
 	}
 
 	starts := 0
@@ -396,5 +399,5 @@ func getNextSchedule(
 					" delete and recreate reclaimspacecronjob")
 		}
 	}
-	return lastMissed, sched.Next(now), nil
+	return lastMissed, staggeredNext, nil
 }
