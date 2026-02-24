@@ -1,0 +1,117 @@
+# Sample E2E Test Configuration for CSI-Addons
+# Copy this file to e2e-config.yaml and customize for your environment
+
+# Path to kubeconfig file (can be overridden by KUBECONFIG env var)
+kubeconfig: ""
+
+# Directory to store test reports
+reportDir: "_output/e2e-reports"
+
+# Namespace to run tests in
+namespace: "csi-addons-e2e"
+
+# Delete namespace after tests complete
+deleteNamespace: true
+
+# Delete namespace even if tests fail
+deleteNamespaceOnFailure: false
+
+# Global timeout for all tests
+timeout: 30m
+
+# CSI Driver Configuration
+csiDriver:
+  # Name of the CSI driver (can be overridden by CSI_DRIVER_NAME env var)
+  # Example: "rbd.csi.ceph.com" or "nfs.csi.k8s.io"
+  name: ""
+
+  # Namespace where CSI driver is deployed
+  namespace: "default"
+
+# Storage Configuration
+storage:
+  # Storage class name to use for tests (can be overridden by STORAGE_CLASS env var)
+  storageClassName: ""
+
+  # Default volume size for test PVCs
+  volumeSize: "1Gi"
+
+  # Default access mode for test PVCs
+  accessMode: "ReadWriteOnce"
+
+  # Volume binding mode
+  volumeBindingMode: "Immediate"
+
+# NetworkFence Configuration
+networkFence:
+  # List of CIDR blocks for NetworkFence testing
+  # These CIDRs will be used in fence/unfence operations
+  cidrs:
+    - "192.168.1.0/24"
+    - "10.0.0.0/8"
+
+  # Provisioner name for NetworkFenceClass (optional)
+  # If not specified, will use the CSI driver name
+  provisioner: ""
+
+  # Additional parameters for NetworkFenceClass (optional)
+  parameters: {}
+
+# VolumeReplication Configuration
+volumeReplication:
+  # Provisioner name for VolumeReplicationClass (optional)
+  # If not specified, will use the CSI driver name
+  provisioner: ""
+
+  # Parameters for VolumeReplicationClass
+  # Example parameters for replication:
+  #   replication.storage.openshift.io/replication-secret-name: "replication-secret"
+  #   replication.storage.openshift.io/replication-secret-namespace: "default"
+  parameters: {}
+
+# VolumeGroupReplication Configuration
+volumeGroupReplication:
+  # Provisioner name for VolumeGroupReplicationClass (optional)
+  # If not specified, will use the CSI driver name
+  provisioner: ""
+
+  # Parameters for VolumeGroupReplicationClass
+  parameters: {}
+
+# Test Suite Configuration
+tests:
+  # Patterns of tests to skip (regex)
+  skip: []
+
+  # Patterns of tests to focus on (regex)
+  focus: []
+
+  # Enable/disable specific test suites
+  reclaimSpace: true
+  encryptionKeyRotation: true
+  networkFence: true
+  volumeReplication: true
+  volumeGroupReplication: true
+
+# Operation-specific Timeouts
+timeouts:
+  # Timeout for PVC creation
+  pvcCreate: 2m
+
+  # Timeout for PVC to become bound
+  pvcBound: 5m
+
+  # Timeout for pod to start
+  podStart: 5m
+
+  # Timeout for pod deletion
+  podDelete: 2m
+
+  # Timeout for job completion
+  jobComplete: 10m
+
+  # Timeout for replication sync
+  replicationSync: 15m
+
+  # Timeout for generic operations
+  operationComplete: 5m
