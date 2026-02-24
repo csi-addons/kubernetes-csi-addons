@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create k8s Kind Cluster
-        uses: helm/kind-action@v1.13.0
+        uses: helm/kind-action@v1.14.0
 
       - name: Check out the repo
         uses: actions/checkout@v6
