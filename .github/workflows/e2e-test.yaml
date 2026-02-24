@@ -1,0 +1,125 @@
+name: build
+on:
+  pull_request:
+    branches:
+      - main
+      - release-*
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+env:
+  TAG: test
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: go.mod
+      - name: Install cri-dockerd
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: |
+          ARCH=$(go env GOARCH)
+          curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.21/cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+          sudo dpkg -i cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+          rm -f cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb
+
+      - name: Setup Minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
+          # longer supports older k8s version we lock to
+          minikube-version: "1.38.0"
+          kubernetes-version: "1.31.0"
+          driver: none
+          container-runtime: docker
+          memory: 6g
+          cpus: 2
+          addons: ingress
+          cni: calico
+
+      - name: install deps
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: test/e2e/scripts/ceph/github-action-helper.sh install_deps
+
+      - name: print k8s cluster status
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: test/e2e/scripts/ceph/github-action-helper.sh print_k8s_cluster_status
+
+      # This step is required for all the integration tests except the canary tests
+      - name: use local disk
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: test/e2e/scripts/ceph/github-action-helper.sh use_local_disk_for_integration_test
+
+      - name: use local disk into two partitions
+        run: |
+          test/e2e/scripts/ceph/github-action-helper.sh use_local_disk
+          export BLOCK="/dev/$(test/e2e/scripts/ceph/github-action-helper.sh find_extra_block_dev)"
+          test/e2e/scripts/ceph/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+          sudo lsblk
+
+      - name: build sidecar image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: build/Containerfile.sidecar
+          push: false
+          tags: quay.io/csiaddons/k8s-sidecar:${{ env.TAG }}
+
+      - name: checkout rook release
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: test/e2e/scripts/ceph/github-action-helper.sh checkout_rook_release "v1.19.1"
+
+      - name: enable mirroring between clusters
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: |
+          test/e2e/scripts/ceph/github-action-helper.sh enable_mirroring_cluster1 rook-ceph rook-ceph-secondary
+          test/e2e/scripts/ceph/github-action-helper.sh enable_mirroring_cluster2 rook-ceph rook-ceph-secondary
+
+      - name: Build controller container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: quay.io/csiaddons/k8s-controller:${{ env.TAG }}
+
+      - name: push image to kind cluster
+        run: >
+          minikube
+          image load quay.io/csiaddons/k8s-controller:${{ env.TAG }}
+
+      - name: Deploy the controller and CRDs
+        run: make deploy TAG=${{ env.TAG }}
+
+      - name: Wait for controller pod creation
+        run: >
+          kubectl
+          -n csi-addons-system
+          wait pods
+          -l app.kubernetes.io/name=csi-addons
+          --for=create
+          --timeout=5m
+
+      - name: Wait for running controller pod
+        run: >
+          kubectl
+          -n csi-addons-system
+          wait pods
+          -l app.kubernetes.io/name=csi-addons
+          --for=condition=Ready=True
+          --timeout=5m
+
+      - name: Run e2e tests
+        run: make test-e2e
