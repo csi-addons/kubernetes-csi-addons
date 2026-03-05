@@ -146,7 +146,8 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate docker-generate-protobuf fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v ./... -coverprofile cover.out
+	echo "running tests"
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v $$(go list ./... | grep -v "test/e2e") -coverprofile cover.out
 
 .PHONY: check-all-committed
 check-all-committed: ## Fail in case there are uncommitted changes
@@ -270,3 +271,56 @@ GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
+
+##@ E2E Tests
+
+# E2E_CONFIG specifies the path to the e2e configuration file
+# Default: test/e2e/e2e-config.yaml
+# Example: make test-e2e E2E_CONFIG=test/scripts/ceph/e2e-config.yaml
+E2E_CONFIG ?= test/e2e/e2e-config.yaml
+
+# E2E_CONFIG_FLAG is the flag to pass to go test
+E2E_CONFIG_FLAG = $(if $(E2E_CONFIG),-e2e-config=$(E2E_CONFIG),)
+
+.PHONY: test-e2e
+test-e2e: ## Run end-to-end tests (use E2E_CONFIG to specify config file)
+	@echo "Running E2E tests..."
+	@echo "Using config: $(E2E_CONFIG)"
+	go test -v ./test/e2e/... -timeout 60m -ginkgo.vv $(E2E_CONFIG_FLAG)
+
+.PHONY: test-e2e-reclaimspace
+test-e2e-reclaimspace: ## Run ReclaimSpace E2E tests (use E2E_CONFIG to specify config file)
+	@echo "Running ReclaimSpace E2E tests..."
+	@echo "Using config: $(E2E_CONFIG)"
+	go test -v ./test/e2e/reclaimspace -timeout 30m -ginkgo.v $(E2E_CONFIG_FLAG)
+
+.PHONY: test-e2e-volumereplication
+test-e2e-volumereplication: ## Run VolumeReplication E2E tests (use E2E_CONFIG to specify config file)
+	@echo "Running VolumeReplication E2E tests..."
+	@echo "Using config: $(E2E_CONFIG)"
+	go test -v ./test/e2e/volumereplication -timeout 30m -ginkgo.v $(E2E_CONFIG_FLAG)
+
+.PHONY: test-e2e-encryptionkeyrotation
+test-e2e-encryptionkeyrotation: ## Run EncryptionKeyRotation E2E tests (use E2E_CONFIG to specify config file)
+	@echo "Running EncryptionKeyRotation E2E tests..."
+	@echo "Using config: $(E2E_CONFIG)"
+	go test -v ./test/e2e/encryptionkeyrotation -timeout 30m -ginkgo.v $(E2E_CONFIG_FLAG)
+
+.PHONY: test-e2e-networkfence
+test-e2e-networkfence: ## Run NetworkFence E2E tests (use E2E_CONFIG to specify config file)
+	@echo "Running NetworkFence E2E tests..."
+	@echo "Using config: $(E2E_CONFIG)"
+	go test -v ./test/e2e/networkfence -timeout 30m -ginkgo.v $(E2E_CONFIG_FLAG)
+
+.PHONY: test-e2e-volumegroupreplication
+test-e2e-volumegroupreplication: ## Run VolumeGroupReplication E2E tests (use E2E_CONFIG to specify config file)
+	@echo "Running VolumeGroupReplication E2E tests..."
+	@echo "Using config: $(E2E_CONFIG)"
+	go test -v ./test/e2e/volumegroupreplication -timeout 30m -ginkgo.v $(E2E_CONFIG_FLAG)
+
+.PHONY: copy-ceph-e2e-config
+copy-ceph-e2e-config: ## Copy Ceph-specific E2E config file
+	@echo "Copying Ceph-specific E2E config file..."
+	@cp test/scripts/ceph/e2e-config.yaml test/e2e/e2e-config.yaml
+	@echo "Ceph config copied to test/e2e/e2e-config.yaml"
+	@echo "You can now run tests with: make test-e2e"

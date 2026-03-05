@@ -21,15 +21,15 @@ import (
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo/v2"
+	gomega "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("EncryptionKeyRotationCronJob Controller", func() {
-	Context("When reconciling a resource", func() {
+var _ = ginkgo.Describe("EncryptionKeyRotationCronJob Controller", func() {
+	ginkgo.Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
 		ctx := context.Background()
@@ -40,8 +40,8 @@ var _ = Describe("EncryptionKeyRotationCronJob Controller", func() {
 		}
 		encryptionkeyrotationcronjob := &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{}
 
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind EncryptionKeyRotationCronJob")
+		ginkgo.BeforeEach(func() {
+			ginkgo.By("creating the custom resource for the Kind EncryptionKeyRotationCronJob")
 			err := k8sClient.Get(ctx, typeNamespacedName, encryptionkeyrotationcronjob)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
@@ -60,18 +60,18 @@ var _ = Describe("EncryptionKeyRotationCronJob Controller", func() {
 						},
 					},
 				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				gomega.Expect(k8sClient.Create(ctx, resource)).To(gomega.Succeed())
 			}
 		})
 
-		AfterEach(func() {
+		ginkgo.AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-			By("Cleanup the specific resource instance EncryptionKeyRotationCronJob")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			ginkgo.By("Cleanup the specific resource instance EncryptionKeyRotationCronJob")
+			gomega.Expect(k8sClient.Delete(ctx, resource)).To(gomega.Succeed())
 		})
 	})
 })
