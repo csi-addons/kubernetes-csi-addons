@@ -68,6 +68,7 @@ function deploy_rook() {
   with(select(.kind == "ConfigMap");
     .data.CSI_ENABLE_CSIADDONS = "true" |
 	.data.ROOK_CSIADDONS_IMAGE = "quay.io/csiaddons/k8s-sidecar:test" |
+	.data.ROOK_CSI_CEPH_IMAGE = "quay.io/cephcsi/cephcsi:canary" |
 	.data.CSI_LOG_LEVEL = "5"
   )' operator.yaml
 	kubectl_retry create -f crds.yaml
