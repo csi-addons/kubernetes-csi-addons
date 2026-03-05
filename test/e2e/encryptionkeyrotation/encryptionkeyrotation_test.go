@@ -44,9 +44,14 @@ func TestEncryptionKeyRotation(t *testing.T) {
 	flag.Parse()
 
 	// Load configuration
-	_, err := config.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		t.Fatalf("Failed to load E2E configuration: %v", err)
+	}
+
+	// Skip if EncryptionKeyRotation tests are disabled
+	if !cfg.Tests.EncryptionKeyRotation {
+		t.Skip("EncryptionKeyRotation tests are disabled in configuration")
 	}
 
 	gomega.RegisterFailHandler(ginkgo.Fail)
