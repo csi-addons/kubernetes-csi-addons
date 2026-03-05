@@ -46,9 +46,14 @@ func TestVolumeReplication(t *testing.T) {
 	flag.Parse()
 
 	// Load configuration
-	_, err := config.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		t.Fatalf("Failed to load E2E configuration: %v", err)
+	}
+
+	// Skip if VolumeReplication tests are disabled
+	if !cfg.Tests.VolumeReplication {
+		t.Skip("VolumeReplication tests are disabled in configuration")
 	}
 
 	gomega.RegisterFailHandler(ginkgo.Fail)
