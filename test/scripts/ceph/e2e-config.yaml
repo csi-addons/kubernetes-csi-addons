@@ -1,0 +1,138 @@
+---
+# yamllint disable rule:line-length
+# E2E Test Configuration for Ceph CSI Driver
+# This configuration is specifically tailored for testing with Ceph/Rook storage
+
+# Path to kubeconfig file (can be overridden by KUBECONFIG env var)
+kubeconfig: ""
+
+# Directory to store test reports
+reportDir: "_output/e2e-reports"
+
+# Namespace to run tests in
+namespace: "csi-addons-e2e"
+
+# Delete namespace after all tests complete
+deleteNamespace: false
+
+# Delete resources (but not namespace) even if individual tests fail
+deleteNamespaceOnFailure: false
+
+# Global timeout for all tests
+timeout: 30m
+
+# CSI Driver Configuration
+csiDriver:
+  # Ceph RBD CSI driver name
+  name: "rook-ceph.rbd.csi.ceph.com"
+
+  # Namespace where CSI driver is deployed
+  namespace: "default"
+
+# Storage Configuration
+storage:
+  # Ceph RBD storage class
+  storageClassName: "rook-ceph-block"
+
+  # Default volume size for test PVCs
+  volumeSize: "1Gi"
+
+  # Default access mode for test PVCs
+  accessMode: "ReadWriteOnce"
+
+  # Volume binding mode
+  volumeBindingMode: "Immediate"
+
+  # Feature-specific storage classes (using default if not specified)
+  reclaimSpaceStorageClassName: ""
+  encryptionKeyRotationStorageClassName: ""
+  volumeReplicationStorageClassName: ""
+  volumeGroupReplicationStorageClassName: ""
+
+# NetworkFence Configuration
+networkFence:
+  # CIDR blocks for NetworkFence testing
+  cidrs:
+    - "192.168.1.0/24"
+    - "100.0.0.0/8"
+
+  # Ceph RBD provisioner
+  provisioner: "rook-ceph.rbd.csi.ceph.com"
+
+  # NetworkFenceClass parameters
+  parameters:
+    clusterID: "rook-ceph"
+    csiaddons.openshift.io/networkfence-secret-name: "rook-csi-rbd-provisioner"
+    csiaddons.openshift.io/networkfence-secret-namespace: "rook-ceph"
+
+  # NetworkFence resource parameters
+  networkFenceParameters:
+    clusterID: "rook-ceph"
+
+  # Secret for NetworkFence operations
+  secret:
+    name: "rook-csi-rbd-provisioner"
+    namespace: "rook-ceph"
+
+# VolumeReplication Configuration
+volumeReplication:
+  # Ceph RBD provisioner
+  provisioner: "rook-ceph.rbd.csi.ceph.com"
+
+  # VolumeReplicationClass parameters
+  parameters:
+    clusterID: "rook-ceph"
+    replication.storage.openshift.io/replication-secret-name: "rook-csi-rbd-provisioner"
+    replication.storage.openshift.io/replication-secret-namespace: "rook-ceph"
+    schedulingInterval: "2m"
+
+# VolumeGroupReplication Configuration
+volumeGroupReplication:
+  # Ceph RBD provisioner
+  provisioner: "rook-ceph.rbd.csi.ceph.com"
+
+  # VolumeGroupReplicationClass parameters
+  parameters:
+    clusterID: "rook-ceph"
+    pool: "replicapool"
+    replication.storage.openshift.io/group-replication-secret-name: "rook-csi-rbd-provisioner"
+    replication.storage.openshift.io/group-replication-secret-namespace: "rook-ceph"
+    schedulingInterval: "2m"
+
+# Test Suite Configuration
+tests:
+  # Patterns of tests to skip (regex)
+  skip: []
+
+  # Patterns of tests to focus on (regex)
+  focus: []
+
+  # Enable/disable specific test suites
+  reclaimSpace: true
+  encryptionKeyRotation: false
+  networkFence: true
+  volumeReplication: true
+  volumeGroupReplication: false
+
+# Operation-specific Timeouts
+timeouts:
+  # Timeout for PVC creation
+  pvcCreate: 2m
+
+  # Timeout for PVC to become bound
+  pvcBound: 5m
+
+  # Timeout for pod to start
+  podStart: 5m
+
+  # Timeout for pod deletion
+  podDelete: 2m
+
+  # Timeout for job completion
+  jobComplete: 10m
+
+  # Timeout for replication sync
+  replicationSync: 15m
+
+  # Timeout for generic operations
+  operationComplete: 5m
