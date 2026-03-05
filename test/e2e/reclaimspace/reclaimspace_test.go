@@ -44,9 +44,14 @@ func TestReclaimSpace(t *testing.T) {
 	flag.Parse()
 
 	// Load configuration
-	_, err := config.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		t.Fatalf("Failed to load E2E configuration: %v", err)
+	}
+
+	// Skip if ReclaimSpace tests are disabled
+	if !cfg.Tests.ReclaimSpace {
+		t.Skip("ReclaimSpace tests are disabled in configuration")
 	}
 
 	gomega.RegisterFailHandler(ginkgo.Fail)
