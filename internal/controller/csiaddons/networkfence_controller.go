@@ -100,6 +100,23 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
+	// check if the networkfence object is getting deleted and handle it.
+	if !nwFence.GetDeletionTimestamp().IsZero() {
+		if slices.Contains(nwFence.GetFinalizers(), networkFenceFinalizer) {
+			logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
+
+			nwFence.Finalizers = util.RemoveFromSlice(nwFence.Finalizers, networkFenceFinalizer)
+			if err := r.Update(ctx, nwFence); err != nil {
+				logger.Error(err, "failed to remove finalizer on NetworkFence resource")
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer (%s) from NetworkFence resource %s: %w",
+					networkFenceFinalizer, nwFence.Name, err)
+			}
+		}
+
+		logger.Info("NetworkFence object is terminated, skipping reconciliation")
+		return ctrl.Result{}, nil
+	}
+
 	// validate NetworkFence object so as its parameters are neither empty nor nil.
 	err = validateNetworkFenceSpec(nwFence)
 	if err != nil {
@@ -123,21 +140,6 @@ func (r *NetworkFenceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		logger.Error(err, "failed to get the networkfenceinstance")
 
 		return ctrl.Result{}, err
-	}
-
-	// check if the networkfence object is getting deleted and handle it.
-	if !nf.instance.GetDeletionTimestamp().IsZero() {
-		if slices.Contains(nwFence.GetFinalizers(), networkFenceFinalizer) {
-
-			err := nf.removeFinalizerFromNetworkFence(ctx)
-			if err != nil {
-				logger.Error(err, "failed to remove finalizer on NetworkFence resource")
-				return ctrl.Result{}, err
-			}
-		}
-
-		logger.Info("NetworkFence object is terminated, skipping reconciliation")
-		return ctrl.Result{}, nil
 	}
 
 	if nwFence.Spec.FenceState == csiaddonsv1alpha1.Fenced {
@@ -300,21 +302,6 @@ func (nf *NetworkFenceInstance) addFinalizerToNetworkFence(ctx context.Context) 
 		if err := nf.reconciler.Update(ctx, nf.instance); err != nil {
 			return fmt.Errorf("failed to add finalizer (%s) to NetworkFence resource"+
 				" (%s): %w", networkFenceFinalizer, nf.instance.GetName(), err)
-		}
-	}
-
-	return nil
-}
-
-// removeFinalizerFromNetworkFence removes the finalizer from the Networkfence instance.
-func (nf *NetworkFenceInstance) removeFinalizerFromNetworkFence(ctx context.Context) error {
-	if slices.Contains(nf.instance.Finalizers, networkFenceFinalizer) {
-		nf.logger.Info("removing finalizer from NetworkFence object", "Finalizer", networkFenceFinalizer)
-
-		nf.instance.Finalizers = util.RemoveFromSlice(nf.instance.Finalizers, networkFenceFinalizer)
-		if err := nf.reconciler.Update(ctx, nf.instance); err != nil {
-			return fmt.Errorf("failed to remove finalizer (%s) from NetworkFence resource"+
-				" %s: %w", networkFenceFinalizer, nf.instance.Name, err)
 		}
 	}
 
