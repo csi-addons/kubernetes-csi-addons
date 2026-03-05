@@ -87,6 +87,17 @@ var _ = ginkgo.Describe("VolumeReplication", ginkgo.Ordered, func() {
 			err := f.Client.Delete(ctx, f.Namespace)
 			if err != nil && !apierrors.IsNotFound(err) {
 				ginkgo.By(fmt.Sprintf("Warning: Failed to delete namespace: %v", err))
+				return
+			}
+
+			ginkgo.By(fmt.Sprintf("Waiting for namespace %s to be deleted", f.Namespace.Name))
+			err = wait.PollUntilContextTimeout(ctx, 2*time.Second, f.Config.Timeout, true, func(ctx context.Context) (bool, error) {
+				ns := &corev1.Namespace{}
+				err := f.Client.Get(ctx, client.ObjectKey{Name: f.Namespace.Name}, ns)
+				return apierrors.IsNotFound(err), nil
+			})
+			if err != nil {
+				ginkgo.By(fmt.Sprintf("Warning: Namespace deletion timed out: %v", err))
 			}
 		}
 	})

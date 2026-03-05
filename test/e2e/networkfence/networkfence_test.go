@@ -21,10 +21,14 @@ import (
 	"flag"
 	"fmt"
 	"testing"
+	"time"
 
 	ginkgo "github.com/onsi/ginkgo/v2"
 	gomega "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/test/e2e/config"
@@ -82,6 +86,17 @@ var _ = ginkgo.Describe("NetworkFence", ginkgo.Ordered, func() {
 			err := f.Client.Delete(ctx, f.Namespace)
 			if err != nil && !apierrors.IsNotFound(err) {
 				ginkgo.By(fmt.Sprintf("Warning: Failed to delete namespace: %v", err))
+				return
+			}
+
+			ginkgo.By(fmt.Sprintf("Waiting for namespace %s to be deleted", f.Namespace.Name))
+			err = wait.PollUntilContextTimeout(ctx, 2*time.Second, f.Config.Timeout, true, func(ctx context.Context) (bool, error) {
+				ns := &corev1.Namespace{}
+				err := f.Client.Get(ctx, client.ObjectKey{Name: f.Namespace.Name}, ns)
+				return apierrors.IsNotFound(err), nil
+			})
+			if err != nil {
+				ginkgo.By(fmt.Sprintf("Warning: Namespace deletion timed out: %v", err))
 			}
 		}
 	})
