@@ -36,6 +36,13 @@ type ReclaimSpaceJobTemplateSpec struct {
 // ReclaimSpaceCronJobSpec defines the desired state of ReclaimSpaceJob
 type ReclaimSpaceCronJobSpec struct {
 	// The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+	// The controller applies a staggered offset (up to 2 hours) to the
+	// scheduled time to prevent thundering-herd behavior when many CronJobs
+	// share the same schedule. The offset is deterministic and based on
+	// the object's UID, so it remains stable across reconciles. As a result,
+	// actual job execution may be delayed by up to 2 hours from the
+	// configured schedule (or up to the schedule interval, whichever is
+	// shorter).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern:=.+
 	Schedule string `json:"schedule"`
