@@ -48,7 +48,7 @@ func (f *Framework) CreateReclaimSpaceJob(name string, pvcName string) *csiaddon
 			Target: csiaddonsv1alpha1.TargetSpec{
 				PersistentVolumeClaim: pvcName,
 			},
-			BackoffLimit:         6,
+			BackoffLimit:         15,
 			RetryDeadlineSeconds: 600,
 		},
 	}
