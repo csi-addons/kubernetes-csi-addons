@@ -59,7 +59,16 @@ const (
 	// failed reason type.
 	// TODO: add more useful reason types.
 	reasonFailed = "failed"
+
+	// nodeClientRequeueInterval is the interval to requeue when the
+	// node client is not found in the connection pool, allowing time
+	// for the VolumeAttachment to be updated.
+	nodeClientRequeueInterval = 30 * time.Second
 )
+
+// errNodeClientNotFound is a sentinel error returned when the node
+// client for the given nodeID is not found in the connection pool.
+var errNodeClientNotFound = errors.New("node client not found")
 
 // ReclaimSpaceJobReconciler reconciles a ReclaimSpaceJob object.
 type ReclaimSpaceJobReconciler struct {
@@ -157,6 +166,13 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if rsJob.Status.Result != "" {
 		// since result is already set, just dequeue.
 		return ctrl.Result{}, nil
+	}
+
+	// If the node client is not found, requeue after an interval
+	// to allow the VolumeAttachment to be updated instead of using
+	// the fast rate-limited requeue.
+	if errors.Is(err, errNodeClientNotFound) {
+		return ctrl.Result{RequeueAfter: nodeClientRequeueInterval}, nil
 	}
 
 	return ctrl.Result{}, err
@@ -445,7 +461,7 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 		return nil, err
 	}
 	if nodeClient == nil {
-		return nil, fmt.Errorf("node Client not found for %q nodeID", target.nodeID)
+		return nil, fmt.Errorf("%w for %q nodeID", errNodeClientNotFound, target.nodeID)
 	}
 	*logger = logger.WithValues("nodeClient", clientName)
 

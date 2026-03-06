@@ -176,7 +176,7 @@ func (cp *ConnectionPool) GetLeaderByDriver(ctx context.Context, reconciler clie
 
 	conn, ok := cp.pool[key]
 	if !ok {
-		return nil, fmt.Errorf("no connection with key %q found for driver %q: %w", key, driverName, err)
+		return nil, fmt.Errorf("no connection with key %q found for driver %q", key, driverName)
 	}
 
 	if err = conn.Connect(); err != nil {
