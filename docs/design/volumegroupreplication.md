@@ -65,7 +65,138 @@ For reference, one can check the implementation of csi-addons controllers for th
 - [volumegroupreplication_controller](https://github.com/csi-addons/kubernetes-csi-addons/blob/main/internal/controller/replication.storage/volumegroupreplication_controller.go) - It manages the flow of VGR and necessary validations to keep the VGR as the source of truth for the user.
 - [volumegroupreplicationcontent_controller](https://github.com/csi-addons/kubernetes-csi-addons/blob/main/internal/controller/replication.storage/volumegroupreplicationcontent_controller.go) - It manages the group level operations for the VGR.
 
-VGR has a Status field that is basically the same as that of VolumeReplication’s Status field and it can be utilized by the storage vendor to populate the current status of replication to the end user and report any errors as such at the CR level.
+VGR has a Status field that is basically the same as that of VolumeReplication's Status field and it can be utilized by the storage vendor to populate the current status of replication to the end user and report any errors as such at the CR level.
+
+If [RamenDR](https://github.com/RamenDR/ramen) is the extension/manager being used to manage DR for the workloads then, the storage vendor needs to add the below set of `Status` and `status.Conditions` to the VGR for ramen to read the VGR status and perform failover/relocate on the workload properly.
+
+### VolumeGroupReplication Status Examples
+
+The following sections provide detailed examples of VolumeGroupReplication status for different replication states. Each status example includes the necessary conditions and state information that RamenDR uses to manage disaster recovery operations.
+The condition's `Reason`, `Status`, and `Type` and the `status.State` must match the patterns shown below for RamenDR to correctly identify and manage the replication state.
+
+#### Primary Status
+
+**Description:** The Primary status indicates that the volume group is actively serving I/O operations and is replicating data to a secondary cluster. This is the active state where the volume group is being written to by applications, and changes are being mirrored to the secondary site for disaster recovery purposes. The volume group is healthy and not in a degraded or resyncing state.
+
+Sample `status` of VGR when the volume group is promoted to `Primary` successfully:
+
+```yaml
+status:
+  conditions:
+    - message: volume group is promoted to primary and replicating to secondary
+      reason: Promoted
+      status: "True"
+      type: Completed
+    - message: volume group is healthy
+      reason: Healthy
+      status: "False"
+      type: Degraded
+    - message: volume group is not resyncing
+      reason: NotResyncing
+      status: "False"
+      type: Resyncing
+    - message: volume group is validated and met all prerequisites
+      reason: PrerequisiteMet
+      status: "True"
+      type: Validated
+    - message: "volume group is replicating: local group is primary"
+      reason: Replicating
+      status: "True"
+      type: Replicating
+  lastCompletionTime: "2026-02-17T07:41:58Z"
+  lastSyncBytes: 9793536
+  lastSyncDuration: 0s
+  lastSyncTime: "2026-02-17T07:40:01Z"
+  message: volume group is marked primary
+  state: Primary
+```
+
+#### Secondary Status
+
+**Description:** The Secondary status indicates that the volume group is in a read-only state and is receiving replicated data from the primary cluster. The volume group is not actively serving application I/O but is being kept in sync with the primary volume group. This state is typical for the standby cluster in a disaster recovery setup.
+The volume group is marked as degraded because it's in secondary mode and not available for writes.
+
+Sample `status` of VGR when the volume group is demoted to `Secondary`:
+
+```yaml
+status:
+  conditions:
+    - message: volume group is demoted to secondary
+      reason: Demoted
+      status: "True"
+      type: Completed
+    - message: volume group is degraded
+      reason: VolumeDegraded
+      status: "True"
+      type: Degraded
+    - message: volume group is not resyncing
+      reason: NotResyncing
+      status: "False"
+      type: Resyncing
+    - message: volume group is validated and met all prerequisites
+      reason: PrerequisiteMet
+      status: "True"
+      type: Validated
+  lastCompletionTime: "2026-02-17T07:41:58Z"
+  message: volume group is marked secondary
+  state: Secondary
+```
+
+#### Demoted Status
+
+**Description:** The Demoted status represents a transitional state where a volume group that was previously Primary has been demoted. This typically occurs during a planned failover or relocate operation. The volume group is no longer accepting writes and is in a degraded state. This is similar to the Secondary status but explicitly indicates the demotion operation has been completed.
+
+Sample `status` of VGR when the volume group is `Demoted`:
+
+```yaml
+status:
+  conditions:
+    - message: volume group is demoted to secondary
+      reason: Demoted
+      status: "True"
+      type: Completed
+    - message: volume group is degraded
+      reason: VolumeDegraded
+      status: "True"
+      type: Degraded
+    - message: volume group is not resyncing
+      reason: NotResyncing
+      status: "False"
+      type: Resyncing
+  lastCompletionTime: "2026-02-17T07:42:15Z"
+  message: volume group is marked secondary
+  state: Secondary
+```
+
+#### Resyncing Status
+
+**Description:** The Resyncing status indicates that the volume group is actively synchronizing data between the primary and secondary sites. This state occurs when replication has been interrupted (due to network issues, cluster downtime, or other failures) and the volume groups are now catching up.
+During resyncing, the volume group is marked as degraded and the Resyncing condition is set to True. The volume group may experience degraded performance as it transfers the delta of changes that occurred during the interruption.
+
+Sample `status` of VGR when the volume group is `Resyncing`:
+
+```yaml
+status:
+  conditions:
+    - message: volume group is demoted to secondary
+      reason: Demoted
+      status: "True"
+      type: Completed
+    - message: volume group is degraded
+      reason: VolumeDegraded
+      status: "True"
+      type: Degraded
+    - message: volume group is resyncing changes from primary to secondary
+      reason: ResyncTriggered
+      status: "True"
+      type: Resyncing
+  lastCompletionTime: "2026-02-17T07:40:00Z"
+  lastSyncBytes: 5242880
+  lastSyncDuration: 15s
+  lastSyncTime: "2026-02-17T07:42:30Z"
+  message: volume group is resyncing
+  state: Secondary
+```
 
 ### Pre-Provisioned VolumeGroup
 

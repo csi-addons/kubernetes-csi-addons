@@ -41,6 +41,137 @@ To start with, users should create the VRC which contains the provisioner (csi d
 To start replication of the volume, the user needs to create a VR that contains the PVC as the dataSource which would be mirrored/replicated to a peer cluster, along with other required fields like the volumeReplicationClass (shared below) and the desired replicationState of the VR.
 The VR supports PVC and VolumeGroupReplication as the `dataSource` and the storage vendor is responsible for adding necessary checks to validate that if the dataSource is a single volume or a volumegroup and proceed accordingly. `replicationState` is used to determine if the VR is replicating to a secondary cluster i.e. `primary` or is on replicating end of the mirroring i.e. `secondary`.
 
+If [RamenDR](https://github.com/RamenDR/ramen) is the extension/manager being used to manage DR for the workloads then, the storage vendor needs to add the below set of `Status` and `status.Conditions` to the VR for ramen to read the VR status and perform failover/relocate on the workload properly.
+
+### VolumeReplication Status Examples
+
+The following sections provide detailed examples of VolumeReplication status for different replication states. Each status example includes the necessary conditions and state information that RamenDR uses to manage disaster recovery operations.
+The condition's `Reason`, `Status`, and `Type` and the `status.State` must match the patterns shown below for RamenDR to correctly identify and manage the replication state.
+
+#### Primary Status
+
+**Description:** The Primary status indicates that the volume is actively serving I/O operations and is replicating data to a secondary cluster. This is the active state where the volume is being written to by applications, and changes are being mirrored to the secondary site for disaster recovery purposes. The volume is healthy and not in a degraded or resyncing state.
+
+Sample `status` of VR when the volume is promoted to `Primary` successfully:
+
+```yaml
+status:
+  conditions:
+    - message: volume is promoted to primary and replicating to secondary
+      reason: Promoted
+      status: "True"
+      type: Completed
+    - message: volume is healthy
+      reason: Healthy
+      status: "False"
+      type: Degraded
+    - message: volume is not resyncing
+      reason: NotResyncing
+      status: "False"
+      type: Resyncing
+    - message: volume is validated and met all prerequisites
+      reason: PrerequisiteMet
+      status: "True"
+      type: Validated
+    - message: "volume is replicating: local image is primary"
+      reason: Replicating
+      status: "True"
+      type: Replicating
+  lastCompletionTime: "2026-02-17T07:41:58Z"
+  lastSyncBytes: 9793536
+  lastSyncDuration: 0s
+  lastSyncTime: "2026-02-17T07:40:01Z"
+  message: volume is marked primary
+  state: Primary
+```
+
+#### Secondary Status
+
+**Description:** The Secondary status indicates that the volume is in a read-only state and is receiving replicated data from the primary cluster. The volume is not actively serving application I/O but is being kept in sync with the primary volume. This state is typical for the standby cluster in a disaster recovery setup.
+The volume is marked as degraded because it's in secondary mode and not available for writes.
+
+Sample `status` of VR when the volume is demoted to `Secondary`:
+
+```yaml
+status:
+  conditions:
+    - message: volume is demoted to secondary
+      reason: Demoted
+      status: "True"
+      type: Completed
+    - message: volume is degraded
+      reason: VolumeDegraded
+      status: "True"
+      type: Degraded
+    - message: volume is not resyncing
+      reason: NotResyncing
+      status: "False"
+      type: Resyncing
+    - message: volume is validated and met all prerequisites
+      reason: PrerequisiteMet
+      status: "True"
+      type: Validated
+  lastCompletionTime: "2026-02-17T07:41:58Z"
+  message: volume is marked secondary
+  state: Secondary
+```
+
+#### Demoted Status
+
+**Description:** The Demoted status represents a transitional state where a volume that was previously Primary has been demoted. This typically occurs during a planned failover or relocate operation. The volume is no longer accepting writes and is in a degraded state. This is similar to the Secondary status but explicitly indicates the demotion operation has been completed.
+
+Sample `status` of VR when the volume is `Demoted`:
+
+```yaml
+status:
+  conditions:
+    - message: volume is demoted to secondary
+      reason: Demoted
+      status: "True"
+      type: Completed
+    - message: volume is degraded
+      reason: VolumeDegraded
+      status: "True"
+      type: Degraded
+    - message: volume is not resyncing
+      reason: NotResyncing
+      status: "False"
+      type: Resyncing
+  lastCompletionTime: "2026-02-17T07:42:15Z"
+  message: volume is marked secondary
+  state: Secondary
+```
+
+#### Resyncing Status
+
+**Description:** The Resyncing status indicates that the volume is actively synchronizing data between the primary and secondary sites. This state occurs when replication has been interrupted (due to network issues, cluster downtime, or other failures) and the volumes are now catching up.
+During resyncing, the volume is marked as degraded and the Resyncing condition is set to True. The volume may experience degraded performance as it transfers the delta of changes that occurred during the interruption.
+
+Sample `status` of VR when the volume is `Resyncing`:
+
+```yaml
+status:
+  conditions:
+    - message: volume is demoted to secondary
+      reason: Demoted
+      status: "True"
+      type: Completed
+    - message: volume is degraded
+      reason: VolumeDegraded
+      status: "True"
+      type: Degraded
+    - message: volume is resyncing changes from primary to secondary
+      reason: ResyncTriggered
+      status: "True"
+      type: Resyncing
+  lastCompletionTime: "2026-02-17T07:40:00Z"
+  lastSyncBytes: 5242880
+  lastSyncDuration: 15s
+  lastSyncTime: "2026-02-17T07:42:30Z"
+  message: volume is resyncing
+  state: Secondary
+```
+
 ## API definition of VolumeReplication (VR) CRD
 
 - [VR Type Definition](https://github.com/csi-addons/kubernetes-csi-addons/blob/main/api/replication.storage/v1alpha1/volumereplication_types.go)
