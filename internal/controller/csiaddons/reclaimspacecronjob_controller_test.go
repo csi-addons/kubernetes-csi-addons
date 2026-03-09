@@ -220,7 +220,7 @@ func TestGetNextSchedule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotLastMissed, gotNextSchedule, err := getNextSchedule(tt.args.rsCronJob, tt.args.now)
+			gotLastMissed, gotNextSchedule, err := getNextSchedule(tt.args.rsCronJob, tt.args.now, 2)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getNextSchedule() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -235,7 +235,7 @@ func TestGetNextSchedule(t *testing.T) {
 			}
 
 			sched := mustParse(tt.args.rsCronJob.Spec.Schedule)
-			staggered := utils.GetStaggeredNext(tt.args.rsCronJob.UID, tt.nextSchedule, sched)
+			staggered := utils.GetStaggeredNext(tt.args.rsCronJob.UID, tt.nextSchedule, sched, 2)
 			if !gotNextSchedule.Equal(staggered) {
 				t.Errorf("getNextSchedule() got next schedule = %v, want %v", gotNextSchedule, staggered)
 			}

@@ -10,3 +10,4 @@ data:
   "max-concurrent-reconciles": "100"
   "max-group-pvcs": "100"
   "csi-addons-node-retry-delay": "5"
+  "cronjob-stagger-window": "2"
