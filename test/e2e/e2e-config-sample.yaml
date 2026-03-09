@@ -1,0 +1,160 @@
+---
+# yamllint disable rule:line-length
+# Sample E2E Test Configuration for CSI-Addons
+# Copy this file to e2e-config.yaml and customize for your environment
+
+# Path to kubeconfig file (can be overridden by KUBECONFIG env var)
+kubeconfig: ""
+
+# Directory to store test reports
+reportDir: "_output/e2e-reports"
+
+# Namespace to run tests in
+# When set, all E2E tests will use this single namespace across all test runs
+# The namespace will be created if it doesn't exist and reused if it does
+# If empty, a unique namespace will be generated for each test run
+namespace: "csi-addons-e2e"
+
+# Delete namespace after all tests complete (happens in AfterAll)
+deleteNamespace: true
+
+# Delete resources (but not namespace) even if individual tests fail
+# Set to false to preserve resources for debugging
+deleteNamespaceOnFailure: false
+
+# Global timeout for all tests
+timeout: 30m
+
+# CSI Driver Configuration
+csiDriver:
+  # Name of the CSI driver (can be overridden by CSI_DRIVER_NAME env var)
+  # Example: "rbd.csi.ceph.com" or "nfs.csi.k8s.io"
+  name: ""
+
+  # Namespace where CSI driver is deployed
+  namespace: "default"
+
+# Storage Configuration
+storage:
+  # Default storage class name to use for tests (can be overridden by STORAGE_CLASS env var)
+  storageClassName: ""
+
+  # Default volume size for test PVCs
+  volumeSize: "1Gi"
+
+  # Default access mode for test PVCs
+  accessMode: "ReadWriteOnce"
+
+  # Volume binding mode
+  volumeBindingMode: "Immediate"
+
+  # Feature-specific storage classes (optional)
+  # If not specified, the default storageClassName will be used
+  # These can be overridden by environment variables:
+  # - RECLAIMSPACE_STORAGE_CLASS
+  # - ENCRYPTIONKEYROTATION_STORAGE_CLASS
+  # - NETWORKFENCE_STORAGE_CLASS
+  # - VOLUMEREPLICATION_STORAGE_CLASS
+  # - VOLUMEGROUPREPLICATION_STORAGE_CLASS
+
+  # Storage class for ReclaimSpace tests
+  reclaimSpaceStorageClassName: ""
+
+  # Storage class for EncryptionKeyRotation tests
+  encryptionKeyRotationStorageClassName: ""
+
+  # Storage class for VolumeReplication tests
+  volumeReplicationStorageClassName: ""
+
+  # Storage class for VolumeGroupReplication tests
+  volumeGroupReplicationStorageClassName: ""
+
+# NetworkFence Configuration
+networkFence:
+  # List of CIDR blocks for NetworkFence testing
+  # These CIDRs will be used in fence/unfence operations
+  cidrs:
+    - "192.168.1.0/24"
+    - "10.0.0.0/8"
+
+  # Provisioner name for NetworkFenceClass (optional)
+  # If not specified, will use the CSI driver name
+  provisioner: ""
+
+  # Additional parameters for NetworkFenceClass (optional)
+  # These parameters are used when creating NetworkFenceClass resources
+  parameters: {}
+
+  # Additional parameters for NetworkFence resource (optional)
+  # These parameters are specific to the NetworkFence resource itself
+  # and are separate from NetworkFenceClass parameters
+  # Example: {"key1": "value1", "key2": "value2"}
+  networkFenceParameters: {}
+
+  # Secret configuration for NetworkFence operations (optional)
+  # This secret will be used for authentication with the storage backend
+  # during fence/unfence operations
+  secret:
+    # Name of the Kubernetes secret containing credentials
+    name: ""
+    # Namespace where the secret is located
+    namespace: ""
+
+# VolumeReplication Configuration
+volumeReplication:
+  # Provisioner name for VolumeReplicationClass (optional)
+  # If not specified, will use the CSI driver name
+  provisioner: ""
+
+  # Parameters for VolumeReplicationClass
+  # Example parameters for replication:
+  #   replication.storage.openshift.io/replication-secret-name: "replication-secret"
+  #   replication.storage.openshift.io/replication-secret-namespace: "default"
+  parameters: {}
+
+# VolumeGroupReplication Configuration
+volumeGroupReplication:
+  # Provisioner name for VolumeGroupReplicationClass (optional)
+  # If not specified, will use the CSI driver name
+  provisioner: ""
+
+  # Parameters for VolumeGroupReplicationClass
+  parameters: {}
+
+# Test Suite Configuration
+tests:
+  # Patterns of tests to skip (regex)
+  skip: []
+
+  # Patterns of tests to focus on (regex)
+  focus: []
+
+  # Enable/disable specific test suites
+  reclaimSpace: true
+  encryptionKeyRotation: true
+  networkFence: true
+  volumeReplication: true
+  volumeGroupReplication: true
+
+# Operation-specific Timeouts
+timeouts:
+  # Timeout for PVC creation
+  pvcCreate: 2m
+
+  # Timeout for PVC to become bound
+  pvcBound: 5m
+
+  # Timeout for pod to start
+  podStart: 5m
+
+  # Timeout for pod deletion
+  podDelete: 2m
+
+  # Timeout for job completion
+  jobComplete: 10m
+
+  # Timeout for replication sync
+  replicationSync: 15m
+
+  # Timeout for generic operations
+  operationComplete: 5m
