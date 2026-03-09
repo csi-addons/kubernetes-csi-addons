@@ -37,6 +37,7 @@ type Config struct {
 	SchedulePrecedence      string
 	MaxGroupPVC             int
 	CSIAddonsNodeRetryDelay int
+	CronJobStaggerWindow    int
 }
 
 const (
@@ -53,6 +54,8 @@ const (
 	defaultMaxGroupPVC             = 100 // based on ceph's support/testing
 	defaultCSIAddonsNodeRetryDelay = 5   //seconds
 	CsiaddonsNodeRetryDelayKey     = "csi-addons-node-retry-delay"
+	defaultCronJobStaggerWindow    = 2
+	CronJobStaggerWindowKey        = "cronjob-stagger-window"
 )
 
 // NewConfig returns a new Config object with default values.
@@ -64,6 +67,7 @@ func NewConfig() Config {
 		SchedulePrecedence:      SchedulePVC,
 		MaxGroupPVC:             defaultMaxGroupPVC,
 		CSIAddonsNodeRetryDelay: defaultCSIAddonsNodeRetryDelay,
+		CronJobStaggerWindow:    defaultCronJobStaggerWindow,
 	}
 }
 
@@ -124,6 +128,11 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 				return err
 			}
 
+		case CronJobStaggerWindowKey:
+			if err := cfg.validateAndSetStaggerWindow(val); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("unknown config key %q", key)
 		}
@@ -170,6 +179,17 @@ func (cfg *Config) validateAndSetCSIAddonsNodeRetryDelay(val string) error {
 		return fmt.Errorf("got an invalid value: %q for key: %q", delay, CsiaddonsNodeRetryDelayKey)
 	}
 	cfg.CSIAddonsNodeRetryDelay = delay
+
+	return nil
+}
+
+func (cfg *Config) validateAndSetStaggerWindow(val string) error {
+	win, err := strconv.Atoi(val)
+	if err != nil {
+		return fmt.Errorf("failed to parse value: %q for key: %q as int, %w", val, CronJobStaggerWindowKey, err)
+	}
+
+	cfg.CronJobStaggerWindow = win
 
 	return nil
 }

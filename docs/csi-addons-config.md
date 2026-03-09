@@ -4,13 +4,13 @@ CSI-Addons Operator can consume configuration from a ConfigMap named `csi-addons
 in the same namespace as the operator. This enables configuration of the operator to persist across
 upgrades. The ConfigMap can support the following configuration options:
 
-| Option                        | Default value | Description                                                                                         |
-| ----------------------------- | ------------- | --------------------------------------------------------------------------------------------------- |
-| `reclaim-space-timeout`       | `"3m"`        | Timeout for reclaimspace operation                                                                  |
-| `max-concurrent-reconciles`   | `"100"`       | Maximum number of concurrent reconciles                                                             |
-| `max-group-pvcs`              | `"100"`       | Maximum number of PVCs allowed in a volume group                                                    |
-| `csi-addons-node-retry-delay` | `"5"`         | Duration, in seconds, that csi-addons reconcile must wait before retrying connection to the sidecar |
-| `schedule-precedence`         | `"pvc"`       | The order in which the schedule annotation should be read                                           |
+| Option                        | Default value | Description                                                                                                              |
+| ----------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `max-concurrent-reconciles`   | `"100"`       | Maximum number of concurrent reconciles                                                                                  |
+| `max-group-pvcs`              | `"100"`       | Maximum number of PVCs allowed in a volume group                                                                         |
+| `csi-addons-node-retry-delay` | `"5"`         | Duration, in seconds, that csi-addons reconcile must wait before retrying connection to the sidecar                      |
+| `schedule-precedence`         | `"pvc"`       | The order in which the schedule annotation should be read                                                                |
+| `cronjob-stagger-window`      | `"2"`         | Maximum stagger window, in hours, for key rotation and reclaim space CronJob schedules. Set to `0` to disable staggering |
 
 [`csi-addons-config` ConfigMap](../deploy/controller/csi-addons-config.yaml) is provided as an example.
 

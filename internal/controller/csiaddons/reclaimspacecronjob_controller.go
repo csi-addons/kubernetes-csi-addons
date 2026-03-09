@@ -40,7 +40,8 @@ import (
 // ReclaimSpaceCronJobReconciler reconciles a ReclaimSpaceCronJob object
 type ReclaimSpaceCronJobReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	StaggerWindow int
 }
 
 var (
@@ -129,7 +130,7 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// figure out the next times that we need to create jobs at (or anything we missed).
-	missedRun, nextRun, err := getNextSchedule(rsCronJob, time.Now())
+	missedRun, nextRun, err := getNextSchedule(rsCronJob, time.Now(), r.StaggerWindow)
 	if err != nil {
 		logger.Error(err, "Failed to Parse out CronJob schedule", "schedule", rsCronJob.Spec.Schedule)
 		// invalid schedule, do not requeue.
@@ -356,7 +357,8 @@ func getScheduledTimeForRSJob(rsJob *csiaddonsv1alpha1.ReclaimSpaceJob) (*time.T
 // This function returns error if there are more than 100 missed start times.
 func getNextSchedule(
 	rsCronJob *csiaddonsv1alpha1.ReclaimSpaceCronJob,
-	now time.Time) (time.Time, time.Time, error) {
+	now time.Time,
+	staggerWindow int) (time.Time, time.Time, error) {
 	sched, err := cron.ParseStandard(rsCronJob.Spec.Schedule)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("unparsable schedule %q: %v", rsCronJob.Spec.Schedule, err)
@@ -378,7 +380,7 @@ func getNextSchedule(
 	}
 
 	rawNext := sched.Next(now)
-	staggeredNext := utils.GetStaggeredNext(rsCronJob.UID, rawNext, sched)
+	staggeredNext := utils.GetStaggeredNext(rsCronJob.UID, rawNext, sched, staggerWindow)
 	if earliestTime.After(now) {
 		return time.Time{}, staggeredNext, nil
 	}
