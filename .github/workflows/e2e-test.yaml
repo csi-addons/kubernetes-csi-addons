@@ -74,7 +74,7 @@ jobs:
           sudo lsblk
 
       - name: build sidecar image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: build/Containerfile.sidecar
@@ -97,7 +97,7 @@ jobs:
           test/scripts/ceph/github-action-helper.sh enable_mirroring_cluster rook-ceph rook-ceph-secondary
 
       - name: Build controller container image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
