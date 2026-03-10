@@ -33,7 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ReclaimSpaceServer struct of sidecar with supported methods of proto
@@ -68,13 +68,14 @@ func (rs *ReclaimSpaceServer) RegisterService(server grpc.ServiceRegistrar) {
 func (rs *ReclaimSpaceServer) ControllerReclaimSpace(
 	ctx context.Context,
 	req *proto.ReclaimSpaceRequest) (*proto.ReclaimSpaceResponse, error) {
+	logger := log.FromContext(ctx)
 
 	pvName := req.GetPvName()
-	klog.Info(pvName)
+	logger.Info("Processing ControllerReclaimSpace request", "pvName", pvName)
 
 	pv, err := rs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("Failed to get pv: %v", err)
+		logger.Error(err, "Failed to get pv", "pvName", pvName)
 		return nil, status.Errorf(codes.InvalidArgument, "failed to get pv %q", pvName)
 	}
 
@@ -95,7 +96,7 @@ func (rs *ReclaimSpaceServer) ControllerReclaimSpace(
 		// Get the secrets from the k8s cluster
 		csiReq.Secrets, err = kube.GetSecret(ctx, rs.kubeClient, pv.Spec.CSI.NodeStageSecretRef.Name, pv.Spec.CSI.NodeStageSecretRef.Namespace)
 		if err != nil {
-			klog.Errorf("Failed to get secret: %v", err)
+			logger.Error(err, "Failed to get secret")
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
@@ -123,13 +124,14 @@ func (rs *ReclaimSpaceServer) ControllerReclaimSpace(
 func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 	ctx context.Context,
 	req *proto.ReclaimSpaceRequest) (*proto.ReclaimSpaceResponse, error) {
+	logger := log.FromContext(ctx)
 
 	pvName := req.GetPvName()
-	klog.Info(pvName)
+	logger.Info("Processing NodeReclaimSpace request", "pvName", pvName)
 
 	pv, err := rs.kubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("Failed to get pv: %v", err)
+		logger.Error(err, "Failed to get pv", "pvName", pvName)
 		return nil, status.Errorf(codes.InvalidArgument, "failed to get pv %q", pvName)
 	}
 
@@ -139,7 +141,7 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 	volID := pv.Spec.CSI.VolumeHandle
 	csiMode, err := accessmodes.ToCSIAccessMode(pv.Spec.AccessModes, true)
 	if err != nil {
-		klog.Errorf("Failed to map access mode: %v", err)
+		logger.Error(err, "Failed to map access mode")
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -172,7 +174,7 @@ func (rs *ReclaimSpaceServer) NodeReclaimSpace(
 		// Get the secrets from the k8s cluster
 		csiReq.Secrets, err = kube.GetSecret(ctx, rs.kubeClient, pv.Spec.CSI.NodeStageSecretRef.Name, pv.Spec.CSI.NodeStageSecretRef.Namespace)
 		if err != nil {
-			klog.Errorf("Failed to get secret: %v", err)
+			logger.Error(err, "Failed to get secret")
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}

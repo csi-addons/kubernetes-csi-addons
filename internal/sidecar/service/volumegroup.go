@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // VolumeGroupServer struct of sidecar with supported methods of proto
@@ -56,10 +56,11 @@ func (vg *VolumeGroupServer) RegisterService(server grpc.ServiceRegistrar) {
 func (vg *VolumeGroupServer) CreateVolumeGroup(
 	ctx context.Context,
 	req *proto.CreateVolumeGroupRequest) (*proto.CreateVolumeGroupResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, vg.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Get the VolumeGroup name and volumeIds from the request
@@ -72,7 +73,7 @@ func (vg *VolumeGroupServer) CreateVolumeGroup(
 
 	vgResp, err := vg.controllerClient.CreateVolumeGroup(ctx, vgReq)
 	if err != nil {
-		klog.Errorf("Failed to create volume group: %v", err)
+		logger.Error(err, "Failed to create volume group")
 		return nil, err
 	}
 
@@ -94,10 +95,11 @@ func (vg *VolumeGroupServer) CreateVolumeGroup(
 func (vg *VolumeGroupServer) ModifyVolumeGroupMembership(
 	ctx context.Context,
 	req *proto.ModifyVolumeGroupMembershipRequest) (*proto.ModifyVolumeGroupMembershipResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, vg.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Get the volumeGroup Id and volumeIds from the request
@@ -110,7 +112,7 @@ func (vg *VolumeGroupServer) ModifyVolumeGroupMembership(
 
 	vgResp, err := vg.controllerClient.ModifyVolumeGroupMembership(ctx, vgReq)
 	if err != nil {
-		klog.Errorf("Failed to modify volume group: %v", err)
+		logger.Error(err, "Failed to modify volume group")
 		return nil, err
 	}
 
@@ -132,10 +134,11 @@ func (vg *VolumeGroupServer) ModifyVolumeGroupMembership(
 func (vg *VolumeGroupServer) DeleteVolumeGroup(
 	ctx context.Context,
 	req *proto.DeleteVolumeGroupRequest) (*proto.DeleteVolumeGroupResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, vg.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Get the volumeGroup Id from the request
@@ -146,7 +149,7 @@ func (vg *VolumeGroupServer) DeleteVolumeGroup(
 
 	_, err = vg.controllerClient.DeleteVolumeGroup(ctx, vgReq)
 	if err != nil {
-		klog.Errorf("Failed to delete volume group: %v", err)
+		logger.Error(err, "Failed to delete volume group")
 		return nil, err
 	}
 
@@ -157,10 +160,11 @@ func (vg *VolumeGroupServer) DeleteVolumeGroup(
 func (vg *VolumeGroupServer) ControllerGetVolumeGroup(
 	ctx context.Context,
 	req *proto.ControllerGetVolumeGroupRequest) (*proto.ControllerGetVolumeGroupResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, vg.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Get the volumeGroup Id from the request
@@ -171,7 +175,7 @@ func (vg *VolumeGroupServer) ControllerGetVolumeGroup(
 
 	vgResp, err := vg.controllerClient.ControllerGetVolumeGroup(ctx, vgReq)
 	if err != nil {
-		klog.Errorf("Failed to get volume group: %v", err)
+		logger.Error(err, "Failed to get volume group")
 		return nil, err
 	}
 

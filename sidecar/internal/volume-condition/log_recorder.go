@@ -21,7 +21,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
 
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition/volume"
 )
@@ -47,17 +46,9 @@ func (lr *logRecorder) record(
 	vc volume.VolumeCondition,
 ) error {
 	if vc.IsHealthy() {
-		msg := vc.GetMessage()
-		if msg != "" {
-			msg = ": " + msg
-		}
-		klog.Infof("persistent volume %q is healthy"+msg, pv.GetName())
+		logger.Info("Persistent volume is healthy", "pvName", pv.GetName(), "message", vc.GetMessage())
 	} else {
-		klog.Warningf(
-			"persistent volume %q is not healthy: %v",
-			pv.GetName(),
-			vc.GetMessage(),
-		)
+		logger.Info("Persistent volume is not healthy", "pvName", pv.GetName(), "message", vc.GetMessage())
 	}
 
 	return nil

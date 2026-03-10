@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -36,9 +38,12 @@ import (
 	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+)
+
+var (
+	setupLog = ctrl.Log.WithName("setup")
 )
 
 var (
@@ -80,23 +85,15 @@ func main() {
 		volumeConditionInterval  = flag.Duration("volume-condition-interval", 1*time.Minute, "Interval between volume condition checks")
 		volumeConditionRecorders = flag.String("volume-condition-recorders", defaultVolumeConditionRecorders, "location(s) to report volume condition to")
 	)
-	klog.InitFlags(nil)
-
-	if err := flag.Set("logtostderr", "true"); err != nil {
-		klog.Exitf("failed to set logtostderr flag: %v", err)
-	}
-
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
-	standardflags.AddAutomaxprocs(klog.Infof)
+	standardflags.AddAutomaxprocs(setupLog.Info)
 	flag.Parse()
 
-	logger := zap.New(zap.UseFlagOptions(&opts))
-	klog.SetLogger(logger)
-	ctrl.SetLogger(logger)
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	if *showVersion {
 		version.PrintVersion()
@@ -105,27 +102,32 @@ func main() {
 
 	controllerEndpoint, err := sideutil.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
-		klog.Fatalf("Failed to validate controller endpoint: %v", err)
+		setupLog.Error(err, "Failed to validate controller endpoint")
+		os.Exit(1)
 	}
 
 	csiClient, err := client.New(context.Background(), *csiAddonsAddress, *timeout)
 	if err != nil {
-		klog.Fatalf("Failed to connect to %q : %v", *csiAddonsAddress, err)
+		setupLog.Error(err, "Failed to connect to CSI-Addons address", "address", *csiAddonsAddress)
+		os.Exit(1)
 	}
 
 	err = csiClient.Probe()
 	if err != nil {
-		klog.Fatalf("Failed to probe driver: %v", err)
+		setupLog.Error(err, "Failed to probe driver")
+		os.Exit(1)
 	}
 
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		klog.Fatalf("Failed to get cluster config: %v", err)
+		setupLog.Error(err, "Failed to get cluster config")
+		os.Exit(1)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Failed to create client: %v", err)
+		setupLog.Error(err, "Failed to create client")
+		os.Exit(1)
 	}
 
 	nodeMgr := &csiaddonsnode.Manager{
@@ -144,7 +146,8 @@ func main() {
 	go func() {
 		err := nodeMgr.DispatchWatcher()
 		if err != nil {
-			klog.Fatalf("failed to start watcher due to error: %v", err)
+			setupLog.Error(err, "Failed to start watcher")
+			os.Exit(1)
 		}
 	}()
 
@@ -153,7 +156,8 @@ func main() {
 		go func() {
 			driver, err := csiClient.GetDriverName()
 			if err != nil {
-				klog.Fatalf("failed to get the drivername from the CSI-plugin: %v", err)
+				setupLog.Error(err, "Failed to get the drivername from the CSI-plugin")
+				os.Exit(1)
 			}
 
 			recorderOptions := make([]condition.RecorderOption, 0)
@@ -164,20 +168,23 @@ func main() {
 				case volumeConditionPVCEventRecorder:
 					recorderOptions = append(recorderOptions, condition.WithEventRecorder())
 				default:
-					klog.Fatalf("condition recorder %q is unknown", vcr)
+					setupLog.Error(fmt.Errorf("condition recorder %q is unknown", vcr), "Unknown condition recorder")
+					os.Exit(1)
 				}
 			}
 
 			ctx := context.Background()
 			reporter, err := condition.NewVolumeConditionReporter(ctx, kubeClient, *nodeID, driver, recorderOptions)
 			if err != nil {
-				klog.Fatalf("failed to create volume condition reporter: %v", err)
+				setupLog.Error(err, "Failed to create volume condition reporter")
+				os.Exit(1)
 			}
 
-			klog.Info("starting volume condition reporter for driver: " + driver)
+			setupLog.Info("Starting volume condition reporter", "driver", driver)
 			err = reporter.Run(ctx, *volumeConditionInterval)
 			if err != nil {
-				klog.Fatalf("failed to start volume condition reporter: %v", err)
+				setupLog.Error(err, "Failed to start volume condition reporter")
+				os.Exit(1)
 			}
 		}()
 	}
@@ -192,13 +199,14 @@ func main() {
 
 	isController, err := csiClient.HasControllerService()
 	if err != nil {
-		klog.Fatalf("Failed to check if the CSI-plugin supports CONTROLLER_SERVICE: %v", err)
+		setupLog.Error(err, "Failed to check if the CSI-plugin supports CONTROLLER_SERVICE")
+		os.Exit(1)
 	}
 
 	// do not use leaderelection when the CSI-plugin does not have
 	// CONTROLLER_SERVICE
 	if !isController {
-		klog.Info("The CSI-plugin does not have the CSI-Addons CONTROLLER_SERVICE capability, not running leader election")
+		setupLog.Info("The CSI-plugin does not have the CSI-Addons CONTROLLER_SERVICE capability, not running leader election")
 		sidecarServer.Start()
 	} else {
 		// start the server in a go-routine so that the controller can
@@ -207,12 +215,13 @@ func main() {
 
 		driver, err := csiClient.GetDriverName()
 		if err != nil {
-			klog.Fatalf("Failed to get the drivername from the CSI-plugin: %v", err)
+			setupLog.Error(err, "Failed to get the drivername from the CSI-plugin")
+			os.Exit(1)
 		}
 
 		leaseName := util.NormalizeLeaseName(driver) + "-csi-addons"
 		le := leaderelection.NewLeaderElection(kubeClient, leaseName, func(context.Context) {
-			klog.Infof("Obtained leader status: lease name %q, receiving CONTROLLER_SERVICE requests", leaseName)
+			setupLog.Info("Obtained leader status, receiving CONTROLLER_SERVICE requests", "leaseName", leaseName)
 		})
 
 		if *podName != "" {
@@ -230,9 +239,11 @@ func main() {
 		// le.Run() is not expected to return on success
 		err = le.Run()
 		if err != nil {
-			klog.Fatalf("Failed to run as a leader: %v", err)
+			setupLog.Error(err, "Failed to run as a leader")
+			os.Exit(1)
 		}
 
-		klog.Fatalf("Lost leader status: lease name %q, no longer receiving CONTROLLER_REQUESTS", leaseName)
+		setupLog.Error(fmt.Errorf("lost leader status"), "No longer receiving CONTROLLER_REQUESTS", "leaseName", leaseName)
+		os.Exit(1)
 	}
 }

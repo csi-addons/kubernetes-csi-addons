@@ -24,10 +24,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition/volume"
 )
+
+var logger = ctrl.Log.WithName("node")
 
 // Node can handle requests for the local worker node.
 type Node interface {
@@ -71,7 +73,7 @@ func (n *node) ListCSIVolumes(ctx context.Context) ([]volume.CSIVolume, error) {
 		var vol volume.CSIVolume
 		vol, err = newAttachedCSIVolume(attached.Name)
 		if err != nil {
-			klog.Infof("skipping non-CSI volume: %v", err)
+			logger.V(1).Info("Skipping non-CSI volume", "error", err)
 			continue
 		}
 

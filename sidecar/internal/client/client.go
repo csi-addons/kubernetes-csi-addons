@@ -28,8 +28,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var logger = ctrl.Log.WithName("client")
 
 // Client is an interface that describes the methods which can be called on the
 // client connection.
@@ -77,7 +79,7 @@ func (c *clientImpl) GetGRPCClient() *grpc.ClientConn {
 // Any error other than timeout is returned.
 func (c *clientImpl) Probe() error {
 	for {
-		klog.Info("Probing CSI driver for readiness")
+		logger.Info("Probing CSI driver for readiness")
 		ready, err := c.probeOnce()
 		if err != nil {
 			st, ok := status.FromError(err)
@@ -90,12 +92,12 @@ func (c *clientImpl) Probe() error {
 				return fmt.Errorf("CSI driver probe failed: %s", err)
 			}
 			// Timeout -> driver is not ready. Fall through to sleep() below.
-			klog.Warning("CSI driver probe timed out")
+			logger.Info("CSI driver probe timed out")
 		} else {
 			if ready {
 				return nil
 			}
-			klog.Warning("CSI driver is not ready")
+			logger.Info("CSI driver is not ready")
 		}
 		// Timeout was returned or driver is not ready.
 		time.Sleep(c.probeInterval)

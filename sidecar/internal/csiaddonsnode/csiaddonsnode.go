@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -37,7 +38,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlClient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -56,6 +57,8 @@ const (
 )
 
 var (
+	logger = ctrl.Log.WithName("csiaddonsnode")
+
 	// errInvalidConfig is returned when an invalid configuration setting
 	// is detected.
 	errInvalidConfig = errors.New("invalid configuration")
@@ -101,8 +104,8 @@ func (mgr *Manager) deploy(object *csiaddonsv1alpha1.CSIAddonsNode) error {
 	return wait.PollUntilContextTimeout(context.TODO(), nodeCreationRetry, nodeCreationTimeout, true, func(ctx context.Context) (bool, error) {
 		err := mgr.newCSIAddonsNode(object)
 		if err != nil {
-			klog.Errorf("failed to create CSIAddonsNode %s/%s: %v",
-				object.Namespace, object.Name, err)
+			logger.Error(err, "Failed to create CSIAddonsNode",
+				"namespace", object.Namespace, "name", object.Name)
 
 			// return false to retry, discard the error
 			return false, nil
@@ -300,10 +303,11 @@ func (mgr *Manager) watchCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) er
 	// recreate CSIAddonsNode in the cluster
 	err := mgr.deploy(node)
 	if err != nil {
-		klog.Fatalf("Failed to create csiaddonsnode: %v", err)
+		logger.Error(err, "Failed to create csiaddonsnode")
+		os.Exit(1)
 	}
 
-	klog.Infof("Starting watcher for CSIAddonsNode: %s", node.Name)
+	logger.Info("Starting watcher for CSIAddonsNode", "name", node.Name)
 
 	dynamicClient, err := dynamic.NewForConfig(mgr.Config)
 	if err != nil {
@@ -327,20 +331,20 @@ func (mgr *Manager) watchCSIAddonsNode(node *csiaddonsv1alpha1.CSIAddonsNode) er
 	for event := range watcher.ResultChan() {
 		switch event.Type {
 		case watch.Deleted:
-			klog.Infof("WARNING: An active CSIAddonsNode: %s was deleted, it will be recreated", node.Name)
+			logger.Info("WARNING: An active CSIAddonsNode was deleted, it will be recreated", "name", node.Name)
 
 			err := mgr.deploy(node)
 			if err != nil {
 				return fmt.Errorf("failed to recreate CSIAddonsNode: %w", err)
 			}
-			klog.Infof("CSIAddonsNode: %s recreated", node.Name)
+			logger.Info("CSIAddonsNode recreated", "name", node.Name)
 		}
 	}
 
 	// The channel was closed by the API server without any errors
 	// Simply log it here and return, the dispatcher is responsible
 	// for restarting the watcher
-	klog.Infof("Watcher for %s exited gracefully, will be restarted soon", node.Name)
+	logger.Info("Watcher exited gracefully, will be restarted soon", "name", node.Name)
 
 	return nil
 }
@@ -358,7 +362,7 @@ func (mgr *Manager) DispatchWatcher() error {
 	for retryCount < int(watcherRetryCount) {
 		err := mgr.watchCSIAddonsNode(node)
 		if err != nil {
-			klog.Errorf("Watcher for %s exited, retrying (%d/%d), error: %v", node.Name, retryCount+1, watcherRetryCount, err)
+			logger.Error(err, "Watcher exited, retrying", "name", node.Name, "retry", retryCount+1, "maxRetries", watcherRetryCount)
 
 			retryCount++
 			time.Sleep(watcherRetryDelay * time.Duration(retryCount))
