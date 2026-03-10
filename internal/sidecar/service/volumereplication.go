@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ReplicationServer struct of sidecar with supported methods of proto
@@ -58,10 +58,11 @@ func (rs *ReplicationServer) RegisterService(server grpc.ServiceRegistrar) {
 func (rs *ReplicationServer) EnableVolumeReplication(
 	ctx context.Context,
 	req *proto.EnableVolumeReplicationRequest) (*proto.EnableVolumeReplicationResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	repReq := &csiReplication.EnableVolumeReplicationRequest{
@@ -71,14 +72,14 @@ func (rs *ReplicationServer) EnableVolumeReplication(
 	}
 	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
-		klog.Errorf("Failed to set replication source: %v", err)
+		logger.Error(err, "Failed to set replication source")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = rs.controllerClient.EnableVolumeReplication(ctx, repReq)
 
 	if err != nil {
-		klog.Errorf("Failed to enable volume replication: %v", err)
+		logger.Error(err, "Failed to enable volume replication")
 		return nil, err
 	}
 
@@ -90,10 +91,11 @@ func (rs *ReplicationServer) EnableVolumeReplication(
 func (rs *ReplicationServer) DisableVolumeReplication(
 	ctx context.Context,
 	req *proto.DisableVolumeReplicationRequest) (*proto.DisableVolumeReplicationResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -104,13 +106,13 @@ func (rs *ReplicationServer) DisableVolumeReplication(
 	}
 	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
-		klog.Errorf("Failed to set replication source: %v", err)
+		logger.Error(err, "Failed to set replication source")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = rs.controllerClient.DisableVolumeReplication(ctx, repReq)
 	if err != nil {
-		klog.Errorf("Failed to disable volume replication: %v", err)
+		logger.Error(err, "Failed to disable volume replication")
 		return nil, err
 	}
 
@@ -122,10 +124,11 @@ func (rs *ReplicationServer) DisableVolumeReplication(
 func (rs *ReplicationServer) PromoteVolume(
 	ctx context.Context,
 	req *proto.PromoteVolumeRequest) (*proto.PromoteVolumeResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -137,13 +140,13 @@ func (rs *ReplicationServer) PromoteVolume(
 	}
 	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
-		klog.Errorf("Failed to set replication source: %v", err)
+		logger.Error(err, "Failed to set replication source")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = rs.controllerClient.PromoteVolume(ctx, repReq)
 	if err != nil {
-		klog.Errorf("Failed to promote volume: %v", err)
+		logger.Error(err, "Failed to promote volume")
 		return nil, err
 	}
 
@@ -155,10 +158,11 @@ func (rs *ReplicationServer) PromoteVolume(
 func (rs *ReplicationServer) DemoteVolume(
 	ctx context.Context,
 	req *proto.DemoteVolumeRequest) (*proto.DemoteVolumeResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -170,13 +174,13 @@ func (rs *ReplicationServer) DemoteVolume(
 	}
 	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
-		klog.Errorf("Failed to set replication source: %v", err)
+		logger.Error(err, "Failed to set replication source")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = rs.controllerClient.DemoteVolume(ctx, repReq)
 	if err != nil {
-		klog.Errorf("Failed to demote volume: %v", err)
+		logger.Error(err, "Failed to demote volume")
 		return nil, err
 	}
 
@@ -188,10 +192,11 @@ func (rs *ReplicationServer) DemoteVolume(
 func (rs *ReplicationServer) ResyncVolume(
 	ctx context.Context,
 	req *proto.ResyncVolumeRequest) (*proto.ResyncVolumeResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -203,13 +208,13 @@ func (rs *ReplicationServer) ResyncVolume(
 	}
 	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
-		klog.Errorf("Failed to set replication source: %v", err)
+		logger.Error(err, "Failed to set replication source")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	resp, err := rs.controllerClient.ResyncVolume(ctx, repReq)
 	if err != nil {
-		klog.Errorf("Failed to resync volume: %v", err)
+		logger.Error(err, "Failed to resync volume")
 		return nil, err
 	}
 
@@ -223,10 +228,11 @@ func (rs *ReplicationServer) ResyncVolume(
 func (rs *ReplicationServer) GetVolumeReplicationInfo(
 	ctx context.Context,
 	req *proto.GetVolumeReplicationInfoRequest) (*proto.GetVolumeReplicationInfoResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -236,19 +242,19 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 	}
 	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
 	if err != nil {
-		klog.Errorf("Failed to set replication source: %v", err)
+		logger.Error(err, "Failed to set replication source")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	resp, err := rs.controllerClient.GetVolumeReplicationInfo(ctx, repReq)
 	if err != nil {
-		klog.Errorf("Failed to get volume replication info: %v", err)
+		logger.Error(err, "Failed to get volume replication info")
 		return nil, err
 	}
 
 	lastsynctime := resp.GetLastSyncTime()
 	if lastsynctime == nil {
-		klog.Errorf("Failed to get last sync time: %v", lastsynctime)
+		logger.Info("Last sync time is nil in volume replication info response")
 	}
 
 	return &proto.GetVolumeReplicationInfoResponse{

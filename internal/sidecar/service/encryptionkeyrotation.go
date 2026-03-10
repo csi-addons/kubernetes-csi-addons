@@ -29,7 +29,7 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type EncryptionKeyRotationServer struct {
@@ -54,6 +54,7 @@ func (ekrs *EncryptionKeyRotationServer) RegisterService(server grpc.ServiceRegi
 func (ekrs *EncryptionKeyRotationServer) EncryptionKeyRotate(
 	ctx context.Context, req *proto.EncryptionKeyRotateRequest,
 ) (*proto.EncryptionKeyRotateResponse, error) {
+	logger := log.FromContext(ctx)
 	pvName := req.GetPvName()
 	if pvName == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "pv name is missing from the request")
@@ -70,7 +71,7 @@ func (ekrs *EncryptionKeyRotationServer) EncryptionKeyRotate(
 
 	csiMode, err := accessmodes.ToCSIAccessMode(pv.Spec.AccessModes, true)
 	if err != nil {
-		klog.Errorf("Failed to map access mode: %v", err)
+		logger.Error(err, "Failed to map access mode")
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -99,7 +100,7 @@ func (ekrs *EncryptionKeyRotationServer) EncryptionKeyRotate(
 		return nil, err
 	}
 
-	klog.Infof("successfully rotated the key for pv: %s", pvName)
+	logger.Info("Successfully rotated the key for pv", "pvName", pvName)
 
 	return &proto.EncryptionKeyRotateResponse{}, nil
 }

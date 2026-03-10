@@ -20,14 +20,17 @@ import (
 	"crypto/tls"
 	"errors"
 	"net"
+	"os"
 
 	"github.com/csi-addons/kubernetes-csi-addons/internal/kubernetes/token"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	k8s "k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var logger = ctrl.Log.WithName("server")
 
 // SidecarService is the interface that is required to be implemented so that
 // the SidecarServer can register the service by calling RegisterService().
@@ -99,7 +102,8 @@ func (ss *SidecarServer) Start() {
 
 	listener, err := net.Listen(ss.scheme, ss.endpoint)
 	if err != nil {
-		klog.Fatalf("failed to listen on %s (%s): %v", ss.endpoint, ss.scheme, err)
+		logger.Error(err, "Failed to listen", "endpoint", ss.endpoint, "scheme", ss.scheme)
+		os.Exit(1)
 	}
 
 	ss.serve(listener)
@@ -108,15 +112,16 @@ func (ss *SidecarServer) Start() {
 // serve starts the actual process of listening for requests on the gRPC
 // server.
 func (ss *SidecarServer) serve(listener net.Listener) {
-	klog.Infof("Listening for CSI-Addons requests on address: %s", listener.Addr())
+	logger.Info("Listening for CSI-Addons requests", "address", listener.Addr())
 
 	// start to serve requests
 	err := ss.server.Serve(listener)
 	if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-		klog.Fatalf("Failed to setup CSI-Addons server: %v", err)
+		logger.Error(err, "Failed to setup CSI-Addons server")
+		os.Exit(1)
 	}
 
-	klog.Infof("The CSI-Addons server at %q has been stopped", listener.Addr())
+	logger.Info("The CSI-Addons server has been stopped", "address", listener.Addr())
 }
 
 // Stop can be used to stop the internal gRPC server.

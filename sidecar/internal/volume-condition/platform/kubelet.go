@@ -24,9 +24,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var logger = ctrl.Log.WithName("kubelet")
 
 // kubelet contains the paths for Kubernetes based platforms
 type kubelet struct {
@@ -130,7 +132,7 @@ func (k *kubelet) isMountPoint(path string) bool {
 	// stat() the path.
 	mps, err := k.mounter.List()
 	if err != nil {
-		klog.Errorf("failed to list mountpoints: %v", err)
+		logger.Error(err, "Failed to list mountpoints")
 		return false
 	}
 
@@ -172,7 +174,7 @@ func (k *kubelet) getPublishDetails(driver, volumeID string) (string, string, er
 	for _, filename := range volDatas {
 		data, err := os.ReadFile(filename)
 		if err != nil {
-			klog.Errorf("failed to read file %q: %v", filename, err)
+			logger.Error(err, "Failed to read file", "filename", filename)
 			continue
 		}
 
@@ -183,7 +185,7 @@ func (k *kubelet) getPublishDetails(driver, volumeID string) (string, string, er
 		}{}
 		err = json.Unmarshal(data, &vd)
 		if err != nil {
-			klog.Errorf("failed to parse JSON from %q: %v", filename, err)
+			logger.Error(err, "Failed to parse JSON", "filename", filename)
 			continue
 		}
 
