@@ -26,7 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // NetworkFenceServer struct of sidecar with supported methods of proto
@@ -56,10 +56,11 @@ func (ns *NetworkFenceServer) RegisterService(server grpc.ServiceRegistrar) {
 func (ns *NetworkFenceServer) FenceClusterNetwork(
 	ctx context.Context,
 	req *proto.NetworkFenceRequest) (*proto.NetworkFenceResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, ns.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -72,7 +73,7 @@ func (ns *NetworkFenceServer) FenceClusterNetwork(
 
 	_, err = ns.controllerClient.FenceClusterNetwork(ctx, &fenceRequest)
 	if err != nil {
-		klog.Errorf("Failed to fence cluster network: %v", err)
+		logger.Error(err, "Failed to fence cluster network")
 		return nil, err
 	}
 
@@ -84,10 +85,11 @@ func (ns *NetworkFenceServer) FenceClusterNetwork(
 func (ns *NetworkFenceServer) UnFenceClusterNetwork(
 	ctx context.Context,
 	req *proto.NetworkFenceRequest) (*proto.NetworkFenceResponse, error) {
+	logger := log.FromContext(ctx)
 	// Get the secrets from the k8s cluster
 	data, err := kube.GetSecret(ctx, ns.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 	if err != nil {
-		klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -100,7 +102,7 @@ func (ns *NetworkFenceServer) UnFenceClusterNetwork(
 
 	_, err = ns.controllerClient.UnfenceClusterNetwork(ctx, &fenceRequest)
 	if err != nil {
-		klog.Errorf("Failed to unfence cluster network: %v", err)
+		logger.Error(err, "Failed to unfence cluster network")
 		return nil, err
 	}
 
@@ -121,13 +123,14 @@ func getCIDRS(cidr []string) []*fence.CIDR {
 func (ns *NetworkFenceServer) GetFenceClients(
 	ctx context.Context,
 	req *proto.FenceClientsRequest) (*proto.FenceClientsResponse, error) {
+	logger := log.FromContext(ctx)
 	data := map[string]string{}
 	var err error
 	// Get the secrets from the k8s cluster if secret name or namespace is provided
 	if req.GetSecretName() != "" || req.GetSecretNamespace() != "" {
 		data, err = kube.GetSecret(ctx, ns.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
 		if err != nil {
-			klog.Errorf("Failed to get secret %s in namespace %s: %v", req.GetSecretName(), req.GetSecretNamespace(), err)
+			logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
@@ -139,7 +142,7 @@ func (ns *NetworkFenceServer) GetFenceClients(
 
 	resp, err := ns.controllerClient.GetFenceClients(ctx, &getFenceClientRequest)
 	if err != nil {
-		klog.Errorf("Failed to get fence clients: %v", err)
+		logger.Error(err, "Failed to get fence clients")
 		return nil, err
 	}
 	response := &proto.FenceClientsResponse{}

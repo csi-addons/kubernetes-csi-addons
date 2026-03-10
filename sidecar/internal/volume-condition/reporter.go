@@ -23,12 +23,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition/node"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition/platform"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition/volume"
 )
+
+var logger = ctrl.Log.WithName("volume-condition")
 
 // VolumeConditionReporter provides the entrypoint for running the volume
 // condition checks and reporting the results.
@@ -118,14 +120,11 @@ func (cvr *volumeConditionReporter) Run(ctx context.Context, interval time.Durat
 
 			vc, err := cvr.driver.GetVolumeCondition(v)
 			if err != nil {
-				klog.Errorf("failed to check if %q is healthy: %v", v.GetVolumeID(), err)
+				logger.Error(err, "Failed to check if volume is healthy", "volumeID", v.GetVolumeID())
 				continue
 			} else if vc == nil {
-				klog.Errorf(
-					"driver %q did not return a volume condition for volume %q",
-					cvr.driver.GetDrivername(),
-					v,
-				)
+				logger.Error(fmt.Errorf("driver did not return a volume condition"),
+					"Missing volume condition", "driver", cvr.driver.GetDrivername(), "volume", v)
 				continue
 			}
 
@@ -175,25 +174,21 @@ func (cvr *volumeConditionReporter) pruneConditionCache(volumes []volume.CSIVolu
 func (cvr *volumeConditionReporter) recordVolumeCondition(ctx context.Context, volumeID string, vc volume.VolumeCondition) {
 	pvName, err := platform.GetPlatform().ResolvePersistentVolumeName(cvr.driver.GetDrivername(), volumeID)
 	if err != nil {
-		klog.Errorf("failed to resolve persistent volume name: %v", err)
+		logger.Error(err, "Failed to resolve persistent volume name")
 		return
 	}
 
 	pv, err := cvr.client.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("failed to get persistent volume %q: %v", pvName, err)
+		logger.Error(err, "Failed to get persistent volume", "pvName", pvName)
 		return
 	}
 
 	for _, recorder := range cvr.recorders {
 		err = recorder.record(ctx, pv, vc)
 		if err != nil {
-			klog.Errorf(
-				"%T failed to record volume condition for persistent volume %q: %v",
-				recorder,
-				pv.Name,
-				err,
-			)
+			logger.Error(err, "Failed to record volume condition for persistent volume",
+				"recorder", fmt.Sprintf("%T", recorder), "pvName", pv.Name)
 		}
 	}
 }
