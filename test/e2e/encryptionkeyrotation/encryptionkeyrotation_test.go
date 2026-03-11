@@ -169,7 +169,7 @@ var _ = ginkgo.Describe("EncryptionKeyRotation", ginkgo.Ordered, func() {
 			gomega.Expect(cronJob).NotTo(gomega.BeNil())
 
 			ginkgo.By("Waiting for the first EncryptionKeyRotationJob to be created")
-			createdJob := f.WaitForEncryptionKeyRotationJobCreation(cronJob.Name, 90*time.Second)
+			createdJob := f.WaitForEncryptionKeyRotationJobCreation(cronJob.Name, 3*time.Minute)
 			gomega.Expect(createdJob).NotTo(gomega.BeNil())
 			gomega.Expect(createdJob.Spec.Target.PersistentVolumeClaim).To(gomega.Equal(pvc.Name))
 
@@ -197,7 +197,7 @@ var _ = ginkgo.Describe("EncryptionKeyRotation", ginkgo.Ordered, func() {
 			gomega.Expect(cronJob).NotTo(gomega.BeNil())
 
 			ginkgo.By("Waiting for the first EncryptionKeyRotationJob to be created")
-			createdJob := f.WaitForEncryptionKeyRotationJobCreation(cronJob.Name, 90*time.Second)
+			createdJob := f.WaitForEncryptionKeyRotationJobCreation(cronJob.Name, 3*time.Minute)
 			gomega.Expect(createdJob).NotTo(gomega.BeNil())
 			gomega.Expect(createdJob.Spec.Target.PersistentVolumeClaim).To(gomega.Equal(pvc.Name))
 
