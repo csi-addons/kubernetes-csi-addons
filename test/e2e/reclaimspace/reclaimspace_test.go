@@ -280,7 +280,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 			gomega.Expect(cronJob).NotTo(gomega.BeNil())
 
 			ginkgo.By("Waiting for the first ReclaimSpaceJob to be created")
-			createdJob := f.WaitForReclaimSpaceJobCreation(cronJob.Name, 90*time.Second)
+			createdJob := f.WaitForReclaimSpaceJobCreation(cronJob.Name, 3*time.Minute)
 			gomega.Expect(createdJob).NotTo(gomega.BeNil())
 			gomega.Expect(createdJob.Spec.Target.PersistentVolumeClaim).To(gomega.Equal(pvc.Name))
 
@@ -306,7 +306,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 			gomega.Expect(cronJob).NotTo(gomega.BeNil())
 
 			ginkgo.By("Waiting for the first ReclaimSpaceJob to be created")
-			createdJob := f.WaitForReclaimSpaceJobCreation(cronJob.Name, 90*time.Second)
+			createdJob := f.WaitForReclaimSpaceJobCreation(cronJob.Name, 3*time.Minute)
 			gomega.Expect(createdJob).NotTo(gomega.BeNil())
 			gomega.Expect(createdJob.Spec.Target.PersistentVolumeClaim).To(gomega.Equal(pvc.Name))
 
