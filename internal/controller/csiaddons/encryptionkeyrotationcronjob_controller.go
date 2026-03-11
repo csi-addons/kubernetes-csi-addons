@@ -40,7 +40,8 @@ import (
 // EncryptionKeyRotationCronJobReconciler reconciles a EncryptionKeyRotationCronJob object
 type EncryptionKeyRotationCronJobReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	StaggerWindow int
 }
 
 //+kubebuilder:rbac:groups=csiaddons.openshift.io,resources=encryptionkeyrotationcronjobs,verbs=get;list;watch;create;update;patch;delete
@@ -123,7 +124,7 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, nil
 	}
 
-	missedRun, nextRun, err := getNextScheduleForKeyRotation(krcJob, time.Now())
+	missedRun, nextRun, err := getNextScheduleForKeyRotation(krcJob, time.Now(), r.StaggerWindow)
 	if err != nil {
 		logger.Error(err, "failed to get next schedule for jobs", "schedule", krcJob.Spec.Schedule)
 
@@ -293,7 +294,8 @@ func (r *EncryptionKeyRotationCronJobReconciler) deleteOldEncryptionKeyRotationJ
 // An error is returned if start is missed more than 100 times
 func getNextScheduleForKeyRotation(
 	krcJob *csiaddonsv1alpha1.EncryptionKeyRotationCronJob,
-	now time.Time) (time.Time, time.Time, error) {
+	now time.Time,
+	staggerWindow int) (time.Time, time.Time, error) {
 	sched, err := cron.ParseStandard(krcJob.Spec.Schedule)
 	if err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("unparsable schedule %q: %v", krcJob.Spec.Schedule, err)
@@ -313,8 +315,11 @@ func getNextScheduleForKeyRotation(
 			earliestTime = schedulingDeadline
 		}
 	}
+
+	rawNext := sched.Next(now)
+	staggeredNext := utils.GetStaggeredNext(krcJob.UID, rawNext, sched, staggerWindow)
 	if earliestTime.After(now) {
-		return time.Time{}, sched.Next(now), nil
+		return time.Time{}, staggeredNext, nil
 	}
 
 	starts := 0
@@ -333,7 +338,7 @@ func getNextScheduleForKeyRotation(
 					" delete and recreate encryptionkeyrotationjob")
 		}
 	}
-	return lastMissed, sched.Next(now), nil
+	return lastMissed, staggeredNext, nil
 }
 
 // constructEncryptionKeyRotationJob forms an EncryptionKeyRotationJob for a given

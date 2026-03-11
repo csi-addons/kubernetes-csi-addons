@@ -99,17 +99,6 @@ func SetSpec(obj client.Object, schedule, pvcName string) {
 	}
 }
 
-func GetSchedule(obj client.Object) string {
-	switch v := obj.(type) {
-	case *csiaddonsv1alpha1.EncryptionKeyRotationCronJob:
-		return v.Spec.Schedule
-	case *csiaddonsv1alpha1.ReclaimSpaceCronJob:
-		return v.Spec.Schedule
-	default:
-		return ""
-	}
-}
-
 // ExtractOwnerNameFromPVCObj extracts owner.Name from the object if it is
 // of type `T` and has a PVC as its owner.
 func ExtractOwnerNameFromPVCObj[T client.Object](rawObj client.Object) []string {

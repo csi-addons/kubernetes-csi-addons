@@ -36,6 +36,9 @@ type ReclaimSpaceJobTemplateSpec struct {
 // ReclaimSpaceCronJobSpec defines the desired state of ReclaimSpaceJob
 type ReclaimSpaceCronJobSpec struct {
 	// The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
+	// A deterministic, UID-based stagger offset is applied to spread
+	// execution across the "cronjob-stagger-window" (default: 2 hours,
+	// set to 0 to disable) configured in the csi-addons-config ConfigMap.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern:=.+
 	Schedule string `json:"schedule"`
