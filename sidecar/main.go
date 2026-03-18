@@ -125,7 +125,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "failed to open log file %q: %v\n", *logFile, err)
 			os.Exit(1)
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to close log file %q: %v\n", *logFile, err)
+			}
+		}()
 		zapOpts = append(zapOpts, zap.WriteTo(io.MultiWriter(os.Stderr, f)))
 	}
 	ctrl.SetLogger(zap.New(zapOpts...))
