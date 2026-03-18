@@ -113,6 +113,14 @@ func main() {
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
+
+	// Backward-compatible klog flag:
+	// -v was the klog flag for log verbosity; alias it to --zap-log-level
+	// so that "-v=3" or "-v 3" continues to work after the migration to
+	// controller-runtime's zap logger.
+	if f := flag.CommandLine.Lookup("zap-log-level"); f != nil {
+		flag.CommandLine.Var(f.Value, "v", "Alias for --zap-log-level")
+	}
 	standardflags.AddAutomaxprocs(setupLog.Info)
 	flag.Parse()
 

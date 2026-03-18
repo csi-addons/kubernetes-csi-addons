@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -90,10 +91,48 @@ func main() {
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
+
+	// Backward-compatible klog flags:
+	// After migrating from klog to controller-runtime's zap logger,
+	// existing deployments may still pass klog-style flags via container
+	// args. Register these flags so that the binary does not fail on
+	// startup with "flag provided but not defined" errors.
+
+	// -v was the klog flag for log verbosity; alias it to --zap-log-level
+	// so that "-v=3" or "-v 3" continues to work as expected.
+	if f := flag.CommandLine.Lookup("zap-log-level"); f != nil {
+		flag.CommandLine.Var(f.Value, "v", "Alias for --zap-log-level")
+	}
+
+	// --logtostderr and --alsologtostderr are no longer meaningful because
+	// zap always writes to stderr. Accept them silently to avoid breakage.
+	// TODO: remove these deprecated flags in the next release.
+	flag.Bool("logtostderr", true, "[DEPRECATED] no-op, will be removed in the next release")
+	flag.Bool("alsologtostderr", false, "[DEPRECATED] no-op, will be removed in the next release")
+
+	// --log_file is preserved as a functional flag: when set, logs are
+	// written to both stderr and the specified file via io.MultiWriter.
+	logFile := flag.String("log_file", "", "If non-empty, also write logs to this file")
+
 	standardflags.AddAutomaxprocs(setupLog.Info)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// Configure the zap logger, optionally teeing output to a log file.
+	zapOpts := []zap.Opts{zap.UseFlagOptions(&opts)}
+	if *logFile != "" {
+		f, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to open log file %q: %v\n", *logFile, err)
+			os.Exit(1)
+		}
+		defer func() {
+			if err := f.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to close log file %q: %v\n", *logFile, err)
+			}
+		}()
+		zapOpts = append(zapOpts, zap.WriteTo(io.MultiWriter(os.Stderr, f)))
+	}
+	ctrl.SetLogger(zap.New(zapOpts...))
 
 	if *showVersion {
 		version.PrintVersion()
