@@ -57,6 +57,10 @@ const (
 
 var (
 	csiAddonsNodeFinalizer = csiaddonsv1alpha1.GroupVersion.Group + "/csiaddonsnode"
+
+	// errPodNotReady indicates the pod exists but is not ready yet
+	// This is a transient condition that should not count toward the retry limit.
+	errPodNotReady = errors.New("pod is not ready yet")
 )
 
 // CSIAddonsNodeReconciler reconciles a CSIAddonsNode object
@@ -115,6 +119,11 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	podName, endPoint, err := r.resolveEndpoint(ctx, csiAddonsNode.Spec.Driver.EndPoint)
 	// Only requeue if the resource is not being deleted
 	if err != nil && csiAddonsNode.DeletionTimestamp.IsZero() {
+		if errors.Is(err, errPodNotReady) {
+			logger.Info("Pod is not ready yet, requeuing", "reason", err.Error())
+			return ctrl.Result{RequeueAfter: r.BaseRetryDelay}, nil
+		}
+
 		logger.Error(err, "Failed to resolve endpoint")
 
 		// We will either:
@@ -363,7 +372,9 @@ func (r *CSIAddonsNodeReconciler) resolveEndpoint(ctx context.Context, rawURL st
 		// a connection from the connection pool during cleanup.
 		return podname, "", fmt.Errorf("failed to get pod %s/%s: %w", namespace, podname, err)
 	} else if pod.Status.PodIP == "" {
-		return podname, "", fmt.Errorf("pod %s/%s does not have an IP-address", namespace, podname)
+		// The pod might still be starting up or waiting for IP assignment
+		// Wrap the custom error so that we do not increment the retry counter in reconcile()
+		return podname, "", fmt.Errorf("%w: pod %s/%s in phase %s does not have an IP-address yet", errPodNotReady, namespace, podname, pod.Status.Phase)
 	}
 
 	ip := pod.Status.PodIP
