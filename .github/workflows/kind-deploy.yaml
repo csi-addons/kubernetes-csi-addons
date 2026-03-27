@@ -18,7 +18,7 @@ jobs:
         uses: helm/kind-action@v1.14.0
 
       - name: Check out the repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: Set up Golang
         uses: actions/setup-go@v6
