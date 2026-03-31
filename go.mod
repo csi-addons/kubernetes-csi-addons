@@ -1,6 +1,6 @@
 module github.com/csi-addons/kubernetes-csi-addons
 
-go 1.25.8
+go 1.25.7
 
 require (
 	github.com/container-storage-interface/spec v1.12.0
