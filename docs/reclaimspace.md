@@ -19,14 +19,14 @@ spec:
   - `persistentVolumeClaim` contains a string indicating the name of `PersistentVolumeClaim`.
 - `backOfflimit` specifies the number of retries before marking reclaim space operation as failed. If not specified, defaults to 6. Maximum allowed value is 60 and minimum allowed value is 0.
 - `retryDeadlineSeconds` specifies the duration in seconds relative to the start time that the operation may be retried; value must be positive integer. If not specified, defaults to 600 seconds. Maximum allowed value is 1800.
-- `timeout` specifies the timeout in seconds for the grpc request sent to the CSI driver. If not specified, defaults to global reclaimspace timeout. Minimum allowed value is 60.
+- `timeout` specifies the timeout in seconds for the gRPC request sent to the CSI driver. If not specified, defaults to global reclaimspace timeout. Minimum allowed value is 60.
 
 ## ReclaimSpaceCronJob
 
 The `ReclaimSpaceCronJob` offers an interface very similar to the [Kubernetes
 `batch/CronJob`][batch_cronjob]. With the `schedule` attribute, the CSI-Addons
 Controller will create a `ReclaimSpaceJob` at the requested time and interval.
-The Kubernetes documentation for the `CronJob` and the [Golang cron
+The Kubernetes documentation for the `CronJob` and the [Go cron
 package][go_cron] explain the format of the `schedule` attribute in more
 detail.
 
@@ -171,10 +171,13 @@ To disable reclaim space for a specific PersistentVolumeClaim (PVC), follow thes
 
 2. **Edit the `ReclaimSpaceCronJob` CR**: Apply the following to disable the reclaim space:
    - Update the `csiaddons.openshift.io/state` annotation from `"managed"` to `"unmanaged"`.
+
    ```bash
    kubectl annotate reclaimspacecronjobs <RECLAIMSPACECRONJOB_NAME> "csiaddons.openshift.io/state=unmanaged" --overwrite=true
    ```
+
    - Add `suspend: true` under the `spec` field.
+
    ```bash
    kubectl patch reclaimspacecronjobs <RECLAIMSPACECRONJOB_NAME> -p '{"spec": {"suspend": true}}' --type=merge
    ```

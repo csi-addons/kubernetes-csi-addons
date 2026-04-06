@@ -19,14 +19,14 @@ spec:
   - `persistentVolumeClaim` contains a string indicating the name of `PersistentVolumeClaim`.
 - `backOfflimit` specifies the number of retries before marking key rotation operation as failed. If not specified, defaults to 6. Maximum allowed value is 60 and minimum allowed value is 0.
 - `retryDeadlineSeconds` specifies the duration in seconds relative to the start time that the operation may be retried; value must be positive integer. If not specified, defaults to 600 seconds. Maximum allowed value is 1800.
-- `timeout` specifies the timeout in seconds for the grpc request sent to the CSI driver. If not specified, defaults to global timeout of 3 minutes. Minimum allowed value is 60.
+- `timeout` specifies the timeout in seconds for the gRPC request sent to the CSI driver. If not specified, defaults to global timeout of 3 minutes. Minimum allowed value is 60.
 
 ## EncryptionKeyRotationCronJob
 
 The `EncryptionKeyRotationCronJob` offers an interface very similar to the [Kubernetes
 `batch/CronJob`][batch_cronjob]. With the `schedule` attribute, the CSI-Addons
 Controller will create a `EncryptionKeyRotationJob` at the requested time and interval.
-The Kubernetes documentation for the `CronJob` and the [Golang cron
+The Kubernetes documentation for the `CronJob` and the [Go cron
 package][go_cron] explain the format of the `schedule` attribute in more
 detail.
 
