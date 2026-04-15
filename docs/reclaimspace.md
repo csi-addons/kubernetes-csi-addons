@@ -180,3 +180,13 @@ To disable reclaim space for a specific PersistentVolumeClaim (PVC), follow thes
    ```
 
 These changes will disable reclaim space for the specified PVC.
+
+### Disabling Reclaim Space for All PersistentVolumeClaims in a StorageClass
+
+To disable reclaim space for all PVCs in a particular StorageClass, annotate the StorageClass with `reclaimspace.csiaddons.openshift.io/enable: "false"`.
+
+```bash
+kubectl annotate storageclass <SC_NAME> "reclaimspace.csiaddons.openshift.io/enable=false"
+```
+
+This action will disable reclaim space across all PVCs in that StorageClass and remove any existing `ReclaimSpaceCronJob` CRs for PVCs within it.
