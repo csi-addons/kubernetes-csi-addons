@@ -173,6 +173,11 @@ func (c *Connection) fetchCapabilities(ctx context.Context) error {
 	return nil
 }
 
+// Endpoint returns the endpoint that was used to create this connection.
+func (c *Connection) Endpoint() string {
+	return c.endpoint
+}
+
 func (c *Connection) HasControllerService() bool {
 	for _, capability := range c.Capabilities {
 		svc := capability.GetService()
