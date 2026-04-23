@@ -159,8 +159,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Info("Connecting to sidecar")
-	newConn, err := connection.NewConnection(ctx, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
-
+	newConn, err := r.ConnPool.GetOrCreateNew(ctx, key, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
 	// If error occurs, we retry with exponential backoff until we reach `maxRetries`
 	if err != nil {
 		// We will either:
@@ -169,17 +168,14 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return r.backoffAndRetry(ctx, logger, csiAddonsNode, err)
 	}
 
+	logger.Info("Successfully connected to the sidecar and added connection to the connection pool", "key", key)
+
 	nfsc, err := r.getNetworkFenceClientStatus(ctx, &logger, newConn, csiAddonsNode)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	csiAddonsNode.Status.NetworkFenceClientStatus = nfsc
-
-	logger.Info("Successfully connected to sidecar")
-	r.ConnPool.Put(key, newConn)
-	logger.Info("Added connection to connection pool", "Key", key)
-
 	csiAddonsNode.Status.State = csiaddonsv1alpha1.CSIAddonsNodeStateConnected
 	csiAddonsNode.Status.Message = "Successfully established connection with sidecar"
 	csiAddonsNode.Status.Reason = ""

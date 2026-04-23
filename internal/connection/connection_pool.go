@@ -22,10 +22,10 @@ import (
 	"log"
 	"sync"
 
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
+
 	coordination "k8s.io/api/coordination/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 )
 
 const failedToReconnectFmtStr = "failed to reconnect an inactive connection due to error: %w"
@@ -48,6 +48,42 @@ func NewConnectionPool() *ConnectionPool {
 		pool:   make(map[string]*Connection),
 		rwlock: &sync.RWMutex{},
 	}
+}
+
+// GetByKey returns the connection for the given key, or nil if not found.
+func (cp *ConnectionPool) GetByKey(key string) *Connection {
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
+
+	return cp.pool[key]
+}
+
+// GetOrCreateNew returns an existing healthy connection for the given key if the
+// endpoint matches, otherwise it creates a new connection and stores it in the pool.
+// Old connection (if any) is closed when replaced by calling Put().
+func (cp *ConnectionPool) GetOrCreateNew(ctx context.Context, key, endpoint, nodeID, driverName, namespace, name string, enableAuth bool) (*Connection, error) {
+	cp.rwlock.RLock()
+	existing := cp.pool[key]
+	cp.rwlock.RUnlock()
+
+	// If a connection exists for the same endpoint
+	if existing != nil && existing.Endpoint() == endpoint {
+		// Check if it is actually healthy by calling Connect(), err will be nil
+		if err := existing.Connect(); err == nil {
+			return existing, nil
+		}
+	}
+
+	// We need to create a new connection
+	conn, err := NewConnection(ctx, endpoint, nodeID, driverName, namespace, name, enableAuth)
+	if err != nil {
+		return nil, err
+	}
+
+	// Put it in the pool
+	cp.Put(key, conn)
+
+	return conn, nil
 }
 
 // Put adds connection object into map.

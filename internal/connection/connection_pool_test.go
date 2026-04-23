@@ -17,6 +17,7 @@ limitations under the License.
 package connection
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -231,6 +232,78 @@ func TestConnectionPool_PutGetDelete(t *testing.T) {
 				assert.Equal(t, conn1, v)
 			}
 		}
+	})
+}
+
+func TestConnectionPool_GetOrConnect(t *testing.T) {
+	caps := []*identity.Capability{
+		{
+			Type: &identity.Capability_Service_{
+				Service: &identity.Capability_Service{
+					Type: identity.Capability_Service_CONTROLLER_SERVICE,
+				},
+			},
+		},
+	}
+
+	t.Run("creates new connection when pool is empty", func(t *testing.T) {
+		addr, cleanup := setupMockGRPCServer(t, caps)
+		defer cleanup()
+
+		cp := NewConnectionPool()
+		conn, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+		assert.NotNil(t, conn)
+		assert.Equal(t, "node1", conn.NodeID)
+		assert.Equal(t, "driver1", conn.DriverName)
+
+		assert.Same(t, conn, cp.GetByKey("key1"))
+	})
+
+	t.Run("reuses healthy connection with same endpoint", func(t *testing.T) {
+		addr, cleanup := setupMockGRPCServer(t, caps)
+		defer cleanup()
+
+		cp := NewConnectionPool()
+		conn1, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+
+		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+		assert.Same(t, conn1, conn2)
+	})
+
+	t.Run("creates new connection when endpoint changes", func(t *testing.T) {
+		addr1, cleanup1 := setupMockGRPCServer(t, caps)
+		defer cleanup1()
+		addr2, cleanup2 := setupMockGRPCServer(t, caps)
+		defer cleanup2()
+
+		cp := NewConnectionPool()
+		conn1, err := cp.GetOrCreateNew(context.Background(), "key1", addr1, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+
+		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr2, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+		assert.NotSame(t, conn1, conn2)
+		assert.Equal(t, addr2, conn2.Endpoint())
+	})
+
+	t.Run("reconnects when existing connection is unhealthy", func(t *testing.T) {
+		addr, cleanup := setupMockGRPCServer(t, caps)
+		defer cleanup()
+
+		cp := NewConnectionPool()
+		conn, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+
+		oldClient := conn.Client
+		_ = oldClient.Close()
+
+		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		assert.NoError(t, err)
+		assert.Same(t, conn, conn2, "should reuse the same Connection object")
+		assert.NotSame(t, oldClient, conn2.Client, "should have a new underlying gRPC client")
 	})
 }
 
