@@ -295,6 +295,7 @@ func (r *PersistentVolumeClaimReconciler) storageClassEventHandler() handler.Eve
 				utils.RsCronJobScheduleTimeAnnotation,
 				utils.KrcJobScheduleTimeAnnotation,
 				utils.KrEnableAnnotation,
+				utils.RsEnableAnnotation,
 			}
 
 			var requests []reconcile.Request
@@ -369,8 +370,8 @@ func (r *PersistentVolumeClaimReconciler) SetupWithManager(mgr ctrl.Manager, ctr
 		return err
 	}
 
-	pvcPred := createAnnotationPredicate(utils.RsCronJobScheduleTimeAnnotation, utils.KrcJobScheduleTimeAnnotation, utils.KrEnableAnnotation)
-	scPred := createAnnotationPredicate(utils.RsCronJobScheduleTimeAnnotation, utils.KrcJobScheduleTimeAnnotation, utils.KrEnableAnnotation)
+	pvcPred := createAnnotationPredicate(utils.RsCronJobScheduleTimeAnnotation, utils.KrcJobScheduleTimeAnnotation, utils.KrEnableAnnotation, utils.RsEnableAnnotation)
+	scPred := createAnnotationPredicate(utils.RsCronJobScheduleTimeAnnotation, utils.KrcJobScheduleTimeAnnotation, utils.KrEnableAnnotation, utils.RsEnableAnnotation)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.PersistentVolumeClaim{}).
