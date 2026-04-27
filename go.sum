@@ -15,8 +15,8 @@ github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/container-storage-interface/spec v1.12.0 h1:zrFOEqpR5AghNaaDG4qyedwPBqU2fU0dWjLQMP/azK0=
 github.com/container-storage-interface/spec v1.12.0/go.mod h1:txsm+MA2B2WDa5kW69jNbqPnvTtfvZma7T/zsAZ9qX8=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
-github.com/csi-addons/spec v0.2.1-0.20250610152019-b5a7205f6a79 h1:ditFTa+wl7DLanGQHSS/AwuITGuWeBXyl7syPO4n+4s=
-github.com/csi-addons/spec v0.2.1-0.20250610152019-b5a7205f6a79/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
+github.com/csi-addons/spec v0.2.1-0.20260515055340-d4a373713b9a h1:AxvSsTN8TxwpeP6X/ScNK5i+6eXu3APRfuIXSEMENVQ=
+github.com/csi-addons/spec v0.2.1-0.20260515055340-d4a373713b9a/go.mod h1:Mwq4iLiUV4s+K1bszcWU6aMsR5KPsbIYzzszJ6+56vI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=

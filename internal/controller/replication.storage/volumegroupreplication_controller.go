@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/csi-addons/spec/lib/go/identity"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/replication.storage/replication"
 )
 
@@ -66,7 +68,19 @@ type VolumeGroupReplicationReconciler struct {
 	log              logr.Logger
 	Recorder         events.EventRecorder
 	MaxGroupPVCCount int
+	// ConnectionPool consists of map of Connection objects
+	Connpool *conn.ConnectionPool
+	// Timeout for the Reconcile operation.
+	Timeout time.Duration
 }
+
+type PersistentVolumeInfo struct {
+	PvName   string
+	PvHandle string
+}
+
+// Holds a mapping of PVCs (by name) to information about their corresponding PV
+type PersistentVolumeInfoMap map[string]PersistentVolumeInfo
 
 //+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplications,verbs=get;list;watch;update;patch
@@ -212,6 +226,23 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			return reconcile.Result{}, err
 		}
 
+		pvInfoMap, err := r.getPVInfoForPVCs(vgrClassObj, pvcList)
+		if err != nil {
+			r.log.Error(err, "failed to get PVs for PVCs")
+			_ = r.setGroupReplicationFailure(instance, err)
+			return reconcile.Result{}, err
+		}
+
+		destinationInfoSupported, err := r.supportsGetReplicationDestinationInfo(vgrClassObj.Spec.Provisioner)
+		if err != nil {
+			_ = r.setGroupReplicationFailure(instance, err)
+			return reconcile.Result{}, err
+		}
+
+		if destinationInfoSupported {
+			r.updateReplicationDestinationCondition(instance, pvInfoMap, vgrContentObj.Status.PersistentVolumeMappingList)
+		}
+
 		// Update PersistentVolumeClaimsRefList in VGR Status
 		if !reflect.DeepEqual(instance.Status.PersistentVolumeClaimsRefList, pvcRefList) {
 			instance.Status.PersistentVolumeClaimsRefList = pvcRefList
@@ -224,12 +255,7 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		}
 
 		// Create/Update VolumeGroupReplicationContent CR
-		pvHandlesList, err := r.getPVHandles(vgrClassObj, pvcList)
-		if err != nil {
-			r.log.Error(err, "failed to get PV handles for PVCs")
-			_ = r.setGroupReplicationFailure(instance, err)
-			return reconcile.Result{}, err
-		}
+		pvHandlesList := getPVHandles(pvInfoMap)
 		err = r.createOrUpdateVolumeGroupReplicationContentCR(instance, vgrContentObj, vgrClassObj.Spec.Provisioner, pvHandlesList)
 		if err != nil {
 			r.log.Error(err, "failed to create/update volumeGroupReplicationContent resource", "VGRContentName", vgrContentObj.Name)
@@ -326,6 +352,7 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 	for i := range instance.Status.Conditions {
 		instance.Status.Conditions[i].ObservedGeneration = instance.Generation
 	}
+
 	err = r.Status().Update(ctx, instance)
 	if err != nil {
 		r.log.Error(err, "failed to update volumeGroupReplication instance's status", "VGRName", instance.Name)
@@ -375,15 +402,18 @@ func (r *VolumeGroupReplicationReconciler) SetupWithManager(mgr ctrl.Manager) er
 		},
 	}
 
-	// Watch for only spec updates of the VGRContent resource
-	watchOnlySpecUpdates := predicate.Funcs{
+	// Watch for spec or status updates of the VGRContent resource.
+	// Status watching is needed so VGR reconciles when VGRContent
+	// destination info is updated.
+	watchSpecAndStatusUpdates := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.ObjectOld == nil || e.ObjectNew == nil {
 				return false
 			}
 			oldObj := e.ObjectOld.(*replicationv1alpha1.VolumeGroupReplicationContent)
 			newObj := e.ObjectNew.(*replicationv1alpha1.VolumeGroupReplicationContent)
-			return !reflect.DeepEqual(oldObj.Spec, newObj.Spec)
+			return !reflect.DeepEqual(oldObj.Spec, newObj.Spec) ||
+				!reflect.DeepEqual(oldObj.Status, newObj.Status)
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			return false
@@ -473,7 +503,7 @@ func (r *VolumeGroupReplicationReconciler) SetupWithManager(mgr ctrl.Manager) er
 		For(&replicationv1alpha1.VolumeGroupReplication{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Owns(&replicationv1alpha1.VolumeGroupReplicationContent{}, builder.WithPredicates(skipUpdates)).
 		Owns(&replicationv1alpha1.VolumeReplication{}, builder.WithPredicates(skipUpdates)).
-		Watches(&replicationv1alpha1.VolumeGroupReplicationContent{}, enqueueVGRRequest, builder.WithPredicates(watchOnlySpecUpdates)).
+		Watches(&replicationv1alpha1.VolumeGroupReplicationContent{}, enqueueVGRRequest, builder.WithPredicates(watchSpecAndStatusUpdates)).
 		Watches(&replicationv1alpha1.VolumeReplication{}, enqueueVGRRequest, builder.WithPredicates(watchOnlyStatusUpdates)).
 		Watches(&corev1.PersistentVolumeClaim{}, enqueueVGRForPVCRequest, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
@@ -571,10 +601,10 @@ func (r *VolumeGroupReplicationReconciler) getMatchingPVCsFromSource(instance *r
 	return updatedPVCList, selector.String(), nil
 }
 
-// getPVHandles fetches the PV handles for the respective PVCs
-func (r *VolumeGroupReplicationReconciler) getPVHandles(vgrClass *replicationv1alpha1.VolumeGroupReplicationClass,
-	pvcList []corev1.PersistentVolumeClaim) ([]string, error) {
-	pvHandlesList := []string{}
+// Fetches the PVs for the respective PVCs and returns a map of PVC name to PV information
+func (r *VolumeGroupReplicationReconciler) getPVInfoForPVCs(vgrClass *replicationv1alpha1.VolumeGroupReplicationClass,
+	pvcList []corev1.PersistentVolumeClaim) (PersistentVolumeInfoMap, error) {
+	pvInfoMap := make(PersistentVolumeInfoMap)
 	for _, pvc := range pvcList {
 		pvName := pvc.Spec.VolumeName
 		pv := &corev1.PersistentVolume{}
@@ -591,13 +621,26 @@ func (r *VolumeGroupReplicationReconciler) getPVHandles(vgrClass *replicationv1a
 			err = fmt.Errorf("driver (%s) of PV for PVC %s is different than the VolumeGroupReplicationClass driver (%s)", pvc.Name, pv.Spec.CSI.Driver, vgrClass.Spec.Provisioner)
 			return nil, err
 		}
-		pvHandlesList = append(pvHandlesList, pv.Spec.CSI.VolumeHandle)
+		pvInfoMap[pvc.Name] = PersistentVolumeInfo{
+			PvName:   pv.Name,
+			PvHandle: pv.Spec.CSI.VolumeHandle,
+		}
+	}
+
+	return pvInfoMap, nil
+}
+
+// getPVHandles fetches the PV handles for the respective PVCs
+func getPVHandles(pvcInfoMap PersistentVolumeInfoMap) []string {
+	pvHandlesList := []string{}
+	for _, pvInfo := range pvcInfoMap {
+		pvHandlesList = append(pvHandlesList, pvInfo.PvHandle)
 	}
 
 	// Sort the pvHandles list and then pass, because reflect.DeepEqual checks for positional equality
 	slices.Sort(pvHandlesList)
 
-	return pvHandlesList, nil
+	return pvHandlesList
 }
 
 func (r *VolumeGroupReplicationReconciler) updateFinalizerAndAnnotationOnPVCs(vgr *replicationv1alpha1.VolumeGroupReplication,
@@ -815,4 +858,57 @@ func (r *VolumeGroupReplicationReconciler) cleanupVR(vgr *replicationv1alpha1.Vo
 	}
 
 	return err
+}
+
+func (r *VolumeGroupReplicationReconciler) updateReplicationDestinationCondition(vgr *replicationv1alpha1.VolumeGroupReplication,
+	pvInfoMap PersistentVolumeInfoMap, persistentVolumeMappingList []replicationv1alpha1.PersistentVolumeMapping) {
+	destinationInfoAvailable := true
+	if len(pvInfoMap) != 0 {
+		if len(persistentVolumeMappingList) < len(pvInfoMap) {
+			destinationInfoAvailable = false
+		} else {
+			pvMappingLookup := make(map[string]replicationv1alpha1.PersistentVolumeMapping)
+			for _, pvMapping := range persistentVolumeMappingList {
+				pvMappingLookup[pvMapping.Name] = pvMapping
+			}
+
+			for _, pvInfo := range pvInfoMap {
+				pvMapping, ok := pvMappingLookup[pvInfo.PvName]
+				if !ok || pvMapping.DestinationVolumeHandle == "" {
+					destinationInfoAvailable = false
+					break
+				}
+			}
+		}
+	}
+
+	if destinationInfoAvailable {
+		// The PV for every PVC has a DestinationVolumeHandle, hence the destination info is complete.
+		setDestinationInfoAvailableCondition(&vgr.Status.Conditions, vgr.Generation, volumeGroupReplicationDataSource)
+	} else {
+		setDestinationInfoPendingCondition(&vgr.Status.Conditions, vgr.Generation, volumeGroupReplicationDataSource)
+	}
+}
+
+func (r *VolumeGroupReplicationReconciler) supportsGetReplicationDestinationInfo(driverName string) (bool, error) {
+	if r.Connpool == nil {
+		return false, nil
+	}
+
+	conn, err := r.Connpool.GetLeaderByDriver(r.ctx, r.Client, driverName)
+	if err != nil {
+		return false, err
+	}
+
+	for _, cap := range conn.Capabilities {
+		if cap.GetVolumeReplication() == nil {
+			continue
+		}
+
+		if cap.GetVolumeReplication().GetType() == identity.Capability_VolumeReplication_GET_REPLICATION_DESTINATION_INFO {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

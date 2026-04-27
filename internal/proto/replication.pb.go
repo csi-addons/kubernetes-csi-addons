@@ -1008,6 +1008,207 @@ func (*ReplicationSource_Volume) isReplicationSource_Type() {}
 
 func (*ReplicationSource_VolumeGroup) isReplicationSource_Type() {}
 
+// GetReplicationDestinationInfoRequest holds the required information to
+// get the destination volume or volume group details for an existing
+// replication.
+type GetReplicationDestinationInfoRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Secrets required by the plugin to complete the request.
+	SecretName      string `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretNamespace string `protobuf:"bytes,2,opt,name=secret_namespace,json=secretNamespace,proto3" json:"secret_namespace,omitempty"`
+	// The source volume or volume group for which destination
+	// details are requested.
+	// This field is REQUIRED.
+	ReplicationSource *ReplicationSource `protobuf:"bytes,3,opt,name=replication_source,json=replicationSource,proto3" json:"replication_source,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetReplicationDestinationInfoRequest) Reset() {
+	*x = GetReplicationDestinationInfoRequest{}
+	mi := &file_replication_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReplicationDestinationInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReplicationDestinationInfoRequest) ProtoMessage() {}
+
+func (x *GetReplicationDestinationInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_replication_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReplicationDestinationInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetReplicationDestinationInfoRequest) Descriptor() ([]byte, []int) {
+	return file_replication_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetReplicationDestinationInfoRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+func (x *GetReplicationDestinationInfoRequest) GetSecretNamespace() string {
+	if x != nil {
+		return x.SecretNamespace
+	}
+	return ""
+}
+
+func (x *GetReplicationDestinationInfoRequest) GetReplicationSource() *ReplicationSource {
+	if x != nil {
+		return x.ReplicationSource
+	}
+	return nil
+}
+
+// GetReplicationDestinationInfoResponse holds the destination volume
+// or volume group details for an existing replication.
+type GetReplicationDestinationInfoResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The destination details for the replication.
+	// This field is REQUIRED.
+	ReplicationDestination *ReplicationDestination `protobuf:"bytes,1,opt,name=replication_destination,json=replicationDestination,proto3" json:"replication_destination,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *GetReplicationDestinationInfoResponse) Reset() {
+	*x = GetReplicationDestinationInfoResponse{}
+	mi := &file_replication_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReplicationDestinationInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReplicationDestinationInfoResponse) ProtoMessage() {}
+
+func (x *GetReplicationDestinationInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_replication_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReplicationDestinationInfoResponse.ProtoReflect.Descriptor instead.
+func (*GetReplicationDestinationInfoResponse) Descriptor() ([]byte, []int) {
+	return file_replication_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetReplicationDestinationInfoResponse) GetReplicationDestination() *ReplicationDestination {
+	if x != nil {
+		return x.ReplicationDestination
+	}
+	return nil
+}
+
+// Specifies the destination details for a replication. One of the
+// type fields MUST be specified.
+type ReplicationDestination struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Type:
+	//
+	//	*ReplicationDestination_Volume
+	//	*ReplicationDestination_Volumegroup
+	Type          isReplicationDestination_Type `protobuf_oneof:"type"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicationDestination) Reset() {
+	*x = ReplicationDestination{}
+	mi := &file_replication_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicationDestination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicationDestination) ProtoMessage() {}
+
+func (x *ReplicationDestination) ProtoReflect() protoreflect.Message {
+	mi := &file_replication_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicationDestination.ProtoReflect.Descriptor instead.
+func (*ReplicationDestination) Descriptor() ([]byte, []int) {
+	return file_replication_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReplicationDestination) GetType() isReplicationDestination_Type {
+	if x != nil {
+		return x.Type
+	}
+	return nil
+}
+
+func (x *ReplicationDestination) GetVolume() *ReplicationDestination_VolumeDestination {
+	if x != nil {
+		if x, ok := x.Type.(*ReplicationDestination_Volume); ok {
+			return x.Volume
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationDestination) GetVolumegroup() *ReplicationDestination_VolumeGroupDestination {
+	if x != nil {
+		if x, ok := x.Type.(*ReplicationDestination_Volumegroup); ok {
+			return x.Volumegroup
+		}
+	}
+	return nil
+}
+
+type isReplicationDestination_Type interface {
+	isReplicationDestination_Type()
+}
+
+type ReplicationDestination_Volume struct {
+	// Volume destination type
+	Volume *ReplicationDestination_VolumeDestination `protobuf:"bytes,1,opt,name=volume,proto3,oneof"`
+}
+
+type ReplicationDestination_Volumegroup struct {
+	// Volume group destination type
+	Volumegroup *ReplicationDestination_VolumeGroupDestination `protobuf:"bytes,2,opt,name=volumegroup,proto3,oneof"`
+}
+
+func (*ReplicationDestination_Volume) isReplicationDestination_Type() {}
+
+func (*ReplicationDestination_Volumegroup) isReplicationDestination_Type() {}
+
 // VolumeSource contains the details about the volume to be replication
 type ReplicationSource_VolumeSource struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1020,7 +1221,7 @@ type ReplicationSource_VolumeSource struct {
 
 func (x *ReplicationSource_VolumeSource) Reset() {
 	*x = ReplicationSource_VolumeSource{}
-	mi := &file_replication_proto_msgTypes[18]
+	mi := &file_replication_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1032,7 +1233,7 @@ func (x *ReplicationSource_VolumeSource) String() string {
 func (*ReplicationSource_VolumeSource) ProtoMessage() {}
 
 func (x *ReplicationSource_VolumeSource) ProtoReflect() protoreflect.Message {
-	mi := &file_replication_proto_msgTypes[18]
+	mi := &file_replication_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1068,7 +1269,7 @@ type ReplicationSource_VolumeGroupSource struct {
 
 func (x *ReplicationSource_VolumeGroupSource) Reset() {
 	*x = ReplicationSource_VolumeGroupSource{}
-	mi := &file_replication_proto_msgTypes[19]
+	mi := &file_replication_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1080,7 +1281,7 @@ func (x *ReplicationSource_VolumeGroupSource) String() string {
 func (*ReplicationSource_VolumeGroupSource) ProtoMessage() {}
 
 func (x *ReplicationSource_VolumeGroupSource) ProtoReflect() protoreflect.Message {
-	mi := &file_replication_proto_msgTypes[19]
+	mi := &file_replication_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1101,6 +1302,114 @@ func (x *ReplicationSource_VolumeGroupSource) GetVolumeGroupId() string {
 		return x.VolumeGroupId
 	}
 	return ""
+}
+
+// VolumeDestination contains the destination details for a
+// replicated volume.
+type ReplicationDestination_VolumeDestination struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The destination volume ID on the remote/target cluster.
+	// This field is REQUIRED.
+	VolumeId      string `protobuf:"bytes,1,opt,name=volume_id,json=volumeId,proto3" json:"volume_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicationDestination_VolumeDestination) Reset() {
+	*x = ReplicationDestination_VolumeDestination{}
+	mi := &file_replication_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicationDestination_VolumeDestination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicationDestination_VolumeDestination) ProtoMessage() {}
+
+func (x *ReplicationDestination_VolumeDestination) ProtoReflect() protoreflect.Message {
+	mi := &file_replication_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicationDestination_VolumeDestination.ProtoReflect.Descriptor instead.
+func (*ReplicationDestination_VolumeDestination) Descriptor() ([]byte, []int) {
+	return file_replication_proto_rawDescGZIP(), []int{15, 0}
+}
+
+func (x *ReplicationDestination_VolumeDestination) GetVolumeId() string {
+	if x != nil {
+		return x.VolumeId
+	}
+	return ""
+}
+
+// VolumeGroupDestination contains the destination details for a
+// replicated volume group.
+type ReplicationDestination_VolumeGroupDestination struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The destination volume group ID on the remote/target cluster.
+	// This field is REQUIRED.
+	VolumeGroupId string `protobuf:"bytes,1,opt,name=volume_group_id,json=volumeGroupId,proto3" json:"volume_group_id,omitempty"`
+	// Mapping of source volume IDs to their corresponding
+	// destination volume IDs. Key is source volume_id,
+	// value is destination volume_id.
+	// This field is OPTIONAL.
+	VolumeIds     map[string]string `protobuf:"bytes,2,rep,name=volume_ids,json=volumeIds,proto3" json:"volume_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicationDestination_VolumeGroupDestination) Reset() {
+	*x = ReplicationDestination_VolumeGroupDestination{}
+	mi := &file_replication_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicationDestination_VolumeGroupDestination) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicationDestination_VolumeGroupDestination) ProtoMessage() {}
+
+func (x *ReplicationDestination_VolumeGroupDestination) ProtoReflect() protoreflect.Message {
+	mi := &file_replication_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicationDestination_VolumeGroupDestination.ProtoReflect.Descriptor instead.
+func (*ReplicationDestination_VolumeGroupDestination) Descriptor() ([]byte, []int) {
+	return file_replication_proto_rawDescGZIP(), []int{15, 1}
+}
+
+func (x *ReplicationDestination_VolumeGroupDestination) GetVolumeGroupId() string {
+	if x != nil {
+		return x.VolumeGroupId
+	}
+	return ""
+}
+
+func (x *ReplicationDestination_VolumeGroupDestination) GetVolumeIds() map[string]string {
+	if x != nil {
+		return x.VolumeIds
+	}
+	return nil
 }
 
 var File_replication_proto protoreflect.FileDescriptor
@@ -1201,14 +1510,35 @@ const file_replication_proto_rawDesc = "" +
 	"\tvolume_id\x18\x01 \x01(\tR\bvolumeId\x1a;\n" +
 	"\x11VolumeGroupSource\x12&\n" +
 	"\x0fvolume_group_id\x18\x01 \x01(\tR\rvolumeGroupIdB\x06\n" +
-	"\x04type2\xbb\x04\n" +
+	"\x04type\"\xbb\x01\n" +
+	"$GetReplicationDestinationInfoRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\x12)\n" +
+	"\x10secret_namespace\x18\x02 \x01(\tR\x0fsecretNamespace\x12G\n" +
+	"\x12replication_source\x18\x03 \x01(\v2\x18.proto.ReplicationSourceR\x11replicationSource\"\x7f\n" +
+	"%GetReplicationDestinationInfoResponse\x12V\n" +
+	"\x17replication_destination\x18\x01 \x01(\v2\x1d.proto.ReplicationDestinationR\x16replicationDestination\"\xdc\x03\n" +
+	"\x16ReplicationDestination\x12I\n" +
+	"\x06volume\x18\x01 \x01(\v2/.proto.ReplicationDestination.VolumeDestinationH\x00R\x06volume\x12X\n" +
+	"\vvolumegroup\x18\x02 \x01(\v24.proto.ReplicationDestination.VolumeGroupDestinationH\x00R\vvolumegroup\x1a0\n" +
+	"\x11VolumeDestination\x12\x1b\n" +
+	"\tvolume_id\x18\x01 \x01(\tR\bvolumeId\x1a\xe2\x01\n" +
+	"\x16VolumeGroupDestination\x12&\n" +
+	"\x0fvolume_group_id\x18\x01 \x01(\tR\rvolumeGroupId\x12b\n" +
+	"\n" +
+	"volume_ids\x18\x02 \x03(\v2C.proto.ReplicationDestination.VolumeGroupDestination.VolumeIdsEntryR\tvolumeIds\x1a<\n" +
+	"\x0eVolumeIdsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x06\n" +
+	"\x04type2\xb9\x05\n" +
 	"\vReplication\x12j\n" +
 	"\x17EnableVolumeReplication\x12%.proto.EnableVolumeReplicationRequest\x1a&.proto.EnableVolumeReplicationResponse\"\x00\x12m\n" +
 	"\x18DisableVolumeReplication\x12&.proto.DisableVolumeReplicationRequest\x1a'.proto.DisableVolumeReplicationResponse\"\x00\x12L\n" +
 	"\rPromoteVolume\x12\x1b.proto.PromoteVolumeRequest\x1a\x1c.proto.PromoteVolumeResponse\"\x00\x12I\n" +
 	"\fDemoteVolume\x12\x1a.proto.DemoteVolumeRequest\x1a\x1b.proto.DemoteVolumeResponse\"\x00\x12I\n" +
 	"\fResyncVolume\x12\x1a.proto.ResyncVolumeRequest\x1a\x1b.proto.ResyncVolumeResponse\"\x00\x12m\n" +
-	"\x18GetVolumeReplicationInfo\x12&.proto.GetVolumeReplicationInfoRequest\x1a'.proto.GetVolumeReplicationInfoResponse\"\x00B<Z:github.com/csi-addons/kubernetes-csi-addons/internal/protob\x06proto3"
+	"\x18GetVolumeReplicationInfo\x12&.proto.GetVolumeReplicationInfoRequest\x1a'.proto.GetVolumeReplicationInfoResponse\"\x00\x12|\n" +
+	"\x1dGetReplicationDestinationInfo\x12+.proto.GetReplicationDestinationInfoRequest\x1a,.proto.GetReplicationDestinationInfoResponse\"\x00B<Z:github.com/csi-addons/kubernetes-csi-addons/internal/protob\x06proto3"
 
 var (
 	file_replication_proto_rawDescOnce sync.Once
@@ -1223,66 +1553,79 @@ func file_replication_proto_rawDescGZIP() []byte {
 }
 
 var file_replication_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_replication_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_replication_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_replication_proto_goTypes = []any{
-	(GetVolumeReplicationInfoResponse_Status)(0), // 0: proto.GetVolumeReplicationInfoResponse.Status
-	(*EnableVolumeReplicationRequest)(nil),       // 1: proto.EnableVolumeReplicationRequest
-	(*EnableVolumeReplicationResponse)(nil),      // 2: proto.EnableVolumeReplicationResponse
-	(*DisableVolumeReplicationRequest)(nil),      // 3: proto.DisableVolumeReplicationRequest
-	(*DisableVolumeReplicationResponse)(nil),     // 4: proto.DisableVolumeReplicationResponse
-	(*PromoteVolumeRequest)(nil),                 // 5: proto.PromoteVolumeRequest
-	(*PromoteVolumeResponse)(nil),                // 6: proto.PromoteVolumeResponse
-	(*DemoteVolumeRequest)(nil),                  // 7: proto.DemoteVolumeRequest
-	(*DemoteVolumeResponse)(nil),                 // 8: proto.DemoteVolumeResponse
-	(*ResyncVolumeRequest)(nil),                  // 9: proto.ResyncVolumeRequest
-	(*ResyncVolumeResponse)(nil),                 // 10: proto.ResyncVolumeResponse
-	(*GetVolumeReplicationInfoRequest)(nil),      // 11: proto.GetVolumeReplicationInfoRequest
-	(*GetVolumeReplicationInfoResponse)(nil),     // 12: proto.GetVolumeReplicationInfoResponse
-	(*ReplicationSource)(nil),                    // 13: proto.ReplicationSource
-	nil,                                          // 14: proto.EnableVolumeReplicationRequest.ParametersEntry
-	nil,                                          // 15: proto.DisableVolumeReplicationRequest.ParametersEntry
-	nil,                                          // 16: proto.PromoteVolumeRequest.ParametersEntry
-	nil,                                          // 17: proto.DemoteVolumeRequest.ParametersEntry
-	nil,                                          // 18: proto.ResyncVolumeRequest.ParametersEntry
-	(*ReplicationSource_VolumeSource)(nil),       // 19: proto.ReplicationSource.VolumeSource
-	(*ReplicationSource_VolumeGroupSource)(nil),  // 20: proto.ReplicationSource.VolumeGroupSource
-	(*timestamppb.Timestamp)(nil),                // 21: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                  // 22: google.protobuf.Duration
+	(GetVolumeReplicationInfoResponse_Status)(0),          // 0: proto.GetVolumeReplicationInfoResponse.Status
+	(*EnableVolumeReplicationRequest)(nil),                // 1: proto.EnableVolumeReplicationRequest
+	(*EnableVolumeReplicationResponse)(nil),               // 2: proto.EnableVolumeReplicationResponse
+	(*DisableVolumeReplicationRequest)(nil),               // 3: proto.DisableVolumeReplicationRequest
+	(*DisableVolumeReplicationResponse)(nil),              // 4: proto.DisableVolumeReplicationResponse
+	(*PromoteVolumeRequest)(nil),                          // 5: proto.PromoteVolumeRequest
+	(*PromoteVolumeResponse)(nil),                         // 6: proto.PromoteVolumeResponse
+	(*DemoteVolumeRequest)(nil),                           // 7: proto.DemoteVolumeRequest
+	(*DemoteVolumeResponse)(nil),                          // 8: proto.DemoteVolumeResponse
+	(*ResyncVolumeRequest)(nil),                           // 9: proto.ResyncVolumeRequest
+	(*ResyncVolumeResponse)(nil),                          // 10: proto.ResyncVolumeResponse
+	(*GetVolumeReplicationInfoRequest)(nil),               // 11: proto.GetVolumeReplicationInfoRequest
+	(*GetVolumeReplicationInfoResponse)(nil),              // 12: proto.GetVolumeReplicationInfoResponse
+	(*ReplicationSource)(nil),                             // 13: proto.ReplicationSource
+	(*GetReplicationDestinationInfoRequest)(nil),          // 14: proto.GetReplicationDestinationInfoRequest
+	(*GetReplicationDestinationInfoResponse)(nil),         // 15: proto.GetReplicationDestinationInfoResponse
+	(*ReplicationDestination)(nil),                        // 16: proto.ReplicationDestination
+	nil,                                                   // 17: proto.EnableVolumeReplicationRequest.ParametersEntry
+	nil,                                                   // 18: proto.DisableVolumeReplicationRequest.ParametersEntry
+	nil,                                                   // 19: proto.PromoteVolumeRequest.ParametersEntry
+	nil,                                                   // 20: proto.DemoteVolumeRequest.ParametersEntry
+	nil,                                                   // 21: proto.ResyncVolumeRequest.ParametersEntry
+	(*ReplicationSource_VolumeSource)(nil),                // 22: proto.ReplicationSource.VolumeSource
+	(*ReplicationSource_VolumeGroupSource)(nil),           // 23: proto.ReplicationSource.VolumeGroupSource
+	(*ReplicationDestination_VolumeDestination)(nil),      // 24: proto.ReplicationDestination.VolumeDestination
+	(*ReplicationDestination_VolumeGroupDestination)(nil), // 25: proto.ReplicationDestination.VolumeGroupDestination
+	nil,                           // 26: proto.ReplicationDestination.VolumeGroupDestination.VolumeIdsEntry
+	(*timestamppb.Timestamp)(nil), // 27: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 28: google.protobuf.Duration
 }
 var file_replication_proto_depIdxs = []int32{
-	14, // 0: proto.EnableVolumeReplicationRequest.parameters:type_name -> proto.EnableVolumeReplicationRequest.ParametersEntry
+	17, // 0: proto.EnableVolumeReplicationRequest.parameters:type_name -> proto.EnableVolumeReplicationRequest.ParametersEntry
 	13, // 1: proto.EnableVolumeReplicationRequest.replication_source:type_name -> proto.ReplicationSource
-	15, // 2: proto.DisableVolumeReplicationRequest.parameters:type_name -> proto.DisableVolumeReplicationRequest.ParametersEntry
+	18, // 2: proto.DisableVolumeReplicationRequest.parameters:type_name -> proto.DisableVolumeReplicationRequest.ParametersEntry
 	13, // 3: proto.DisableVolumeReplicationRequest.replication_source:type_name -> proto.ReplicationSource
-	16, // 4: proto.PromoteVolumeRequest.parameters:type_name -> proto.PromoteVolumeRequest.ParametersEntry
+	19, // 4: proto.PromoteVolumeRequest.parameters:type_name -> proto.PromoteVolumeRequest.ParametersEntry
 	13, // 5: proto.PromoteVolumeRequest.replication_source:type_name -> proto.ReplicationSource
-	17, // 6: proto.DemoteVolumeRequest.parameters:type_name -> proto.DemoteVolumeRequest.ParametersEntry
+	20, // 6: proto.DemoteVolumeRequest.parameters:type_name -> proto.DemoteVolumeRequest.ParametersEntry
 	13, // 7: proto.DemoteVolumeRequest.replication_source:type_name -> proto.ReplicationSource
-	18, // 8: proto.ResyncVolumeRequest.parameters:type_name -> proto.ResyncVolumeRequest.ParametersEntry
+	21, // 8: proto.ResyncVolumeRequest.parameters:type_name -> proto.ResyncVolumeRequest.ParametersEntry
 	13, // 9: proto.ResyncVolumeRequest.replication_source:type_name -> proto.ReplicationSource
 	13, // 10: proto.GetVolumeReplicationInfoRequest.replication_source:type_name -> proto.ReplicationSource
-	21, // 11: proto.GetVolumeReplicationInfoResponse.last_sync_time:type_name -> google.protobuf.Timestamp
-	22, // 12: proto.GetVolumeReplicationInfoResponse.last_sync_duration:type_name -> google.protobuf.Duration
+	27, // 11: proto.GetVolumeReplicationInfoResponse.last_sync_time:type_name -> google.protobuf.Timestamp
+	28, // 12: proto.GetVolumeReplicationInfoResponse.last_sync_duration:type_name -> google.protobuf.Duration
 	0,  // 13: proto.GetVolumeReplicationInfoResponse.status:type_name -> proto.GetVolumeReplicationInfoResponse.Status
-	19, // 14: proto.ReplicationSource.volume:type_name -> proto.ReplicationSource.VolumeSource
-	20, // 15: proto.ReplicationSource.volume_group:type_name -> proto.ReplicationSource.VolumeGroupSource
-	1,  // 16: proto.Replication.EnableVolumeReplication:input_type -> proto.EnableVolumeReplicationRequest
-	3,  // 17: proto.Replication.DisableVolumeReplication:input_type -> proto.DisableVolumeReplicationRequest
-	5,  // 18: proto.Replication.PromoteVolume:input_type -> proto.PromoteVolumeRequest
-	7,  // 19: proto.Replication.DemoteVolume:input_type -> proto.DemoteVolumeRequest
-	9,  // 20: proto.Replication.ResyncVolume:input_type -> proto.ResyncVolumeRequest
-	11, // 21: proto.Replication.GetVolumeReplicationInfo:input_type -> proto.GetVolumeReplicationInfoRequest
-	2,  // 22: proto.Replication.EnableVolumeReplication:output_type -> proto.EnableVolumeReplicationResponse
-	4,  // 23: proto.Replication.DisableVolumeReplication:output_type -> proto.DisableVolumeReplicationResponse
-	6,  // 24: proto.Replication.PromoteVolume:output_type -> proto.PromoteVolumeResponse
-	8,  // 25: proto.Replication.DemoteVolume:output_type -> proto.DemoteVolumeResponse
-	10, // 26: proto.Replication.ResyncVolume:output_type -> proto.ResyncVolumeResponse
-	12, // 27: proto.Replication.GetVolumeReplicationInfo:output_type -> proto.GetVolumeReplicationInfoResponse
-	22, // [22:28] is the sub-list for method output_type
-	16, // [16:22] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	22, // 14: proto.ReplicationSource.volume:type_name -> proto.ReplicationSource.VolumeSource
+	23, // 15: proto.ReplicationSource.volume_group:type_name -> proto.ReplicationSource.VolumeGroupSource
+	13, // 16: proto.GetReplicationDestinationInfoRequest.replication_source:type_name -> proto.ReplicationSource
+	16, // 17: proto.GetReplicationDestinationInfoResponse.replication_destination:type_name -> proto.ReplicationDestination
+	24, // 18: proto.ReplicationDestination.volume:type_name -> proto.ReplicationDestination.VolumeDestination
+	25, // 19: proto.ReplicationDestination.volumegroup:type_name -> proto.ReplicationDestination.VolumeGroupDestination
+	26, // 20: proto.ReplicationDestination.VolumeGroupDestination.volume_ids:type_name -> proto.ReplicationDestination.VolumeGroupDestination.VolumeIdsEntry
+	1,  // 21: proto.Replication.EnableVolumeReplication:input_type -> proto.EnableVolumeReplicationRequest
+	3,  // 22: proto.Replication.DisableVolumeReplication:input_type -> proto.DisableVolumeReplicationRequest
+	5,  // 23: proto.Replication.PromoteVolume:input_type -> proto.PromoteVolumeRequest
+	7,  // 24: proto.Replication.DemoteVolume:input_type -> proto.DemoteVolumeRequest
+	9,  // 25: proto.Replication.ResyncVolume:input_type -> proto.ResyncVolumeRequest
+	11, // 26: proto.Replication.GetVolumeReplicationInfo:input_type -> proto.GetVolumeReplicationInfoRequest
+	14, // 27: proto.Replication.GetReplicationDestinationInfo:input_type -> proto.GetReplicationDestinationInfoRequest
+	2,  // 28: proto.Replication.EnableVolumeReplication:output_type -> proto.EnableVolumeReplicationResponse
+	4,  // 29: proto.Replication.DisableVolumeReplication:output_type -> proto.DisableVolumeReplicationResponse
+	6,  // 30: proto.Replication.PromoteVolume:output_type -> proto.PromoteVolumeResponse
+	8,  // 31: proto.Replication.DemoteVolume:output_type -> proto.DemoteVolumeResponse
+	10, // 32: proto.Replication.ResyncVolume:output_type -> proto.ResyncVolumeResponse
+	12, // 33: proto.Replication.GetVolumeReplicationInfo:output_type -> proto.GetVolumeReplicationInfoResponse
+	15, // 34: proto.Replication.GetReplicationDestinationInfo:output_type -> proto.GetReplicationDestinationInfoResponse
+	28, // [28:35] is the sub-list for method output_type
+	21, // [21:28] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_replication_proto_init() }
@@ -1294,13 +1637,17 @@ func file_replication_proto_init() {
 		(*ReplicationSource_Volume)(nil),
 		(*ReplicationSource_VolumeGroup)(nil),
 	}
+	file_replication_proto_msgTypes[15].OneofWrappers = []any{
+		(*ReplicationDestination_Volume)(nil),
+		(*ReplicationDestination_Volumegroup)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_replication_proto_rawDesc), len(file_replication_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

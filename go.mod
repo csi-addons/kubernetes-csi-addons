@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/container-storage-interface/spec v1.12.0
-	github.com/csi-addons/spec v0.2.1-0.20250610152019-b5a7205f6a79
+	github.com/csi-addons/spec v0.2.1-0.20260515055340-d4a373713b9a
 	github.com/go-logr/logr v1.4.3
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes-csi/csi-lib-utils v0.23.2

@@ -104,6 +104,145 @@ func createFakeVolumeGroupReplicationReconciler(t *testing.T, obj ...runtime.Obj
 	}
 }
 
+func TestUpdateReplicationDestinationCondition(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		pvInfoMap       PersistentVolumeInfoMap
+		pvMappingList   []replicationv1alpha1.PersistentVolumeMapping
+		expectAvailable bool
+		expectedReason  string
+	}{
+		{
+			name:            "empty pvInfoMap sets available",
+			pvInfoMap:       PersistentVolumeInfoMap{},
+			pvMappingList:   nil,
+			expectAvailable: true,
+			expectedReason:  replicationv1alpha1.DestinationInfoUpdated,
+		},
+		{
+			name: "all PVs present in mapping with destination handles sets available",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+				"pvc-2": {PvName: "pv-2", PvHandle: "handle-2"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-1", DestinationVolumeHandle: "dest-handle-1"},
+				{Name: "pv-2", DestinationVolumeHandle: "dest-handle-2"},
+			},
+			expectAvailable: true,
+			expectedReason:  replicationv1alpha1.DestinationInfoUpdated,
+		},
+		{
+			name: "PV not in persistentVolumeMappingList sets pending",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+				"pvc-2": {PvName: "pv-2", PvHandle: "handle-2"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-1", DestinationVolumeHandle: "dest-handle-1"},
+			},
+			expectAvailable: false,
+			expectedReason:  replicationv1alpha1.DestinationInfoPending,
+		},
+		{
+			name: "PV in mapping but missing destination handle sets pending",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+				"pvc-2": {PvName: "pv-2", PvHandle: "handle-2"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-1", DestinationVolumeHandle: "dest-handle-1"},
+				{Name: "pv-2", DestinationVolumeHandle: ""},
+			},
+			expectAvailable: false,
+			expectedReason:  replicationv1alpha1.DestinationInfoPending,
+		},
+		{
+			name: "mapping list shorter than pvInfoMap sets pending without checking entries",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+				"pvc-2": {PvName: "pv-2", PvHandle: "handle-2"},
+				"pvc-3": {PvName: "pv-3", PvHandle: "handle-3"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-1", DestinationVolumeHandle: "dest-handle-1"},
+			},
+			expectAvailable: false,
+			expectedReason:  replicationv1alpha1.DestinationInfoPending,
+		},
+		{
+			name: "nil mapping list with non-empty pvInfoMap sets pending",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+			},
+			pvMappingList:   nil,
+			expectAvailable: false,
+			expectedReason:  replicationv1alpha1.DestinationInfoPending,
+		},
+		{
+			name: "single PVC with valid mapping sets available",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-1", DestinationVolumeHandle: "dest-handle-1"},
+			},
+			expectAvailable: true,
+			expectedReason:  replicationv1alpha1.DestinationInfoUpdated,
+		},
+		{
+			name: "extra mappings beyond pvInfoMap still available if all PVs covered",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-1", DestinationVolumeHandle: "dest-handle-1"},
+				{Name: "pv-extra", DestinationVolumeHandle: "dest-handle-extra"},
+			},
+			expectAvailable: true,
+			expectedReason:  replicationv1alpha1.DestinationInfoUpdated,
+		},
+		{
+			name: "mapping has enough entries but wrong PV names sets pending",
+			pvInfoMap: PersistentVolumeInfoMap{
+				"pvc-1": {PvName: "pv-1", PvHandle: "handle-1"},
+			},
+			pvMappingList: []replicationv1alpha1.PersistentVolumeMapping{
+				{Name: "pv-other", DestinationVolumeHandle: "dest-handle-other"},
+			},
+			expectAvailable: false,
+			expectedReason:  replicationv1alpha1.DestinationInfoPending,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			vgr := &replicationv1alpha1.VolumeGroupReplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-vgr",
+					Namespace:  mockNamespace,
+					Generation: 1,
+				},
+			}
+
+			r := &VolumeGroupReplicationReconciler{}
+			r.updateReplicationDestinationCondition(vgr, tc.pvInfoMap, tc.pvMappingList)
+
+			cond := findCondition(vgr.Status.Conditions, replicationv1alpha1.ConditionDestinationInfoAvailable)
+			assert.NotNil(t, cond)
+			assert.Equal(t, tc.expectedReason, cond.Reason)
+			if tc.expectAvailable {
+				assert.Equal(t, metav1.ConditionTrue, cond.Status)
+			} else {
+				assert.Equal(t, metav1.ConditionFalse, cond.Status)
+			}
+			assert.Equal(t, int64(1), cond.ObservedGeneration)
+		})
+	}
+}
+
 func TestVolumeGroupReplication(t *testing.T) {
 	t.Parallel()
 	testcases := []struct {

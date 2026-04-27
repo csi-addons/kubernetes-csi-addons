@@ -181,3 +181,25 @@ func (rc *volumeGroupReplicationClient) GetVolumeReplicationInfo(groupID, replic
 
 	return resp, err
 }
+
+// GetReplicationDestinationInfo RPC call to get destination info for a volume group.
+func (rc *volumeGroupReplicationClient) GetReplicationDestinationInfo(groupID,
+	secretName, secretNamespace string) (*proto.GetReplicationDestinationInfoResponse, error) {
+	req := &proto.GetReplicationDestinationInfoRequest{
+		ReplicationSource: &proto.ReplicationSource{
+			Type: &proto.ReplicationSource_VolumeGroup{
+				VolumeGroup: &proto.ReplicationSource_VolumeGroupSource{
+					VolumeGroupId: groupID,
+				},
+			},
+		},
+		SecretName:      secretName,
+		SecretNamespace: secretNamespace,
+	}
+
+	createCtx, cancel := context.WithTimeout(context.Background(), rc.timeout)
+	defer cancel()
+	resp, err := rc.client.GetReplicationDestinationInfo(createCtx, req)
+
+	return resp, err
+}
