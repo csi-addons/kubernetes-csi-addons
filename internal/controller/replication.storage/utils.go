@@ -18,9 +18,13 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	grpcClient "github.com/csi-addons/kubernetes-csi-addons/internal/client"
+	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/spec/lib/go/identity"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -70,4 +74,84 @@ func WaitForVolumeReplicationResource(client client.Client, logger logr.Logger, 
 		logger.Info("resource does not exist", "Resource", resourceName)
 		time.Sleep(5 * time.Second)
 	}
+}
+
+type connPoolReconciler interface {
+	getConnPool() *conn.ConnectionPool
+	getClient() client.Client
+	getTimeout() time.Duration
+}
+
+func (r *VolumeReplicationReconciler) getConnPool() *conn.ConnectionPool {
+	return r.Connpool
+}
+
+func (r *VolumeReplicationReconciler) getClient() client.Client {
+	return r.Client
+}
+
+func (r *VolumeReplicationReconciler) getTimeout() time.Duration {
+	return r.Timeout
+}
+
+func (r *VolumeGroupReplicationReconciler) getConnPool() *conn.ConnectionPool {
+	return r.Connpool
+}
+
+func (r *VolumeGroupReplicationReconciler) getClient() client.Client {
+	return r.Client
+}
+
+func (r *VolumeGroupReplicationReconciler) getTimeout() time.Duration {
+	return r.Timeout
+}
+
+func (r *VolumeGroupReplicationContentReconciler) getConnPool() *conn.ConnectionPool {
+	return r.Connpool
+}
+
+func (r *VolumeGroupReplicationContentReconciler) getClient() client.Client {
+	return r.Client
+}
+
+func (r *VolumeGroupReplicationContentReconciler) getTimeout() time.Duration {
+	return r.Timeout
+}
+
+func getReplicationClient(ctx context.Context, r connPoolReconciler, driverName, dataSource string) (grpcClient.VolumeReplication, bool, error) {
+	conn, err := r.getConnPool().GetLeaderByDriver(ctx, r.getClient(), driverName)
+	if err != nil {
+		return nil, false, fmt.Errorf("no leader for the ControllerService of driver %q: %w", driverName, err)
+	}
+
+	var replicationClient grpcClient.VolumeReplication
+	var supportsGetReplicationDestinationInfo bool
+
+	for _, cap := range conn.Capabilities {
+		// validate if VOLUME_REPLICATION capability is supported by the driver.
+		if cap.GetVolumeReplication() == nil {
+			continue
+		}
+
+		if cap.GetVolumeReplication().GetType() == identity.Capability_VolumeReplication_GET_REPLICATION_DESTINATION_INFO {
+			supportsGetReplicationDestinationInfo = true
+			continue
+		}
+
+		// validate if VOLUME_REPLICATION capability is enabled by the storage driver.
+		if cap.GetVolumeReplication().GetType() == identity.Capability_VolumeReplication_VOLUME_REPLICATION {
+			switch dataSource {
+			case pvcDataSource:
+				replicationClient = grpcClient.NewVolumeReplicationClient(conn.Client, r.getTimeout())
+			case volumeGroupReplicationDataSource:
+				replicationClient = grpcClient.NewVolumeGroupReplicationClient(conn.Client, r.getTimeout())
+			}
+		}
+	}
+
+	if replicationClient != nil {
+		return replicationClient, supportsGetReplicationDestinationInfo, nil
+	}
+
+	return nil, false, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support VolumeReplication", conn.Name, driverName)
 }

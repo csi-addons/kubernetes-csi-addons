@@ -37,4 +37,6 @@ type VolumeReplication interface {
 		ResyncVolumeResponse, error)
 	// GetVolumeReplicationInfo RPC call to get volume replication info.
 	GetVolumeReplicationInfo(id, replicationID, secretName, secretNamespace string) (*proto.GetVolumeReplicationInfoResponse, error)
+	// GetReplicationDestinationInfo RPC call to get destination info.
+	GetReplicationDestinationInfo(id, secretName, secretNamespace string) (*proto.GetReplicationDestinationInfoResponse, error)
 }

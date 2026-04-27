@@ -1548,10 +1548,50 @@ spec:
             description: VolumeGroupReplicationContentStatus defines the status of
               VolumeGroupReplicationContent
             properties:
+              destinationVolumeGroupID:
+                description: |-
+                  DestinationVolumeGroupID is the volume group ID on the
+                  destination/target side, as reported by the SP.
+                type: string
+              persistentVolumeMappingList:
+                description: |-
+                  PersistentVolumeMappingList is the list of PVs for the group
+                  replication, enriched with source and destination volume handles.
+                  This replaces PersistentVolumeRefList. When both fields are
+                  present, consumers SHOULD prefer this field.
+                  The maximum number of allowed PVs in the group is 100.
+                items:
+                  description: |-
+                    PersistentVolumeMapping contains the PV reference along with its
+                    source and destination volume handles. The destination handle is
+                    populated only when the SP supports GET_REPLICATION_DESTINATION_INFO
+                    and destination info is available.
+                  properties:
+                    destinationVolumeHandle:
+                      description: |-
+                        DestinationVolumeHandle is the CSI volume handle on the
+                        destination/target cluster, as reported by the SP.
+                        This field is empty when destination info is not available.
+                      type: string
+                    name:
+                      description: Name is the name of the PersistentVolume.
+                      type: string
+                    volumeHandle:
+                      description: |-
+                        VolumeHandle is the CSI volume handle of this PV on the
+                        source cluster (i.e. PV.Spec.CSI.VolumeHandle).
+                      type: string
+                  required:
+                  - name
+                  - volumeHandle
+                  type: object
+                type: array
               persistentVolumeRefList:
                 description: |-
                   PersistentVolumeRefList is the list of PV for the group replication
                   The maximum number of allowed PV in the group is 100.
+                  Deprecated: Use PersistentVolumeMappingList instead, which includes
+                  source and destination volume handle information per PV.
                 items:
                   description: |-
                     LocalObjectReference contains enough information to let you locate the
@@ -1818,6 +1858,12 @@ spec:
                   - type
                   type: object
                 type: array
+              destinationVolumeID:
+                description: |-
+                  DestinationVolumeID is the volume ID on the destination/target side.
+                  This field is set when the SP reports different source and destination
+                  volume IDs.
+                type: string
               lastCompletionTime:
                 format: date-time
                 type: string
@@ -2134,6 +2180,12 @@ spec:
                   - type
                   type: object
                 type: array
+              destinationVolumeID:
+                description: |-
+                  DestinationVolumeID is the volume ID on the destination/target side.
+                  This field is set when the SP reports different source and destination
+                  volume IDs.
+                type: string
               lastCompletionTime:
                 format: date-time
                 type: string

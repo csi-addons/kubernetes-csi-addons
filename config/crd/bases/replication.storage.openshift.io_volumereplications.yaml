@@ -176,6 +176,12 @@ spec:
                   - type
                   type: object
                 type: array
+              destinationVolumeID:
+                description: |-
+                  DestinationVolumeID is the volume ID on the destination/target side.
+                  This field is set when the SP reports different source and destination
+                  volume IDs.
+                type: string
               lastCompletionTime:
                 format: date-time
                 type: string

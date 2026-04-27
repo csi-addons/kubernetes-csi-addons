@@ -149,3 +149,66 @@ func TestResyncVolume(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 }
+
+func TestGetReplicationDestinationInfo(t *testing.T) {
+	t.Parallel()
+	// return success response
+	mockedGetDestInfo := &fake.ReplicationClient{
+		GetReplicationDestinationInfoMock: func(id, secretName, secretNamespace string) (*proto.GetReplicationDestinationInfoResponse, error) {
+			return &proto.GetReplicationDestinationInfoResponse{
+				ReplicationDestination: &proto.ReplicationDestination{
+					Type: &proto.ReplicationDestination_Volume{
+						Volume: &proto.ReplicationDestination_VolumeDestination{
+							VolumeId: "dest-vol-001",
+						},
+					},
+				},
+			}, nil
+		},
+	}
+	client := mockedGetDestInfo
+	resp, err := client.GetReplicationDestinationInfo("vol-001", "secret", "ns")
+	assert.NotNil(t, resp)
+	assert.Nil(t, err)
+	assert.Equal(t, "dest-vol-001", resp.GetReplicationDestination().GetVolume().GetVolumeId())
+
+	// return error
+	mockedGetDestInfo = &fake.ReplicationClient{
+		GetReplicationDestinationInfoMock: func(id, secretName, secretNamespace string) (*proto.GetReplicationDestinationInfoResponse, error) {
+			return nil, errors.New("failed to get destination info")
+		},
+	}
+	client = mockedGetDestInfo
+	resp, err = client.GetReplicationDestinationInfo("vol-001", "secret", "ns")
+	assert.Nil(t, resp)
+	assert.NotNil(t, err)
+}
+
+func TestGetReplicationDestinationInfoVolumeGroup(t *testing.T) {
+	t.Parallel()
+	mockedGetDestInfo := &fake.ReplicationClient{
+		GetReplicationDestinationInfoMock: func(id, secretName, secretNamespace string) (*proto.GetReplicationDestinationInfoResponse, error) {
+			return &proto.GetReplicationDestinationInfoResponse{
+				ReplicationDestination: &proto.ReplicationDestination{
+					Type: &proto.ReplicationDestination_Volumegroup{
+						Volumegroup: &proto.ReplicationDestination_VolumeGroupDestination{
+							VolumeGroupId: "dest-group-001",
+							VolumeIds: map[string]string{
+								"src-vol-001": "dest-vol-001",
+								"src-vol-002": "dest-vol-002",
+							},
+						},
+					},
+				},
+			}, nil
+		},
+	}
+	client := mockedGetDestInfo
+	resp, err := client.GetReplicationDestinationInfo("group-001", "secret", "ns")
+	assert.NotNil(t, resp)
+	assert.Nil(t, err)
+	vgDest := resp.GetReplicationDestination().GetVolumegroup()
+	assert.Equal(t, "dest-group-001", vgDest.GetVolumeGroupId())
+	assert.Equal(t, "dest-vol-001", vgDest.GetVolumeIds()["src-vol-001"])
+	assert.Equal(t, "dest-vol-002", vgDest.GetVolumeIds()["src-vol-002"])
+}
