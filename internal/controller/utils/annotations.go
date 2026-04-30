@@ -22,6 +22,7 @@ import (
 )
 
 var (
+	RsEnableAnnotation              = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/enable"
 	RsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
 	RsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
 

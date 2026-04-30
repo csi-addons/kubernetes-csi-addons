@@ -54,6 +54,7 @@ func StorageClassPredicate() predicate.Predicate {
 				KrcJobScheduleTimeAnnotation,
 				KrEnableAnnotation,
 				RsCronJobScheduleTimeAnnotation,
+				RsEnableAnnotation,
 			}
 
 			return AnnotationValueChanged(oldSC.GetAnnotations(), newSC.GetAnnotations(), relevantAnnotations)

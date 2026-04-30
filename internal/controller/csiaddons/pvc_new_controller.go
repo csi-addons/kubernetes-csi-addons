@@ -122,6 +122,7 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	// Reconcile - Reclaim space
 	reclaimSpaceName := fmt.Sprintf("%s-reclaimspace", pvc.Name)
 	reclaimSpaceSched := sc.Annotations[utils.RsCronJobScheduleTimeAnnotation]
+	reclaimSpaceEnabled := sc.Annotations[utils.RsEnableAnnotation]
 	reclaimSpaceChild := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      reclaimSpaceName,
@@ -129,7 +130,7 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 		},
 	}
 
-	if err := r.reconcileFeature(ctx, logger, pvc, reclaimSpaceChild, reclaimSpaceSched, "true"); err != nil {
+	if err := r.reconcileFeature(ctx, logger, pvc, reclaimSpaceChild, reclaimSpaceSched, reclaimSpaceEnabled); err != nil {
 		return ctrl.Result{}, err
 	}
 
