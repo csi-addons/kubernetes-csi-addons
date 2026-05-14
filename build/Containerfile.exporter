@@ -1,0 +1,16 @@
+# Build the exporter binary
+FROM golang:1.25 AS builder
+
+COPY . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
+
+ENV GOPATH=/workspace/go CGO_ENABLED=0
+WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
+
+RUN go build -ldflags="-s -w" -o /csi-volume-device-exporter ./cmd/csi-volume-device-exporter
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /csi-volume-device-exporter /csi-volume-device-exporter
+USER 65532:65532
+
+ENTRYPOINT ["/csi-volume-device-exporter"]

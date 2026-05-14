@@ -2,6 +2,7 @@
 # Image URL to use all building/pushing image targets
 CONTROLLER_IMG ?= quay.io/csiaddons/k8s-controller
 SIDECAR_IMG ?= quay.io/csiaddons/k8s-sidecar
+EXPORTER_IMG ?= quay.io/csiaddons/k8s-volume-device-exporter
 BUNDLE_IMG ?= quay.io/csiaddons/k8s-bundle
 TOOLS_IMG ?= quay.io/csiaddons/tools
 
@@ -22,6 +23,10 @@ endif
 
 ifneq (findstring $(BUNDLE_IMG),:)
 BUNDLE_IMG := $(BUNDLE_IMG):$(TAG)
+endif
+
+ifneq (findstring $(EXPORTER_IMG),:)
+EXPORTER_IMG := $(EXPORTER_IMG):$(TAG)
 endif
 
 ifneq (findstring $(TOOLS_IMG),:)
@@ -164,6 +169,7 @@ build: generate fmt vet ## Build manager binary.
 	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-manager cmd/manager/main.go
 	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-sidecar sidecar/main.go
 	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons ./cmd/csi-addons
+	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-volume-device-exporter ./cmd/csi-volume-device-exporter
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -184,6 +190,14 @@ docker-build-sidecar: container-cmd
 .PHONY: docker-push-sidecar
 docker-push-sidecar: container-cmd
 	$(CONTAINER_CMD) push ${SIDECAR_IMG}
+
+.PHONY: docker-build-exporter
+docker-build-exporter: container-cmd
+	$(CONTAINER_CMD) build -f ./build/Containerfile.exporter -t ${EXPORTER_IMG} .
+
+.PHONY: docker-push-exporter
+docker-push-exporter: container-cmd
+	$(CONTAINER_CMD) push ${EXPORTER_IMG}
 
 .PHONY: docker-build-bundle
 docker-build-bundle: container-cmd bundle
@@ -219,6 +233,15 @@ deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/c
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	cd deploy/controller && kubectl delete -f setup-controller.yaml -f rbac.yaml -f crds.yaml --ignore-not-found=$(ignore-not-found)
+
+.PHONY: deploy-exporter
+deploy-exporter: ## Deploy csi-volume-device-exporter DaemonSet.
+	kubectl apply -f deploy/exporter/daemonset.yaml -f deploy/exporter/podmonitor.yaml
+
+.PHONY: test-exporter-alerts
+test-exporter-alerts: ## Test exporter Prometheus alert rules.
+	go test -race -count=1 ./internal/exporter/monitoring/...
+	hack/prom-rule-ci/verify-rules.sh
 
 # controller-gen gets installed from the vendor/ directory.
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen

@@ -1,0 +1,35 @@
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: csi-volume-device-exporter
+# A custom SCC is used instead of the built-in 'privileged' SCC to follow
+# the principle of least privilege. The exporter requires:
+#   - hostPID: to read /proc/1/mountinfo from the host PID namespace
+#   - hostPath volumes (read-only): /var/lib/kubelet, /proc, /sys
+# It explicitly does NOT need: privileged containers, host networking,
+# host ports, host IPC, or any Linux capabilities.
+# Using 'privileged' would grant all of the above unnecessarily.
+allowPrivilegedContainer: false
+allowHostDirVolumePlugin: true
+allowHostPID: true
+allowHostIPC: false
+allowHostPorts: false
+allowHostNetwork: false
+readOnlyRootFilesystem: true
+runAsUser:
+  type: MustRunAs
+  uid: 0
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - hostPath
+  - emptyDir
+  - projected
+# Replace <NAMESPACE> below with the namespace where the DaemonSet is deployed,
+# or bind via: oc adm policy add-scc-to-user csi-volume-device-exporter \
+#              -z csi-volume-device-exporter -n <NAMESPACE>
+users: []
