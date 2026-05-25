@@ -73,8 +73,8 @@ func annotatePVCWithOwner(client client.Client, ctx context.Context, logger logr
 		pvc.Annotations = map[string]string{}
 	}
 
-	if pvc.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] != "" &&
-		pvc.Annotations[replicationv1alpha1.VolumeGroupReplicationNameAnnotation] != "" {
+	if (pvc.Annotations[replicationv1alpha1.VolumeReplicationNameAnnotation] != "" && pvcAnnotation == replicationv1alpha1.VolumeGroupReplicationNameAnnotation) ||
+		(pvc.Annotations[replicationv1alpha1.VolumeGroupReplicationNameAnnotation] != "" && pvcAnnotation == replicationv1alpha1.VolumeReplicationNameAnnotation) {
 		logger.Info("PVC can't be part of both VolumeGroupReplication and VolumeReplication")
 		return fmt.Errorf("PVC (%s/%s) can't be owned by both VolumeReplication and VolumeGroupReplication", pvc.Namespace, pvc.Name)
 	}
