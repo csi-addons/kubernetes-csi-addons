@@ -286,6 +286,8 @@ func main() {
 		Scheme:           mgr.GetScheme(),
 		Recorder:         mgr.GetEventRecorder("volumegroupreplication-controller"),
 		MaxGroupPVCCount: cfg.MaxGroupPVC,
+		Connpool:         connPool,
+		Timeout:          defaultTimeout,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VolumeGroupReplication")
 		os.Exit(1)

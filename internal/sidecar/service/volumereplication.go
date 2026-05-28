@@ -266,6 +266,71 @@ func (rs *ReplicationServer) GetVolumeReplicationInfo(
 	}, nil
 }
 
+// GetReplicationDestinationInfo fetches required information from kubernetes cluster and calls
+// CSI-Addons GetReplicationDestinationInfo service.
+func (rs *ReplicationServer) GetReplicationDestinationInfo(
+	ctx context.Context,
+	req *proto.GetReplicationDestinationInfoRequest) (*proto.GetReplicationDestinationInfoResponse, error) {
+	logger := log.FromContext(ctx)
+	// Get the secrets from the k8s cluster
+	data, err := kube.GetSecret(ctx, rs.kubeClient, req.GetSecretName(), req.GetSecretNamespace())
+	if err != nil {
+		logger.Error(err, "Failed to get secret", "secretName", req.GetSecretName(), "secretNamespace", req.GetSecretNamespace())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	repReq := &csiReplication.GetReplicationDestinationInfoRequest{
+		Secrets: data,
+	}
+	err = setReplicationSource(&repReq.ReplicationSource, req.GetReplicationSource())
+	if err != nil {
+		logger.Error(err, "Failed to set replication source")
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	resp, err := rs.controllerClient.GetReplicationDestinationInfo(ctx, repReq)
+	if err != nil {
+		logger.Error(err, "Failed to get replication destination info")
+		return nil, err
+	}
+
+	dest, err := convertReplicationDestination(resp.GetReplicationDestination())
+	if err != nil {
+		logger.Error(err, "Failed to convert replication destination info")
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &proto.GetReplicationDestinationInfoResponse{
+		ReplicationDestination: dest,
+	}, nil
+}
+
+// convertReplicationDestination converts a CSI replication destination to the internal proto type.
+func convertReplicationDestination(src *csiReplication.ReplicationDestination) (*proto.ReplicationDestination, error) {
+	if src == nil {
+		return nil, errors.New("replication destination is nil")
+	}
+	dst := &proto.ReplicationDestination{}
+	switch {
+	case src.GetVolume() != nil:
+		dst.Type = &proto.ReplicationDestination_Volume{
+			Volume: &proto.ReplicationDestination_VolumeDestination{
+				VolumeId: src.GetVolume().GetVolumeId(),
+			},
+		}
+	case src.GetVolumegroup() != nil:
+		dst.Type = &proto.ReplicationDestination_Volumegroup{
+			Volumegroup: &proto.ReplicationDestination_VolumeGroupDestination{
+				VolumeGroupId: src.GetVolumegroup().GetVolumeGroupId(),
+				VolumeIds:     src.GetVolumegroup().GetVolumeIds(),
+			},
+		}
+	default:
+		return nil, errors.New("replication destination has no volume or volume group")
+	}
+	return dst, nil
+}
+
 // setReplicationSource sets the replication source for the given ReplicationSource.
 func setReplicationSource(src **csiReplication.ReplicationSource, req *proto.ReplicationSource) error {
 	if *src == nil {

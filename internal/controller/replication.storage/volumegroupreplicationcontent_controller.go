@@ -22,14 +22,10 @@ import (
 	"slices"
 	"time"
 
-	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
-	grpcClient "github.com/csi-addons/kubernetes-csi-addons/internal/client"
-	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/spec/lib/go/identity"
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/csi-addons/spec/lib/go/identity"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +34,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
+	grpcClient "github.com/csi-addons/kubernetes-csi-addons/internal/client"
+	conn "github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
 )
 
 // VolumeGroupReplicationContentReconciler reconciles a VolumeGroupReplicationContent object
@@ -211,17 +212,54 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		return reconcile.Result{}, err
 	}
 
-	pvRefList := []corev1.LocalObjectReference{}
+	// Build a map of volume handle -> PV for matching source handles to PV names
+	handleToPV := make(map[string]corev1.PersistentVolume)
 	for _, pv := range pvList.Items {
-		if slices.ContainsFunc(instance.Spec.Source.VolumeHandles, func(handle string) bool {
-			return pv.Spec.CSI != nil && pv.Spec.CSI.VolumeHandle == handle
-		}) {
+		if pv.Spec.CSI != nil {
+			handleToPV[pv.Spec.CSI.VolumeHandle] = pv
+		}
+	}
+
+	// Note: the PersistentVolumeRefList field in the status is deprecated and the update of it can be
+	// removed in the future.
+	pvRefList := []corev1.LocalObjectReference{}
+	pvMappings := []replicationv1alpha1.PersistentVolumeMapping{}
+	for _, handle := range instance.Spec.Source.VolumeHandles {
+		if pv, ok := handleToPV[handle]; ok {
 			pvRefList = append(pvRefList, corev1.LocalObjectReference{
 				Name: pv.Name,
+			})
+			pvMappings = append(pvMappings, replicationv1alpha1.PersistentVolumeMapping{
+				Name:         pv.Name,
+				VolumeHandle: handle,
 			})
 		}
 	}
 	instance.Status.PersistentVolumeRefList = pvRefList
+	instance.Status.PersistentVolumeMappingList = pvMappings
+
+	// Fetch destination info if the driver supports it
+	repClient, destinationInfoSupported, err := getReplicationClient(ctx, r, instance.Spec.Provisioner, volumeGroupReplicationDataSource)
+	if err != nil {
+		logger.Error(err, "failed to get replication client")
+		return reconcile.Result{}, err
+	}
+	if destinationInfoSupported {
+		resp, err := repClient.GetReplicationDestinationInfo(groupID, secretName, secretNamespace)
+		if err != nil {
+			// SP may return UNAVAILABLE if destination details are not yet available.
+			// Requeue to retry -- destination fields remain empty, so VGR keeps DestinationInfoAvailable=False.
+			logger.Error(err, "failed to get replication destination info")
+			return reconcile.Result{}, err
+		}
+
+		if !updateReplicationDestinationInfo(instance, resp) {
+			err = fmt.Errorf("replication destination info is not yet available for all volumes in the group")
+			logger.Error(nil, err.Error())
+			return reconcile.Result{}, err
+		}
+	}
+
 	err = r.Status().Update(ctx, instance)
 	if err != nil {
 		logger.Error(err, "failed to update VGRContent status")
@@ -229,6 +267,38 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// Update the replication destination info in the VGRContent status from the response of GetReplicationDestinationInfo.
+// Returns true if all the destination info is available and updated, false otherwise.
+func updateReplicationDestinationInfo(instance *replicationv1alpha1.VolumeGroupReplicationContent, resp *proto.GetReplicationDestinationInfoResponse) bool {
+	if resp.GetReplicationDestination() == nil {
+		return false
+	}
+	vgDest := resp.GetReplicationDestination().GetVolumegroup()
+	if vgDest == nil {
+		return false
+	}
+	if vgDest.GetVolumeGroupId() == "" {
+		return false
+	}
+	instance.Status.DestinationVolumeGroupID = vgDest.GetVolumeGroupId()
+	if len(instance.Status.PersistentVolumeMappingList) == 0 {
+		return true
+	}
+	destVolumeIDs := vgDest.GetVolumeIds()
+	if destVolumeIDs == nil {
+		return false
+	}
+	for i, pvMapping := range instance.Status.PersistentVolumeMappingList {
+		if destinationVolumeHandle, ok := destVolumeIDs[pvMapping.VolumeHandle]; ok {
+			instance.Status.PersistentVolumeMappingList[i].DestinationVolumeHandle = destinationVolumeHandle
+		} else {
+			return false
+		}
+	}
+
+	return true
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -258,7 +328,6 @@ func (r *VolumeGroupReplicationContentReconciler) getVolumeGroupClient(ctx conte
 	}
 
 	return nil, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support VolumeGroup", conn.Name, driverName)
-
 }
 
 // annotateVolumeGroupReplicationWithVGRContentOwner will add the VolumeGroupReplicationContent owner to the VGR annotations.

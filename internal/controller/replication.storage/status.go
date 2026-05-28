@@ -287,6 +287,48 @@ func setDegradedReplicationCondition(conditions *[]metav1.Condition, observedGen
 	})
 }
 
+// sets DestinationInfoAvailable=True when destination info has been successfully fetched.
+func setDestinationInfoAvailableCondition(conditions *[]metav1.Condition, observedGeneration int64, dataSource string) {
+	source := getSource(dataSource)
+	setStatusCondition(conditions, &metav1.Condition{
+		Message:            fmt.Sprintf("%s %s", source, v1alpha1.MessageDestinationInfoAvailable),
+		Type:               v1alpha1.ConditionDestinationInfoAvailable,
+		Reason:             v1alpha1.DestinationInfoUpdated,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionTrue,
+	})
+}
+
+// sets DestinationInfoAvailable=False when destination details are stale or not yet fetched.
+func setDestinationInfoPendingCondition(conditions *[]metav1.Condition, observedGeneration int64, dataSource string) {
+	source := getSource(dataSource)
+	setStatusCondition(conditions, &metav1.Condition{
+		Message:            fmt.Sprintf("%s %s", source, v1alpha1.MessageDestinationInfoPending),
+		Type:               v1alpha1.ConditionDestinationInfoAvailable,
+		Reason:             v1alpha1.DestinationInfoPending,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionFalse,
+	})
+}
+
+// sets DestinationInfoAvailable=False with error details.
+func setDestinationInfoFailedCondition(conditions *[]metav1.Condition, observedGeneration int64, dataSource, errorMessage string) {
+	source := getSource(dataSource)
+	setStatusCondition(conditions, &metav1.Condition{
+		Message:            fmt.Sprintf("%s %s: %s", source, v1alpha1.MessageDestinationInfoFailed, errorMessage),
+		Type:               v1alpha1.ConditionDestinationInfoAvailable,
+		Reason:             v1alpha1.FailedToGetDestinationInfo,
+		ObservedGeneration: observedGeneration,
+		Status:             metav1.ConditionFalse,
+	})
+}
+
+// isDestinationInfoAvailable returns true if the DestinationInfoAvailable condition is True.
+func isDestinationInfoAvailable(conditions []metav1.Condition) bool {
+	cond := findCondition(conditions, v1alpha1.ConditionDestinationInfoAvailable)
+	return cond != nil && cond.Status == metav1.ConditionTrue
+}
+
 func setStatusCondition(existingConditions *[]metav1.Condition, newCondition *metav1.Condition) {
 	if existingConditions == nil {
 		existingConditions = &[]metav1.Condition{}

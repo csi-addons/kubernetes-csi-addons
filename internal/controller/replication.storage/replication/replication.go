@@ -157,6 +157,20 @@ func (r *Replication) GetInfo() *Response {
 	return &Response{Response: resp, Error: err}
 }
 
+func (r *Replication) GetDestinationInfo() *Response {
+	id, err := r.getID()
+	if err != nil {
+		return &Response{Error: err}
+	}
+	resp, err := r.Params.Replication.GetReplicationDestinationInfo(
+		id,
+		r.Params.SecretName,
+		r.Params.SecretNamespace,
+	)
+
+	return &Response{Response: resp, Error: err}
+}
+
 func (r *Response) HasKnownGRPCError(knownErrors []codes.Code) bool {
 	if r.Error == nil {
 		return false
