@@ -25,13 +25,11 @@ Additional options for reporting include:
 
 - include the volume condition in the metrics (similar to [KEP-4132][k8s_kep])
 - generate an event for one or more of
-
   1. the PersistentVolume
   1. the Pod that uses the PersistentVolumeClaim
   1. the Node where the volume condition is abnormal
 
 - annotate one or more of
-
   1. the PersistentVolume
   1. the PersistentVolumeClaim
   1. the Pod that uses the PersistentVolumeClaim
