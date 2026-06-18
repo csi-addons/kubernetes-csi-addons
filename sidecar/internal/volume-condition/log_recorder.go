@@ -34,7 +34,7 @@ var _ conditionRecorder = &logRecorder{}
 // will report the volume condition in the logs of the CSI-Addons sidecar.
 func WithLogRecorder() RecorderOption {
 	return RecorderOption{
-		newRecorder: func(client *kubernetes.Clientset, hostname string) (conditionRecorder, error) {
+		newRecorder: func(client *kubernetes.Clientset, hostname, nodeUID string) (conditionRecorder, error) {
 			return &logRecorder{}, nil
 		},
 	}
@@ -43,6 +43,7 @@ func WithLogRecorder() RecorderOption {
 func (lr *logRecorder) record(
 	ctx context.Context,
 	pv *corev1.PersistentVolume,
+	pvc *corev1.PersistentVolumeClaim,
 	vc volume.VolumeCondition,
 ) error {
 	if vc.IsHealthy() {
@@ -52,4 +53,12 @@ func (lr *logRecorder) record(
 	}
 
 	return nil
+}
+
+func (lr *logRecorder) needsPVC() bool {
+	return false
+}
+
+func (lr *logRecorder) recordUnchangedVolumes() bool {
+	return false
 }
