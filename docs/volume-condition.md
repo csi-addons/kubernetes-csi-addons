@@ -13,8 +13,29 @@ Condition Reporter.
 
 ## Abnormal Volume Condition reporting
 
-Once enabled, the healthy and abnormal volume condition is reported in the logs
-of the CSI-Addons sidecar, and as an Event for the PersistentVolumeClaim.
+Once enabled, the sidecar reports the healthy and abnormal volume conditions as follows:
+
+- logs in the CSI-Addons sidecar
+- Event for the PersistentVolumeClaim
+- a health annotation on the PersistentVolumeClaim
+
+The health annotation on the PersistentVolumeClaim is written per node:
+
+```yaml
+csiaddons.openshift.io/volumehealth.<node-uid>: '{"state":"healthy|unhealthy","lastChecked":"<RFC3339>","since":"<RFC3339>","node":"<node-name>"}'
+```
+
+The sidecar always writes both states explicitly (`healthy` and `unhealthy`) and
+updates `lastChecked` on every tick.
+
+- `state` is always `healthy` or `unhealthy`
+- `lastChecked` is refreshed on every tick
+- `since` is set when the sidecar first observes the current state, and is
+  kept unchanged while that state does not change
+
+Each sidecar instance only updates its own
+`csiaddons.openshift.io/volumehealth.<node-uid>` key and never modifies keys
+written by sidecars running on other nodes.
 
 Users will see the Event in their Namespace, and also when they describe (with
 `kubectl describe ...`) the PersistentVolumeClaim.
@@ -33,7 +54,6 @@ Additional options for reporting include:
 - annotate one or more of
 
   1. the PersistentVolume
-  1. the PersistentVolumeClaim
   1. the Pod that uses the PersistentVolumeClaim
   1. the Node where the volume condition is abnormal
      > unlikely acceptable, needs permissions to the Node object
@@ -88,10 +108,23 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - persistentvolumes
       - persistentvolumeclaims
     verbs:
       - get
+---
+# permissions for csi-addons sidecar to patch PVC health annotation.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: csiaddons-pvc-editor-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - patch
 ```
 
 [nodegetvolumestats]: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetvolumestats

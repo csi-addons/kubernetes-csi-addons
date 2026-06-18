@@ -36,6 +36,8 @@ type Node interface {
 	// ListCSIVolumes returns a slice of CSI-volumes that are attached to the
 	// local worker node.
 	ListCSIVolumes(ctx context.Context) ([]volume.CSIVolume, error)
+	// UID returns the immutable Kubernetes UID of the local node object.
+	UID() string
 }
 
 type node struct {
@@ -43,6 +45,8 @@ type node struct {
 
 	// nodename is used to filter the attachments by node
 	nodename string
+	// nodeUID is used to annotate the PVC with the volume condition
+	nodeUID string
 }
 
 // assert that node implements the Node interface.
@@ -51,15 +55,23 @@ var _ Node = &node{}
 // NewNode creates a new Node that represents the local worker node.
 func NewNode(ctx context.Context, clientset *kubernetes.Clientset, nodename string) (Node, error) {
 	// verify that my local Node exists, will be fetched again in .ListCSIVolumes()
-	_, err := clientset.CoreV1().Nodes().Get(ctx, nodename, metav1.GetOptions{})
+	localNode, err := clientset.CoreV1().Nodes().Get(ctx, nodename, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("could not get my local Node %q: %v", nodename, err)
+	}
+	if localNode.UID == "" {
+		return nil, fmt.Errorf("could not determine UID of local Node %q", nodename)
 	}
 
 	return &node{
 		clientset: clientset,
 		nodename:  nodename,
+		nodeUID:   string(localNode.UID),
 	}, nil
+}
+
+func (n *node) UID() string {
+	return n.nodeUID
 }
 
 func (n *node) ListCSIVolumes(ctx context.Context) ([]volume.CSIVolume, error) {

@@ -18,10 +18,8 @@ package condition
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -47,7 +45,7 @@ func WithEventRecorder() RecorderOption {
 	}
 }
 
-func newEventRecorder(client *kubernetes.Clientset, hostname string) (conditionRecorder, error) {
+func newEventRecorder(client *kubernetes.Clientset, hostname, _ string) (conditionRecorder, error) {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(
 		&typedcorev1.EventSinkImpl{
@@ -71,27 +69,9 @@ func newEventRecorder(client *kubernetes.Clientset, hostname string) (conditionR
 func (er *eventRecorder) record(
 	ctx context.Context,
 	pv *corev1.PersistentVolume,
+	pvc *corev1.PersistentVolumeClaim,
 	vc volume.VolumeCondition,
 ) error {
-	claim := pv.Spec.ClaimRef
-	if claim == nil {
-		return fmt.Errorf("persistent volume %q does not have a claim (unused?)", pv.Name)
-	}
-
-	pvc, err := er.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Get(
-		ctx,
-		claim.Name,
-		metav1.GetOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf(
-			"failed to get persistent volume claim %q in namespace %q: %w",
-			claim.Name,
-			claim.Namespace,
-			err,
-		)
-	}
-
 	severity := corev1.EventTypeNormal
 	if !vc.IsHealthy() {
 		severity = corev1.EventTypeWarning
@@ -100,4 +80,12 @@ func (er *eventRecorder) record(
 	er.recorder.Event(pvc, severity, vc.GetReason(), vc.GetMessage())
 
 	return nil
+}
+
+func (er *eventRecorder) needsPVC() bool {
+	return true
+}
+
+func (er *eventRecorder) recordUnchangedVolumes() bool {
+	return false
 }
