@@ -68,7 +68,12 @@ func NewVolumeConditionReporter(
 	}
 
 	if !drv.SupportsVolumeCondition() {
-		return nil, fmt.Errorf("driver %q does not support volume-condition", drivername)
+		// volume condition is enabled by default, but drivers can still
+		// choose not to support it. Logging instead of calling os.Exit(1) (in main.go) so
+		// that only this feature is skipped and the rest of the sidecar
+		// process continues running normally.
+		logger.Info(fmt.Sprintf("driver %q does not support volume-condition", drivername))
+		return nil, nil
 	}
 
 	n, err := node.NewNode(ctx, client, hostname)
