@@ -223,7 +223,7 @@ func (r *PVCReconiler) SetupWithManager(mgr ctrl.Manager, ctrlOptions controller
 
 	return ctrl.NewControllerManagedBy(mgr).
 		// Primary source
-		For(&corev1.PersistentVolumeClaim{}).
+		For(&corev1.PersistentVolumeClaim{}, builder.WithPredicates(utils.PVCPredicate())).
 
 		// Secondary sources
 		Owns(&csiaddonsv1alpha1.ReclaimSpaceCronJob{}).
