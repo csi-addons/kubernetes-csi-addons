@@ -41,3 +41,17 @@ func IsUnimplementedError(err error) bool {
 
 	return s.Code() == codes.Unimplemented
 }
+
+// IsAbortedError returns true if the error is a gRPC Aborted error.
+func IsAbortedError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	return s.Code() == codes.Aborted
+}

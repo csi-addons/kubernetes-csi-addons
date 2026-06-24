@@ -175,6 +175,11 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{RequeueAfter: nodeClientRequeueInterval}, nil
 	}
 
+	if result, ok := utils.ResultForAbortedError(err, rsJob.Status.Retries); ok {
+		logger.Info("Operation aborted, requeuing with backoff", "err", err, "backoff", result.RequeueAfter)
+		return result, nil
+	}
+
 	return ctrl.Result{}, err
 }
 
