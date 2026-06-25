@@ -11,3 +11,5 @@ data:
   "max-group-pvcs": "100"
   "csi-addons-node-retry-delay": "5"
   "cronjob-stagger-window": "2"
+  "volume-health-cleanup-interval": "30m"
+  "volume-health-stale-threshold": "2h"

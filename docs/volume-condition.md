@@ -40,6 +40,21 @@ written by sidecars running on other nodes.
 Users will see the Event in their Namespace, and also when they describe (with
 `kubectl describe ...`) the PersistentVolumeClaim.
 
+### Stale Annotation Cleanup
+
+Stale health annotations are cleaned up by the addons-controller with periodic
+cleanup. The cleanup removes complete per-node keys when their
+`lastChecked` value is older than a configured stale threshold.
+
+Cleanup behavior:
+
+- cleanup is eventual, not immediate
+- cleanup interval and stale threshold are configurable
+- cleanup can be disabled with `--enable-volume-health-cleanup=false`
+  (default is enabled)
+- only stale `csiaddons.openshift.io/volumehealth.<node-uid>` keys are removed
+- other annotation keys on the PVC are preserved
+
 ### Future Enhancements
 
 Additional options for reporting include:

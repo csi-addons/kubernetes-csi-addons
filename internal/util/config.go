@@ -31,43 +31,51 @@ import (
 // Config holds the configuration options that
 // can be overrrided via a config file.
 type Config struct {
-	Namespace               string
-	ReclaimSpaceTimeout     time.Duration
-	MaxConcurrentReconciles int
-	SchedulePrecedence      string
-	MaxGroupPVC             int
-	CSIAddonsNodeRetryDelay int
-	CronJobStaggerWindow    int
+	Namespace                   string
+	ReclaimSpaceTimeout         time.Duration
+	MaxConcurrentReconciles     int
+	SchedulePrecedence          string
+	MaxGroupPVC                 int
+	CSIAddonsNodeRetryDelay     int
+	CronJobStaggerWindow        int
+	VolumeHealthCleanupInterval time.Duration
+	VolumeHealthStaleThreshold  time.Duration
 }
 
 const (
-	csiAddonsConfigMapName         = "csi-addons-config"
-	ReclaimSpaceTimeoutKey         = "reclaim-space-timeout"
-	MaxConcurrentReconcilesKey     = "max-concurrent-reconciles"
-	defaultNamespace               = "csi-addons-system"
-	defaultMaxConcurrentReconciles = 100
-	defaultReclaimSpaceTimeout     = time.Minute * 3
-	SchedulePrecedenceKey          = "schedule-precedence"
-	ScheduleSC                     = "storageclass"
-	SchedulePVC                    = "pvc"
-	MaxGroupPVCKey                 = "max-group-pvcs"
-	defaultMaxGroupPVC             = 100 // based on ceph's support/testing
-	defaultCSIAddonsNodeRetryDelay = 5   // seconds
-	CsiaddonsNodeRetryDelayKey     = "csi-addons-node-retry-delay"
-	defaultCronJobStaggerWindow    = 2
-	CronJobStaggerWindowKey        = "cronjob-stagger-window"
+	csiAddonsConfigMapName             = "csi-addons-config"
+	ReclaimSpaceTimeoutKey             = "reclaim-space-timeout"
+	MaxConcurrentReconcilesKey         = "max-concurrent-reconciles"
+	defaultNamespace                   = "csi-addons-system"
+	defaultMaxConcurrentReconciles     = 100
+	defaultReclaimSpaceTimeout         = time.Minute * 3
+	SchedulePrecedenceKey              = "schedule-precedence"
+	ScheduleSC                         = "storageclass"
+	SchedulePVC                        = "pvc"
+	MaxGroupPVCKey                     = "max-group-pvcs"
+	defaultMaxGroupPVC                 = 100 // based on ceph's support/testing
+	defaultCSIAddonsNodeRetryDelay     = 5   // seconds
+	CsiaddonsNodeRetryDelayKey         = "csi-addons-node-retry-delay"
+	defaultCronJobStaggerWindow        = 2
+	CronJobStaggerWindowKey            = "cronjob-stagger-window"
+	defaultVolumeHealthCleanupInterval = 30 * time.Minute
+	defaultVolumeHealthStaleThreshold  = 2 * time.Hour
+	VolumeHealthCleanupIntervalKey     = "volume-health-cleanup-interval"
+	VolumeHealthStaleThresholdKey      = "volume-health-stale-threshold"
 )
 
 // NewConfig returns a new Config object with default values.
 func NewConfig() Config {
 	return Config{
-		Namespace:               defaultNamespace,
-		ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-		MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-		SchedulePrecedence:      SchedulePVC,
-		MaxGroupPVC:             defaultMaxGroupPVC,
-		CSIAddonsNodeRetryDelay: defaultCSIAddonsNodeRetryDelay,
-		CronJobStaggerWindow:    defaultCronJobStaggerWindow,
+		Namespace:                   defaultNamespace,
+		ReclaimSpaceTimeout:         defaultReclaimSpaceTimeout,
+		MaxConcurrentReconciles:     defaultMaxConcurrentReconciles,
+		SchedulePrecedence:          SchedulePVC,
+		MaxGroupPVC:                 defaultMaxGroupPVC,
+		CSIAddonsNodeRetryDelay:     defaultCSIAddonsNodeRetryDelay,
+		CronJobStaggerWindow:        defaultCronJobStaggerWindow,
+		VolumeHealthCleanupInterval: defaultVolumeHealthCleanupInterval,
+		VolumeHealthStaleThreshold:  defaultVolumeHealthStaleThreshold,
 	}
 }
 
@@ -133,6 +141,11 @@ func (cfg *Config) readConfig(dataMap map[string]string) error {
 				return err
 			}
 
+		case VolumeHealthCleanupIntervalKey, VolumeHealthStaleThresholdKey:
+			if err := cfg.validateAndSetVolumeHealthConfig(key, val); err != nil {
+				return err
+			}
+
 		default:
 			return fmt.Errorf("unknown config key %q", key)
 		}
@@ -190,6 +203,28 @@ func (cfg *Config) validateAndSetStaggerWindow(val string) error {
 	}
 
 	cfg.CronJobStaggerWindow = win
+
+	return nil
+}
+
+func (cfg *Config) validateAndSetVolumeHealthConfig(key, val string) error {
+	duration, err := time.ParseDuration(val)
+	if err != nil {
+		return fmt.Errorf("failed to parse key %q value %q as duration: %w", key, val, err)
+	}
+
+	if duration <= 0 {
+		return fmt.Errorf("invalid value %q for key %q", val, key)
+	}
+
+	switch key {
+	case VolumeHealthCleanupIntervalKey:
+		cfg.VolumeHealthCleanupInterval = duration
+	case VolumeHealthStaleThresholdKey:
+		cfg.VolumeHealthStaleThreshold = duration
+	default:
+		return fmt.Errorf("invalid volume health config key %q", key)
+	}
 
 	return nil
 }
