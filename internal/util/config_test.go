@@ -31,47 +31,69 @@ func TestConfigReadConfigFile(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:    "config file does not exist",
-			dataMap: nil,
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
+			name:      "config file does not exist",
+			dataMap:   nil,
+			newConfig: expectedConfig(nil),
+			wantErr:   false,
+		},
+		{
+			name:      "config file does exist but empty configuration",
+			dataMap:   make(map[string]string),
+			newConfig: expectedConfig(nil),
+			wantErr:   false,
+		},
+		{
+			name: "config file modifies volume-health-cleanup-interval",
+			dataMap: map[string]string{
+				"volume-health-cleanup-interval": "45m",
 			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.VolumeHealthCleanupInterval = 45 * time.Minute
+			}),
 			wantErr: false,
 		},
 		{
-			name:    "config file does exist but empty configuration",
-			dataMap: make(map[string]string),
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
+			name: "config file has invalid volume-health-cleanup-interval",
+			dataMap: map[string]string{
+				"volume-health-cleanup-interval": "invalid",
 			},
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
+		},
+		{
+			name: "config file has non positive volume-health-cleanup-interval",
+			dataMap: map[string]string{
+				"volume-health-cleanup-interval": "0s",
+			},
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
+		},
+		{
+			name: "config file modifies volume-health-stale-threshold",
+			dataMap: map[string]string{
+				"volume-health-stale-threshold": "3h",
+			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.VolumeHealthStaleThreshold = 3 * time.Hour
+			}),
 			wantErr: false,
+		},
+		{
+			name: "config file has invalid volume-health-stale-threshold",
+			dataMap: map[string]string{
+				"volume-health-stale-threshold": "hours",
+			},
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies reclaim-space-timeout",
 			dataMap: map[string]string{
 				"reclaim-space-timeout": "10m",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     time.Minute * 10,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.ReclaimSpaceTimeout = 10 * time.Minute
+			}),
 			wantErr: false,
 		},
 		{
@@ -79,31 +101,17 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"reclaim-space-timeout": "hours",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies max-concurrent-reconciles",
 			dataMap: map[string]string{
 				"max-concurrent-reconciles": "1",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: 1,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.MaxConcurrentReconciles = 1
+			}),
 			wantErr: false,
 		},
 		{
@@ -111,16 +119,8 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"max-concurrent-reconciles": "invalid",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies both reclaim-space-timeout and max-concurrent-reconciles",
@@ -128,15 +128,10 @@ func TestConfigReadConfigFile(t *testing.T) {
 				"reclaim-space-timeout":     "10m",
 				"max-concurrent-reconciles": "5",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     time.Minute * 10,
-				MaxConcurrentReconciles: 5,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.ReclaimSpaceTimeout = 10 * time.Minute
+				cfg.MaxConcurrentReconciles = 5
+			}),
 			wantErr: false,
 		},
 		{
@@ -144,47 +139,25 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"network-fence-duration": "3m",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies schedule-precedence to pvc",
 			dataMap: map[string]string{
 				"schedule-precedence": "pvc",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: false,
+			newConfig: expectedConfig(nil),
+			wantErr:   false,
 		},
 		{
 			name: "config file modifies schedule-precedence to storageclass",
 			dataMap: map[string]string{
 				"schedule-precedence": "storageclass",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      ScheduleSC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.SchedulePrecedence = ScheduleSC
+			}),
 			wantErr: false,
 		},
 		{
@@ -192,15 +165,9 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"schedule-precedence": "sc-only",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      ScheduleSC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.SchedulePrecedence = ScheduleSC
+			}),
 			wantErr: false,
 		},
 		{
@@ -208,63 +175,33 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"schedule-precedence": "invalid-precedence",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file has empty schedule-precedence which was once valid and inferred as pvc",
 			dataMap: map[string]string{
 				"schedule-precedence": "",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: false,
+			newConfig: expectedConfig(nil),
+			wantErr:   false,
 		},
 		{
 			name: "config file has empty max-group-pvcs",
 			dataMap: map[string]string{
 				"max-group-pvcs": "",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies max-group-pvcs",
 			dataMap: map[string]string{
 				"max-group-pvcs": "25",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             25,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.MaxGroupPVC = 25
+			}),
 			wantErr: false,
 		},
 		{
@@ -272,47 +209,25 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"max-group-pvcs": "200",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file has empty csi-addons-node-retry-delay",
 			dataMap: map[string]string{
 				"csi-addons-node-retry-delay": "",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies csi-addons-node-retry-delay",
 			dataMap: map[string]string{
 				"csi-addons-node-retry-delay": "30",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 30,
-				CronJobStaggerWindow:    2,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.CSIAddonsNodeRetryDelay = 30
+			}),
 			wantErr: false,
 		},
 		{
@@ -320,31 +235,17 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"csi-addons-node-retry-delay": "0",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file modifies cronjob-stagger-window",
 			dataMap: map[string]string{
 				"cronjob-stagger-window": "5",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    5,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.CronJobStaggerWindow = 5
+			}),
 			wantErr: false,
 		},
 		{
@@ -352,31 +253,17 @@ func TestConfigReadConfigFile(t *testing.T) {
 			dataMap: map[string]string{
 				"cronjob-stagger-window": "",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    2,
-			},
-			wantErr: true,
+			newConfig: expectedConfig(nil),
+			wantErr:   true,
 		},
 		{
 			name: "config file sets cronjob-stagger-window to zero to disable",
 			dataMap: map[string]string{
 				"cronjob-stagger-window": "0",
 			},
-			newConfig: Config{
-				Namespace:               defaultNamespace,
-				ReclaimSpaceTimeout:     defaultReclaimSpaceTimeout,
-				MaxConcurrentReconciles: defaultMaxConcurrentReconciles,
-				SchedulePrecedence:      SchedulePVC,
-				MaxGroupPVC:             100,
-				CSIAddonsNodeRetryDelay: 5,
-				CronJobStaggerWindow:    0,
-			},
+			newConfig: expectedConfig(func(cfg *Config) {
+				cfg.CronJobStaggerWindow = 0
+			}),
 			wantErr: false,
 		},
 	}
@@ -390,4 +277,14 @@ func TestConfigReadConfigFile(t *testing.T) {
 			assert.Equal(t, tt.newConfig, cfg)
 		})
 	}
+}
+
+func expectedConfig(override func(*Config)) Config {
+	cfg := NewConfig()
+
+	if override != nil {
+		override(&cfg)
+	}
+
+	return cfg
 }
