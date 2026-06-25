@@ -81,6 +81,10 @@ func main() {
 		leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 5*time.Second, "Duration, in seconds, the LeaderElector clients should wait between tries of actions. Defaults to 5 seconds.")
 		enableAuthChecks            = flag.Bool("enable-auth", true, "Enable Authorization checks and TLS communication (enabled by default)")
 
+		tlsMinVersion       = flag.String("tls-min-version", "", "Minimum TLS version (VersionTLS12, VersionTLS13). Empty uses Go default (TLS 1.2)")
+		tlsCipherSuites     = flag.String("tls-cipher-suites", "", "Comma-separated list of TLS 1.2 cipher suites using Go names. Empty uses Go defaults. Ignored for TLS 1.3 connections")
+		tlsCurvePreferences = flag.String("tls-curve-preferences", "", "Comma-separated list of preferred key exchange curves/groups using Go names (X25519, CurveP256, CurveP384, CurveP521, X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024). Empty uses Go defaults")
+
 		// volume condition reporting
 		enableVolumeCondition    = flag.Bool("enable-volume-condition", false, "Enable reporting of the volume condition")
 		volumeConditionInterval  = flag.Duration("volume-condition-interval", 1*time.Minute, "Interval between volume condition checks")
@@ -142,6 +146,16 @@ func main() {
 	controllerEndpoint, err := sideutil.BuildEndpointURL(*controllerIP, *controllerPort, *podName, *podNamespace)
 	if err != nil {
 		setupLog.Error(err, "Failed to validate controller endpoint")
+		os.Exit(1)
+	}
+
+	tlsConfig, err := util.BuildTLSConfig(util.TLSOptions{
+		MinVersion:       *tlsMinVersion,
+		CipherSuites:     *tlsCipherSuites,
+		CurvePreferences: *tlsCurvePreferences,
+	})
+	if err != nil {
+		setupLog.Error(err, "Invalid TLS configuration")
 		os.Exit(1)
 	}
 
@@ -228,7 +242,7 @@ func main() {
 		}()
 	}
 
-	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks)
+	sidecarServer := server.NewSidecarServer(*controllerIP, *controllerPort, kubeClient, *enableAuthChecks, tlsConfig)
 	sidecarServer.RegisterService(service.NewIdentityServer(csiClient.GetGRPCClient()))
 	sidecarServer.RegisterService(service.NewReclaimSpaceServer(csiClient.GetGRPCClient(), kubeClient, *stagingPath))
 	sidecarServer.RegisterService(service.NewNetworkFenceServer(csiClient.GetGRPCClient(), kubeClient))
