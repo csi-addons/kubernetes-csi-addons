@@ -195,8 +195,8 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			return reconcile.Result{}, err
 		}
 		if len(pvcList) > r.MaxGroupPVCCount {
-			err = fmt.Errorf("more than %q PVCs match the given selector", r.MaxGroupPVCCount)
-			r.log.Error(err, "only %q PVCs are allowed for volume group replication", r.MaxGroupPVCCount)
+			err = fmt.Errorf("more than %d PVCs match the given selector", r.MaxGroupPVCCount)
+			r.log.Error(err, "only %d PVCs are allowed for volume group replication", r.MaxGroupPVCCount)
 			_ = r.setGroupReplicationFailure(instance, err)
 			return reconcile.Result{}, err
 		}
