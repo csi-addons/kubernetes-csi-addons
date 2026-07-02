@@ -52,7 +52,7 @@ const (
 	SchedulePVC                    = "pvc"
 	MaxGroupPVCKey                 = "max-group-pvcs"
 	defaultMaxGroupPVC             = 100 // based on ceph's support/testing
-	defaultCSIAddonsNodeRetryDelay = 5   //seconds
+	defaultCSIAddonsNodeRetryDelay = 5   // seconds
 	CsiaddonsNodeRetryDelayKey     = "csi-addons-node-retry-delay"
 	defaultCronJobStaggerWindow    = 2
 	CronJobStaggerWindowKey        = "cronjob-stagger-window"
@@ -176,7 +176,7 @@ func (cfg *Config) validateAndSetCSIAddonsNodeRetryDelay(val string) error {
 	}
 
 	if delay < 1 {
-		return fmt.Errorf("got an invalid value: %q for key: %q", delay, CsiaddonsNodeRetryDelayKey)
+		return fmt.Errorf("got an invalid value: %d for key: %q", delay, CsiaddonsNodeRetryDelayKey)
 	}
 	cfg.CSIAddonsNodeRetryDelay = delay
 
