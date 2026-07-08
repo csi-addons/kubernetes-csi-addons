@@ -1,0 +1,112 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/name: csi-volume-device-exporter
+    app.kubernetes.io/managed-by: csi-addons
+  name: csi-volume-path-health
+  namespace: csi-addons-system
+spec:
+  groups:
+    - name: csi-volume-path-health
+      rules:
+        - alert: CSIVolumeMultipathDegraded
+          expr: |-
+            (label_replace(
+              label_replace(
+                kube_persistentvolume_info,
+                "volume_handle", "$1", "csi_volume_handle", "(.+)"
+              )
+              * on(volume_handle) group_left(device, node, driver)
+              csi_volume_node_device_info,
+              "sysfs_name", "$1", "device", "(.*)"
+            )
+            * on(sysfs_name, node) group_left(device)
+            node_dmmultipath_device_info)
+            * on(device, node) group_left()
+            (
+              count by(device, node) (node_dmmultipath_path_state{state!~"running|live"} == 1) > 0
+            )
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: At least one path to the multipath device has failed. Storage is still accessible via remaining paths but redundancy is lost.
+            runbook_url: https://github.com/csi-addons/kubernetes-csi-addons/blob/main/docs/volume-device-exporter/runbooks/CSIVolumeMultipathDegraded.md
+            summary: PV {{ $labels.persistentvolume }} on {{ $labels.node }} has degraded multipath (device {{ $labels.device }})
+        - alert: CSIVolumeMultipathLost
+          expr: |-
+            (label_replace(
+              label_replace(
+                kube_persistentvolume_info,
+                "volume_handle", "$1", "csi_volume_handle", "(.+)"
+              )
+              * on(volume_handle) group_left(device, node, driver)
+              csi_volume_node_device_info,
+              "sysfs_name", "$1", "device", "(.*)"
+            )
+            * on(sysfs_name, node) group_left(device)
+            node_dmmultipath_device_info)
+            * on(device, node) group_left()
+            (
+              node_dmmultipath_device_paths_active == 0
+            )
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            description: All paths to the multipath device are down. I/O is likely failing. Immediate investigation of storage connectivity on node {{ $labels.node }} is required.
+            runbook_url: https://github.com/csi-addons/kubernetes-csi-addons/blob/main/docs/volume-device-exporter/runbooks/CSIVolumeMultipathLost.md
+            summary: PV {{ $labels.persistentvolume }} on {{ $labels.node }} has lost all multipath paths (device {{ $labels.device }})
+        - alert: CSIVolumeNVMeSubsystemDegraded
+          expr: |-
+            (label_replace(
+              kube_persistentvolume_info,
+              "volume_handle", "$1", "csi_volume_handle", "(.+)"
+            )
+            * on(volume_handle) group_left(device, node, driver)
+            csi_volume_node_device_info{device=~"nvme.*"}
+            * on(device, node) group_left(subsystem)
+            node_nvmesubsystem_namespace_info)
+            * on(subsystem) group_left()
+            (
+              node_nvmesubsystem_paths - node_nvmesubsystem_paths_live > 0
+            )
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: At least one NVMe-oF controller path is not live. Storage is still accessible via remaining controllers but redundancy is lost.
+            runbook_url: https://github.com/csi-addons/kubernetes-csi-addons/blob/main/docs/volume-device-exporter/runbooks/CSIVolumeNVMeSubsystemDegraded.md
+            summary: PV {{ $labels.persistentvolume }} on {{ $labels.node }} has degraded NVMe-oF subsystem ({{ $labels.subsystem }})
+        - alert: CSIVolumeNVMeSubsystemLost
+          expr: |-
+            (label_replace(
+              kube_persistentvolume_info,
+              "volume_handle", "$1", "csi_volume_handle", "(.+)"
+            )
+            * on(volume_handle) group_left(device, node, driver)
+            csi_volume_node_device_info{device=~"nvme.*"}
+            * on(device, node) group_left(subsystem)
+            node_nvmesubsystem_namespace_info)
+            * on(subsystem) group_left()
+            (
+              node_nvmesubsystem_paths_live == 0
+            )
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            description: All NVMe-oF controller paths are dead. I/O is likely failing. Immediate investigation of storage connectivity on node {{ $labels.node }} is required.
+            runbook_url: https://github.com/csi-addons/kubernetes-csi-addons/blob/main/docs/volume-device-exporter/runbooks/CSIVolumeNVMeSubsystemLost.md
+            summary: PV {{ $labels.persistentvolume }} on {{ $labels.node }} has lost all NVMe-oF controller paths ({{ $labels.subsystem }})
+        - alert: CSIVolumeDeviceExporterDown
+          expr: absent(up{job="csi-volume-device-exporter"}) == 1
+          for: 5m
+          labels:
+            operator_health_impact: warning
+            severity: warning
+          annotations:
+            description: No csi-volume-device-exporter targets have been scraped for 5 minutes. Storage path health for CSI volumes cannot be reported.
+            runbook_url: https://github.com/csi-addons/kubernetes-csi-addons/blob/main/docs/volume-device-exporter/runbooks/CSIVolumeDeviceExporterDown.md
+            summary: CSI volume device exporter is not running

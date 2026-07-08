@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: csi-volume-device-exporter
+  namespace: csi-addons-system
+  labels:
+    app.kubernetes.io/name: csi-volume-device-exporter
+    app.kubernetes.io/managed-by: csi-addons
+spec:
+  # jobLabel causes Prometheus Operator to set the `job` label on scraped
+  # metrics to the value of this pod label. This must produce the string
+  # "csi-volume-device-exporter" so that the CSIVolumeDeviceExporterDown alert
+  # selector (job="csi-volume-device-exporter") matches.
+  jobLabel: app.kubernetes.io/name
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: csi-volume-device-exporter
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
