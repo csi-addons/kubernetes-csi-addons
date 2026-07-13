@@ -51,12 +51,13 @@ type SidecarServer struct {
 	server           *grpc.Server
 	services         []SidecarService
 	enableAuthChecks bool
+	tlsConfig        *tls.Config
 }
 
 // NewSidecarServer create a new SidecarServer on the given IP-address and
 // port. If the IP-address is an empty string, the server will listen on all
 // available IP-addresses. Only tcp ports are supported.
-func NewSidecarServer(ip, port string, client *k8s.Clientset, enableAuthChecks bool) *SidecarServer {
+func NewSidecarServer(ip, port string, client *k8s.Clientset, enableAuthChecks bool, tlsConfig *tls.Config) *SidecarServer {
 	ss := &SidecarServer{}
 
 	if ss.services == nil {
@@ -67,6 +68,7 @@ func NewSidecarServer(ip, port string, client *k8s.Clientset, enableAuthChecks b
 	ss.endpoint = ip + ":" + port
 	ss.client = client
 	ss.enableAuthChecks = enableAuthChecks
+	ss.tlsConfig = tlsConfig
 	return ss
 }
 
@@ -86,12 +88,13 @@ func (ss *SidecarServer) Start() {
 			panic("Failed to generate self-signed certificate: " + err.Error())
 		}
 
-		// Create TLS credentials
-		creds := credentials.NewTLS(&tls.Config{
-			Certificates: []tls.Certificate{cert},
-		})
-		// create the gRPC server and register services
-		ss.server = grpc.NewServer(grpc.UnaryInterceptor(token.AuthorizationInterceptor(*ss.client)), grpc.Creds(creds))
+		tlsConfig := ss.tlsConfig.Clone()
+		tlsConfig.Certificates = []tls.Certificate{cert}
+		creds := credentials.NewTLS(tlsConfig)
+
+		ss.server = grpc.NewServer(
+			grpc.UnaryInterceptor(token.AuthorizationInterceptor(*ss.client)),
+			grpc.Creds(creds))
 	} else {
 		ss.server = grpc.NewServer()
 	}
