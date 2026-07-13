@@ -27,7 +27,7 @@ The CSI Volume Device Exporter solves this by providing the **join key** between
 
 1. **Driver-agnostic CSI infrastructure** — The exporter works for all CSI drivers without any driver-specific code. This aligns with csi-addons' role as a vendor-neutral CSI ecosystem project.
 2. **Complements existing csi-addons operations** — ReclaimSpace, NetworkFence, and VolumeReplication all operate on CSI volumes. The exporter provides observability into the physical layer beneath those volumes.
-3. **Deployment lifecycle** — The csi-addons operator already manages per-node components (the sidecar). Adding a DaemonSet for volume observability is a natural extension of its lifecycle management.
+3. **Shared infrastructure scope** — The csi-addons project already covers per-node CSI concerns (sidecars, node operations). A volume observability DaemonSet is a natural addition to this scope, even though deployment is handled externally (e.g., by CSO on OpenShift).
 4. **Cross-distribution** — Housing the exporter here makes it available to any Kubernetes distribution, not tied to a specific platform operator.
 
 ## Goal
@@ -85,7 +85,7 @@ The CSI Volume Device Exporter solves this by providing the **join key** between
 
 The exporter is a **standalone binary** — it does not communicate with CSI drivers via gRPC, does not use CRDs, and does not depend on the csi-addons controller. It reads host files and emits Prometheus metrics.
 
-The csi-addons operator manages its full lifecycle: DaemonSet, PrometheusRule, and PodMonitor are deployed and upgraded atomically by the operator controller. This ensures alert rule PromQL stays in sync with the metric names and labels the exporter emits.
+The exporter's deployment lifecycle (DaemonSet, PrometheusRule, PodMonitor) is managed by the platform operator that deploys it (e.g., cluster-storage-operator on OpenShift). These three resources are upgraded atomically as a unit, ensuring alert rule PromQL stays in sync with the metric names and labels the exporter emits.
 
 ### Discovery Strategy
 
@@ -198,21 +198,24 @@ spec:
 - **node_exporter#3581** (merged) — `dmmultipath` collector exposing per-path state
 - **node_exporter#3579** (merged) — `nvmesubsystem` collector exposing NVMe-oF health
 - **openshift-virtualization/csi-volume-device-exporter#1** — reference implementation (approved)
-- **csi-addons/kubernetes-csi-addons#1039** (closed) — previous attempt; closed because framing as a gRPC extension was an architectural mismatch. This proposal takes a different approach: the exporter is a standalone component managed by the csi-addons operator, not a gRPC RPC.
+- **csi-addons/kubernetes-csi-addons#1039** (closed) — previous attempt; closed because framing as a gRPC extension was an architectural mismatch. This proposal takes a different approach: the exporter is a standalone component hosted under the csi-addons organization, with deployment managed externally (not via gRPC RPCs or the csi-addons operator).
 
 ## Deployment Lifecycle
 
-The csi-addons operator deploys the exporter **unconditionally** when the operator is installed. The exporter is benign on clusters without multipath or NVMe-oF storage — it emits volume-to-device mappings but the correlation alerts simply don't fire (the PromQL join produces no matches when `node_dmmultipath_*` / `node_nvmesubsystem_*` metrics are absent).
+The exporter is a standalone binary with no CRDs, no leader election, and no Kubernetes API access. It does not depend on the csi-addons operator for deployment. The csi-addons organization hosts the source code and container image; deployment is handled by the platform's storage operator.
 
-The operator manages three resources as a unit:
+On OpenShift, the cluster-storage-operator (CSO) deploys and reconciles three resources as a unit:
 - **DaemonSet** — the exporter pods
 - **PrometheusRule** — alert rules (upgraded atomically with the exporter to keep PromQL in sync with metric names)
 - **PodMonitor** — scrape configuration
 
+The exporter is benign on clusters without multipath or NVMe-oF storage — it emits volume-to-device mappings but the correlation alerts simply don't fire (the PromQL join produces no matches when `node_dmmultipath_*` / `node_nvmesubsystem_*` metrics are absent).
+
 This approach:
 - Eliminates configuration burden (no opt-in flag to discover and enable)
 - Guarantees alert rules always match the running exporter version
-- Works on both ODF clusters (where csi-addons is bundled) and non-ODF clusters (standalone install from OperatorHub)
+- Requires no additional operator installation — CSO is already present on all OpenShift clusters
+- On non-OpenShift Kubernetes, the manifests can be applied directly via `kubectl apply`
 
 ## Open Questions
 
