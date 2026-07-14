@@ -51,10 +51,12 @@ var (
 	// available recorders for the --volume-condition-recorders flag
 	volumeConditionLogRecorder      = "log"
 	volumeConditionPVCEventRecorder = "pvcEvent"
+	volumeConditionPVCAnnotation    = "pvcAnnotation"
 
 	defaultVolumeConditionRecorders = strings.Join([]string{
 		volumeConditionLogRecorder,
 		volumeConditionPVCEventRecorder,
+		volumeConditionPVCAnnotation,
 	}, ",")
 )
 
@@ -220,6 +222,8 @@ func main() {
 					recorderOptions = append(recorderOptions, condition.WithLogRecorder())
 				case volumeConditionPVCEventRecorder:
 					recorderOptions = append(recorderOptions, condition.WithEventRecorder())
+				case volumeConditionPVCAnnotation:
+					recorderOptions = append(recorderOptions, condition.WithPVCAnnotationRecorder())
 				default:
 					setupLog.Error(fmt.Errorf("condition recorder %q is unknown", vcr), "Unknown condition recorder")
 					os.Exit(1)

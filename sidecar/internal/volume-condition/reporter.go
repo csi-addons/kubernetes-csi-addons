@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -75,12 +76,13 @@ func NewVolumeConditionReporter(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node %q: %w", hostname, err)
 	}
+	nodeUID := n.UID()
 
 	// TODO: use options for the recorders
 	recorders := make([]conditionRecorder, len(recorderOptions))
 	for i, opt := range recorderOptions {
 		var rec conditionRecorder
-		rec, err = opt.newRecorder(client, hostname)
+		rec, err = opt.newRecorder(client, hostname, nodeUID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create recorder: %w", err)
 		}
@@ -100,7 +102,8 @@ func NewVolumeConditionReporter(
 // Run starts the volume condition reporter. This function never returns, only
 // if a critical error occurs.
 // Only new/updated volume conditions are reported, this prevents noise of
-// recurring conditions.
+// recurring conditions. But, this can be overridden
+// by the "recordUnchangedVolumes" flag on a recorder.
 func (cvr *volumeConditionReporter) Run(ctx context.Context, interval time.Duration) error {
 	running := time.Tick(interval)
 	if running == nil {
@@ -128,12 +131,12 @@ func (cvr *volumeConditionReporter) Run(ctx context.Context, interval time.Durat
 				continue
 			}
 
-			if !cvr.isUpdatedVolumeCondition(v.GetVolumeID(), vc) {
-				// skip recording if there is no update
+			updated := cvr.isUpdatedVolumeCondition(v.GetVolumeID(), vc)
+			if !updated && !cvr.hasAnyRecorderForUnchangedVolume() {
 				continue
 			}
 
-			cvr.recordVolumeCondition(ctx, v.GetVolumeID(), vc)
+			cvr.recordVolumeCondition(ctx, v.GetVolumeID(), vc, updated)
 		}
 
 		cvr.pruneConditionCache(volumes)
@@ -171,7 +174,12 @@ func (cvr *volumeConditionReporter) pruneConditionCache(volumes []volume.CSIVolu
 
 // recordVolumeCondition resolves the PersistentVolume from the given volumeID
 // and loops through all recorders to report the volume condition.
-func (cvr *volumeConditionReporter) recordVolumeCondition(ctx context.Context, volumeID string, vc volume.VolumeCondition) {
+func (cvr *volumeConditionReporter) recordVolumeCondition(
+	ctx context.Context,
+	volumeID string,
+	vc volume.VolumeCondition,
+	updated bool,
+) {
 	pvName, err := platform.GetPlatform().ResolvePersistentVolumeName(cvr.driver.GetDrivername(), volumeID)
 	if err != nil {
 		logger.Error(err, "Failed to resolve persistent volume name")
@@ -184,11 +192,61 @@ func (cvr *volumeConditionReporter) recordVolumeCondition(ctx context.Context, v
 		return
 	}
 
+	claim := pv.Spec.ClaimRef
+	var (
+		pvc    *corev1.PersistentVolumeClaim
+		pvcErr error
+	)
+	// fetch PVC details only once, when at least one active recorder needs it,
+	// instead of fetching it for every recorder, preventing unnecessary API calls.
+	if cvr.hasAnyRecorderNeedingPVC(updated) {
+		if claim == nil {
+			pvcErr = fmt.Errorf("persistent volume %q does not have a claim (unused?)", pv.Name)
+			logger.Error(pvcErr, "Failed to get claim from persistent volume", "pvName", pvName)
+		} else {
+			pvc, pvcErr = cvr.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Get(ctx, claim.Name, metav1.GetOptions{})
+			if pvcErr != nil {
+				logger.Error(pvcErr, "Failed to get persistent volume claim", "pvcName", claim.Name, "namespace", claim.Namespace)
+			}
+		}
+	}
+
 	for _, recorder := range cvr.recorders {
-		err = recorder.record(ctx, pv, vc)
+		if !updated && !recorder.recordUnchangedVolumes() {
+			continue
+		}
+
+		if recorder.needsPVC() && pvcErr != nil {
+			continue
+		}
+
+		err = recorder.record(ctx, pv, pvc, vc)
 		if err != nil {
 			logger.Error(err, "Failed to record volume condition for persistent volume",
 				"recorder", fmt.Sprintf("%T", recorder), "pvName", pv.Name)
 		}
 	}
+}
+
+func (cvr *volumeConditionReporter) hasAnyRecorderForUnchangedVolume() bool {
+	for _, recorder := range cvr.recorders {
+		if recorder.recordUnchangedVolumes() {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (cvr *volumeConditionReporter) hasAnyRecorderNeedingPVC(updated bool) bool {
+	for _, recorder := range cvr.recorders {
+		if !updated && !recorder.recordUnchangedVolumes() {
+			continue
+		}
+		if recorder.needsPVC() {
+			return true
+		}
+	}
+
+	return false
 }

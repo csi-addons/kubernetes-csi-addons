@@ -28,12 +28,19 @@ import (
 // conditionRecorder provides the interface for recorders that will record the
 // volume condition.
 type conditionRecorder interface {
-	record(ctx context.Context, pv *corev1.PersistentVolume, vc volume.VolumeCondition) error
+	record(ctx context.Context, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, vc volume.VolumeCondition) error
+	// needsPVC indicates whether this recorder requires a PVC object.
+	// The reporter fetches PVC details only once, when at least one active recorder
+	// for the current volume condition needs it.
+	needsPVC() bool
+	// recordUnchangedVolumes indicates whether this recorder should be called
+	// when the volume condition does not change between ticks.
+	recordUnchangedVolumes() bool
 }
 
 // RecorderOption is the interface for creating new recorders. The
 // VolumeConditionReporter will use this interface to configure a recorder
 // and uses it to report the volume condition.
 type RecorderOption struct {
-	newRecorder func(client *kubernetes.Clientset, hostname string) (conditionRecorder, error)
+	newRecorder func(client *kubernetes.Clientset, hostname, nodeUID string) (conditionRecorder, error)
 }
