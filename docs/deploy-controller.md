@@ -118,6 +118,14 @@ NAME                                                       DESIRED   CURRENT   R
 replicaset.apps/csi-addons-controller-manager-687d47b8c7   1         1         1       49s
 ```
 
+## NetworkPolicy
+
+A NetworkPolicy for the controller-manager is included in all generated
+manifests by default (`config/networkpolicy/`). The policy denies all
+ingress to the controller-manager pod and allows open egress (required for
+API server access and gRPC connections to CSI-driver sidecar pods in any
+namespace).
+
 ## Resource Requirements
 
 The resource requirements for the CSI-Addons Controller depends on the number of
