@@ -370,17 +370,22 @@ func getNextSchedule(
 	} else {
 		earliestTime = rsCronJob.CreationTimestamp.Time
 	}
+
+	rawNext := sched.Next(now)
+	staggeredNext := utils.GetStaggeredNext(rsCronJob.UID, rawNext, sched, staggerWindow)
+	staggerOffset := staggeredNext.Sub(rawNext)
+
 	if rsCronJob.Spec.StartingDeadlineSeconds != nil {
-		// controller is not going to schedule anything below this point
-		schedulingDeadline := now.Add(-time.Second * time.Duration(*rsCronJob.Spec.StartingDeadlineSeconds))
+		// Account for the stagger offset so that the intentional
+		// delay does not count against the starting deadline.
+		deadline := time.Second * time.Duration(*rsCronJob.Spec.StartingDeadlineSeconds)
+		schedulingDeadline := now.Add(-deadline - staggerOffset)
 
 		if schedulingDeadline.After(earliestTime) {
 			earliestTime = schedulingDeadline
 		}
 	}
 
-	rawNext := sched.Next(now)
-	staggeredNext := utils.GetStaggeredNext(rsCronJob.UID, rawNext, sched, staggerWindow)
 	if earliestTime.After(now) {
 		return time.Time{}, staggeredNext, nil
 	}
@@ -401,5 +406,7 @@ func getNextSchedule(
 					" delete and recreate reclaimspacecronjob")
 		}
 	}
-	return lastMissed, staggeredNext, nil
+
+	staggeredMissed := utils.GetStaggeredNext(rsCronJob.UID, lastMissed, sched, staggerWindow)
+	return staggeredMissed, staggeredNext, nil
 }

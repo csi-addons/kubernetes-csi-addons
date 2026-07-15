@@ -163,7 +163,7 @@ func TestGetNextSchedule(t *testing.T) {
 					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule:                "0 0 * * *",
-						StartingDeadlineSeconds: ptr.To(int64(3600)),
+						StartingDeadlineSeconds: ptr.To(int64(86400)),
 					},
 					Status: csiaddonsv1alpha1.ReclaimSpaceCronJobStatus{
 						LastScheduleTime: &metav1.Time{Time: now.Add(-24 * time.Hour).Truncate(24 * time.Hour).Local()},
@@ -184,7 +184,7 @@ func TestGetNextSchedule(t *testing.T) {
 					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule:                "*/1 * * * *",
-						StartingDeadlineSeconds: ptr.To(int64(6000)),
+						StartingDeadlineSeconds: ptr.To(int64(5880)),
 					},
 					Status: csiaddonsv1alpha1.ReclaimSpaceCronJobStatus{
 						LastScheduleTime: &metav1.Time{Time: now.Add(-time.Hour * 2)},
@@ -205,7 +205,7 @@ func TestGetNextSchedule(t *testing.T) {
 					},
 					Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
 						Schedule:                "*/1 * * * *",
-						StartingDeadlineSeconds: ptr.To(int64(6060)),
+						StartingDeadlineSeconds: ptr.To(int64(6120)),
 					},
 					Status: csiaddonsv1alpha1.ReclaimSpaceCronJobStatus{
 						LastScheduleTime: &metav1.Time{Time: now.Add(-time.Hour * 2)},
@@ -230,15 +230,76 @@ func TestGetNextSchedule(t *testing.T) {
 				return
 			}
 
-			if !gotLastMissed.Equal(tt.lastMissed) && !gotLastMissed.Equal(time.Time{}) {
-				t.Errorf("getNextSchedule() got last missed = %v, want %v", gotLastMissed, tt.lastMissed)
+			sched := mustParse(tt.args.rsCronJob.Spec.Schedule)
+
+			if !tt.lastMissed.IsZero() {
+				expectedStaggered := utils.GetStaggeredNext(tt.args.rsCronJob.UID, tt.lastMissed, sched, 2)
+				if !gotLastMissed.Equal(expectedStaggered) {
+					t.Errorf("getNextSchedule() got last missed = %v, want %v (staggered from %v)", gotLastMissed, expectedStaggered, tt.lastMissed)
+				}
+			} else if !gotLastMissed.IsZero() {
+				t.Errorf("getNextSchedule() got last missed = %v, want zero", gotLastMissed)
 			}
 
-			sched := mustParse(tt.args.rsCronJob.Spec.Schedule)
 			staggered := utils.GetStaggeredNext(tt.args.rsCronJob.UID, tt.nextSchedule, sched, 2)
 			if !gotNextSchedule.Equal(staggered) {
 				t.Errorf("getNextSchedule() got next schedule = %v, want %v", gotNextSchedule, staggered)
 			}
 		})
+	}
+}
+
+func TestGetNextSchedule_StaggerPreservesStartingDeadline(t *testing.T) {
+	schedule := "0 0 * * *"
+	staggerCap := 2
+	uid := types.UID("stagger-deadline-rs")
+	sched, err := cron.ParseStandard(schedule)
+	if err != nil {
+		t.Fatalf("Failed to parse schedule: %v", err)
+	}
+
+	midnight := time.Date(2026, 7, 15, 0, 0, 0, 0, time.Local)
+	prevMidnight := midnight.Add(-24 * time.Hour)
+	nextMidnight := midnight.Add(24 * time.Hour)
+
+	staggeredNext := utils.GetStaggeredNext(uid, nextMidnight, sched, staggerCap)
+	staggerOffset := staggeredNext.Sub(nextMidnight)
+
+	// Simulate the controller waking up just after the staggered time.
+	testNow := midnight.Add(staggerOffset + 10*time.Second)
+	// Set StartingDeadlineSeconds smaller than the stagger offset.
+	// Without the fix, this would cause the scheduling deadline window
+	// to exclude midnight, silently skipping the run.
+	startingDeadline := int64(staggerOffset.Seconds() / 2)
+	if startingDeadline < 60 {
+		startingDeadline = 60
+	}
+
+	rsCronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+		ObjectMeta: metav1.ObjectMeta{UID: uid},
+		Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+			Schedule:                schedule,
+			StartingDeadlineSeconds: ptr.To(startingDeadline),
+		},
+		Status: csiaddonsv1alpha1.ReclaimSpaceCronJobStatus{
+			LastScheduleTime: &metav1.Time{Time: prevMidnight},
+		},
+	}
+
+	gotLastMissed, _, err := getNextSchedule(rsCronJob, testNow, staggerCap)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedStaggered := utils.GetStaggeredNext(uid, midnight, sched, staggerCap)
+	if !gotLastMissed.Equal(expectedStaggered) {
+		t.Errorf("got last missed = %v, want %v (staggered from %v)", gotLastMissed, expectedStaggered, midnight)
+	}
+
+	// The reconciler's "too late" check must not trigger.
+	deadline := time.Duration(startingDeadline) * time.Second
+	if gotLastMissed.Add(deadline).Before(testNow) {
+		t.Errorf("staggered lastMissed %v + deadline %v is before now %v; run would be incorrectly skipped",
+			gotLastMissed, deadline, testNow)
 	}
 }
