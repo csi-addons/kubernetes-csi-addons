@@ -30,8 +30,8 @@ import (
 // GetStaggeredNext returns a deterministic, UID-based staggered time computed from a schedule.
 // The staggered window is capped at a maximum of `cap` but is adjusted for smaller intervals.
 func GetStaggeredNext(uid apiTypes.UID, nextTime time.Time, sched cron.Schedule, cap int) time.Time {
-	// if cap is set to 0, do not apply any stagger
-	if cap == 0 {
+	// Don't stagger when disabled(cap==0) or when nextTime is zero.
+	if cap == 0 || nextTime.IsZero() {
 		return nextTime
 	}
 
