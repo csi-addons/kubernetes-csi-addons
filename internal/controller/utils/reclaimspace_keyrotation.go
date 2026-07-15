@@ -18,10 +18,14 @@ package utils
 
 import (
 	"errors"
+	"math"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,10 +37,26 @@ const (
 	DefaultRetryDeadlineSeconds = 600
 )
 
+const (
+	abortedRequeueBaseDelay = 5 * time.Second
+)
+
 var (
 	ErrConnNotFoundRequeueNeeded = errors.New("connection not found, requeue needed")
 	ErrScheduleNotFound          = errors.New("schedule not found")
 )
+
+// ResultForAbortedError checks if the error is a gRPC Aborted error and
+// returns a Result with exponential backoff based on the retry count.
+// Returns (result, true) if the error was Aborted, (empty, false) otherwise.
+func ResultForAbortedError(err error, retries int32) (ctrl.Result, bool) {
+	if !util.IsAbortedError(err) {
+		return ctrl.Result{}, false
+	}
+
+	backoff := abortedRequeueBaseDelay * time.Duration(math.Pow(2, float64(retries)))
+	return ctrl.Result{RequeueAfter: backoff}, true
+}
 
 func setKeyrotationSpec(v *csiaddonsv1alpha1.EncryptionKeyRotationCronJob, schedule, pvcName string) {
 	if v == nil {

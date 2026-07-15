@@ -142,6 +142,11 @@ func (r *EncryptionKeyRotationJobReconciler) Reconcile(ctx context.Context, req 
 		return ctrl.Result{}, nil
 	}
 
+	if result, ok := utils.ResultForAbortedError(err, krJob.Status.Retries); ok {
+		logger.Info("Operation aborted, requeuing with backoff", "err", err, "backoff", result.RequeueAfter)
+		return result, nil
+	}
+
 	return ctrl.Result{}, err
 }
 

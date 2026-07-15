@@ -108,3 +108,48 @@ func TestIsUmplementedError(t *testing.T) {
 		})
 	}
 }
+
+func TestIsAbortedError(t *testing.T) {
+	type input struct {
+		err error
+	}
+	tests := []struct {
+		name string
+		args input
+		want bool
+	}{
+		{
+			name: "nil error",
+			args: input{
+				err: nil,
+			},
+			want: false,
+		},
+		{
+			name: "Aborted error",
+			args: input{
+				err: status.Error(codes.Aborted, "aborted"),
+			},
+			want: true,
+		},
+		{
+			name: "Non aborted error",
+			args: input{
+				err: status.Error(codes.NotFound, "not found"),
+			},
+			want: false,
+		},
+		{
+			name: "Non grpc status error",
+			args: input{
+				err: errors.New("new error"),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsAbortedError(tt.args.err))
+		})
+	}
+}
