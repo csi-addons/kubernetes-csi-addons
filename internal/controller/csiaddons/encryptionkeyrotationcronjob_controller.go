@@ -307,17 +307,22 @@ func getNextScheduleForKeyRotation(
 	} else {
 		earliestTime = krcJob.CreationTimestamp.Time
 	}
+
+	rawNext := sched.Next(now)
+	staggeredNext := utils.GetStaggeredNext(krcJob.UID, rawNext, sched, staggerWindow)
+	staggerOffset := staggeredNext.Sub(rawNext)
+
 	if krcJob.Spec.StartingDeadlineSeconds != nil {
-		// controller is not going to schedule anything below this point
-		schedulingDeadline := now.Add(-time.Second * time.Duration(*krcJob.Spec.StartingDeadlineSeconds))
+		// Account for the stagger offset so that the intentional
+		// delay does not count against the starting deadline.
+		deadline := time.Second * time.Duration(*krcJob.Spec.StartingDeadlineSeconds)
+		schedulingDeadline := now.Add(-deadline - staggerOffset)
 
 		if schedulingDeadline.After(earliestTime) {
 			earliestTime = schedulingDeadline
 		}
 	}
 
-	rawNext := sched.Next(now)
-	staggeredNext := utils.GetStaggeredNext(krcJob.UID, rawNext, sched, staggerWindow)
 	if earliestTime.After(now) {
 		return time.Time{}, staggeredNext, nil
 	}
@@ -338,7 +343,9 @@ func getNextScheduleForKeyRotation(
 					" delete and recreate encryptionkeyrotationjob")
 		}
 	}
-	return lastMissed, staggeredNext, nil
+
+	staggeredMissed := utils.GetStaggeredNext(krcJob.UID, lastMissed, sched, staggerWindow)
+	return staggeredMissed, staggeredNext, nil
 }
 
 // constructEncryptionKeyRotationJob forms an EncryptionKeyRotationJob for a given
