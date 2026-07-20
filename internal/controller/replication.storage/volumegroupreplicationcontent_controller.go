@@ -51,6 +51,10 @@ type VolumeGroupReplicationContentReconciler struct {
 	Timeout time.Duration
 }
 
+var defaultRequeueForVGResources = ctrl.Result{
+	RequeueAfter: 15 * time.Second,
+}
+
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents/finalizers,verbs=update
@@ -175,7 +179,9 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		} else {
 			err = fmt.Errorf("cannot delete VolumeGroupReplicationContent resource, until dependent VolumeReplication instance is deleted")
 			logger.Error(err, "failed to delete VolumeGroupReplicationContent resource")
-			return reconcile.Result{}, err
+			// We should requeue with a delay as sometimes due to a failed update or multiple consecutive
+			// reconcile requests for different resources, the update gets missed and the deletion can take a long time.
+			return defaultRequeueForVGResources, err
 		}
 	}
 

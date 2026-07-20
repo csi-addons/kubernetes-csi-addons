@@ -370,11 +370,8 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 					return ctrl.Result{}, err
 				}
 
-				return ctrl.Result{
-					Requeue: true,
-					// Setting Requeue time for 15 seconds
-					RequeueAfter: time.Second * 15,
-				}, nil
+				// Setting Requeue with delay
+				return defaultRequeueForVGResources, nil
 			}
 		} else {
 			replicationErr = r.markVolumeAsSecondary(vr)
@@ -410,11 +407,8 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		if instance.Status.State == replicationv1alpha1.SecondaryState {
-			return ctrl.Result{
-				Requeue: true,
-				// in case of any error during secondary state, requeue for every 15 seconds.
-				RequeueAfter: time.Second * 15,
-			}, nil
+			// in case of any error during secondary state, requeue with a delay.
+			return defaultRequeueForVGResources, nil
 		}
 
 		return reconcile.Result{}, replicationErr
