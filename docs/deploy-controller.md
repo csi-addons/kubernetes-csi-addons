@@ -6,16 +6,20 @@ The CSI-Addons Controller can be deployed by different ways:
 
 **Available command-line arguments:**
 
-| Option                        | Default value | Description                                    |
-| ----------------------------- | ------------- | ---------------------------------------------- |
-| `--metrics-bind-address`      | `:8080`       | The address the metric endpoint binds to.      |
-| `--health-probe-bind-address` | `:8081`       | The address the probe endpoint binds to.       |
-| `--leader-elect`              | `false`       | Enable leader election for controller manager. |
-| `--reclaim-space-timeout`     | `3m`          | Timeout for reclaimspace operation             |
-| `--max-concurrent-reconciles` | 100           | Maximum number of concurrent reconciles        |
-| `--enable-auth`               | true          | Enable adding SA tokens to headers and TLS     |
+| Option                             | Default value | Description                                                        |
+| ---------------------------------- | ------------- | ------------------------------------------------------------------ |
+| `--metrics-bind-address`           | `:8080`       | The address the metric endpoint binds to.                          |
+| `--health-probe-bind-address`      | `:8081`       | The address the probe endpoint binds to.                           |
+| `--leader-elect`                   | `false`       | Enable leader election for controller manager.                     |
+| `--reclaim-space-timeout`          | `3m`          | Timeout for reclaimspace operation                                 |
+| `--max-concurrent-reconciles`      | 100           | Maximum number of concurrent reconciles                            |
+| `--enable-auth`                    | true          | Enable adding SA tokens to headers and TLS                         |
+| `--volume-health-cleanup-interval` | `30m`         | Interval for stale PVC volume health annotation cleanup runs       |
+| `--volume-health-stale-threshold`  | `2h`          | Staleness threshold for removing per-node volume health annotation |
 
 > Note: Some of the above configuration options can also be configured using [`"csi-addons-config"` configmap](./csi-addons-config.md).
+>
+> Note: When `--enable-volume-health-cleanup=false`, the volume health cleanup worker is disabled.
 
 ## Installation for latest deployments
 

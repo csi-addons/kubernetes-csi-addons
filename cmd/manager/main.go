@@ -76,6 +76,7 @@ func main() {
 		metricsAddr                 string
 		probeAddr                   string
 		enableLeaderElection        bool
+		enableVolumeHealthCleanup   bool
 		enableHTTP2                 bool
 		leaderElectionLeaseDuration time.Duration
 		leaderElectionRenewDeadline time.Duration
@@ -108,6 +109,9 @@ func main() {
 	flag.IntVar(&cfg.MaxGroupPVC, "max-group-pvc", cfg.MaxGroupPVC, "Maximum number of PVCs allowed in a volume group")
 	flag.IntVar(&cfg.CSIAddonsNodeRetryDelay, util.CsiaddonsNodeRetryDelayKey, cfg.CSIAddonsNodeRetryDelay, "Duration, in seconds, the CSIAddonsNode reconciler must wait before retrying the connection to csi-addons sidecar")
 	flag.IntVar(&cfg.CronJobStaggerWindow, util.CronJobStaggerWindowKey, cfg.CronJobStaggerWindow, "Duration, in hours, that the CronJobs for KeyRotation and ReclaimSpace are staggered within. Defaults to 2 hours, set as 0 to disable.")
+	flag.BoolVar(&enableVolumeHealthCleanup, "enable-volume-health-cleanup", true, "Enable stale PVC volume health annotation cleanup worker")
+	flag.DurationVar(&cfg.VolumeHealthCleanupInterval, util.VolumeHealthCleanupIntervalKey, cfg.VolumeHealthCleanupInterval, "Interval at which stale PVC volume health annotations are scanned and cleaned up")
+	flag.DurationVar(&cfg.VolumeHealthStaleThreshold, util.VolumeHealthStaleThresholdKey, cfg.VolumeHealthStaleThreshold, "Age after which a PVC volume health annotation is considered stale and eligible for cleanup")
 	opts := zap.Options{
 		Development: true,
 		TimeEncoder: zapcore.ISO8601TimeEncoder,
@@ -327,6 +331,19 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	if enableVolumeHealthCleanup {
+		if err = mgr.Add(&controllers.VolumeHealthCleanupWorker{
+			Client:          mgr.GetClient(),
+			CleanupInterval: cfg.VolumeHealthCleanupInterval,
+			StaleThreshold:  cfg.VolumeHealthStaleThreshold,
+		}); err != nil {
+			setupLog.Error(err, "unable to add runnable", "runnable", "VolumeHealthCleanupWorker")
+			os.Exit(1)
+		}
+	} else {
+		setupLog.Info("Volume health cleanup worker is disabled by flag")
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
