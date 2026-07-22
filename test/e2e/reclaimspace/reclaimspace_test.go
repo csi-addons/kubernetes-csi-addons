@@ -320,5 +320,59 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				return updatedCronJob.Status.LastScheduleTime
 			}, 60*time.Second, 2*time.Second).ShouldNot(gomega.BeNil(), "CronJob status was not updated in time")
 		})
+
+		ginkgo.It("should garbage collect ReclaimSpaceCronJob when owner PVC is deleted", func() {
+			ginkgo.By("Creating a filesystem PVC")
+			pvc := f.CreatePVC("test-pvc-gc", "", f.GetReclaimSpaceStorageClassName())
+			pvc = f.WaitForPVCBound(pvc.Name)
+			gomega.Expect(pvc.Status.Phase).To(gomega.Equal(corev1.ClaimBound))
+
+			ginkgo.By("Creating a ReclaimSpaceCronJob owned by the PVC")
+			isController := true
+			blockOwnerDeletion := true
+			cronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rs-cronjob-gc",
+					Namespace: f.GetNamespaceName(),
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "v1",
+							Kind:               "PersistentVolumeClaim",
+							Name:               pvc.Name,
+							UID:                pvc.UID,
+							Controller:         &isController,
+							BlockOwnerDeletion: &blockOwnerDeletion,
+						},
+					},
+				},
+				Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+					Schedule: "@weekly",
+					JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+						Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+							Target: csiaddonsv1alpha1.TargetSpec{
+								PersistentVolumeClaim: pvc.Name,
+							},
+							BackoffLimit:         3,
+							RetryDeadlineSeconds: 600,
+						},
+					},
+				},
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), f.GetTimeout("operation"))
+			defer cancel()
+			err := f.Client.Create(ctx, cronJob)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create ReclaimSpaceCronJob with owner reference")
+
+			ginkgo.By("Verifying the ReclaimSpaceCronJob exists")
+			cronJob = f.GetReclaimSpaceCronJob(cronJob.Name)
+			gomega.Expect(cronJob).NotTo(gomega.BeNil())
+
+			ginkgo.By("Deleting the owner PVC")
+			f.DeletePVC(pvc.Name)
+
+			ginkgo.By("Waiting for the ReclaimSpaceCronJob to be garbage collected")
+			f.WaitForResourceDeleted(cronJob, 60*time.Second)
+		})
 	})
 })
