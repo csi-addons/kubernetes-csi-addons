@@ -47,22 +47,9 @@ func SilentPredicate() predicate.Predicate {
 func PVCPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return true },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
-		GenericFunc: func(e event.GenericEvent) bool { return true },
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectNew == nil || e.ObjectOld == nil {
-				return false
-			}
-
-			relevantAnnotations := []string{
-				KrcJobScheduleTimeAnnotation,
-				KrEnableAnnotation,
-				RsCronJobScheduleTimeAnnotation,
-				RsEnableAnnotation,
-			}
-
-			return AnnotationValueChanged(e.ObjectOld.GetAnnotations(), e.ObjectNew.GetAnnotations(), relevantAnnotations)
-		},
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 	}
 }
 
