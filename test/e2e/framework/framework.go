@@ -27,7 +27,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -125,36 +124,16 @@ func (f *Framework) setupNamespace() {
 		f.namespaceName = fmt.Sprintf("%s-%s", f.BaseName, uuid.NewString())
 	}
 
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: f.namespaceName,
-			Labels: map[string]string{
-				"e2e-test":      "true",
-				"e2e-framework": f.BaseName,
-			},
-		},
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), f.Config.Timeouts.OperationComplete)
 	defer cancel()
 
-	// Try to get existing namespace
-	existingNs := &corev1.Namespace{}
-	err := f.Client.Get(ctx, client.ObjectKey{Name: f.namespaceName}, existingNs)
-	if err == nil {
-		// Namespace exists, use it
-		f.Namespace = existingNs
-		ginkgo.By(fmt.Sprintf("Using existing namespace: %s", f.namespaceName))
-		return
-	}
-
-	if !apierrors.IsNotFound(err) {
-		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to check for existing namespace")
-	}
-
 	// Create new namespace
-	err = f.Client.Create(ctx, ns)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create namespace")
+	ns := &corev1.Namespace{}
+	ns.Name = f.namespaceName
+	err := f.Client.Create(ctx, ns)
+	if !apierrors.IsAlreadyExists(err) {
+		gomega.Expect(err).NotTo(gomega.HaveOccurred(), "Failed to create namespace")
+	}
 	f.Namespace = ns
 	ginkgo.By(fmt.Sprintf("Created namespace: %s", f.namespaceName))
 }
