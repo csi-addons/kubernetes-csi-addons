@@ -7,9 +7,8 @@ condition of a volume in the `NodeVolumeStatsResponse` message.
 
 ## Usage
 
-The Volume Condition Reporter is disabled by default. Enabling the
-`--enable-volume-condition` for the CSI-Addons sidecar starts the Volume
-Condition Reporter.
+The Volume Condition Reporter is enabled by default in the CSI-Addons sidecar.
+Use `--enable-volume-condition=false` to disable it.
 
 ## Abnormal Volume Condition reporting
 

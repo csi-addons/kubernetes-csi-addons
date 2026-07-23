@@ -88,7 +88,7 @@ func main() {
 		tlsCurvePreferences = flag.String("tls-curve-preferences", "", "Comma-separated list of preferred key exchange curves/groups using Go names (X25519, CurveP256, CurveP384, CurveP521, X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024). Empty uses Go defaults")
 
 		// volume condition reporting
-		enableVolumeCondition    = flag.Bool("enable-volume-condition", false, "Enable reporting of the volume condition")
+		enableVolumeCondition    = flag.Bool("enable-volume-condition", true, "Enable reporting of the volume condition (enabled by default)")
 		volumeConditionInterval  = flag.Duration("volume-condition-interval", 1*time.Minute, "Interval between volume condition checks")
 		volumeConditionRecorders = flag.String("volume-condition-recorders", defaultVolumeConditionRecorders, "location(s) to report volume condition to")
 	)
@@ -235,6 +235,14 @@ func main() {
 			if err != nil {
 				setupLog.Error(err, "Failed to create volume condition reporter")
 				os.Exit(1)
+			}
+			if reporter == nil {
+				// volume condition is enabled by default, but drivers can still
+				// choose not to support it. Logging instead of calling os.Exit(1) so
+				// that only this feature is skipped and the rest of the sidecar
+				// process continues running normally.
+				setupLog.Info("Volume condition reporting is not supported by the driver, skipping", "driver", driver)
+				return
 			}
 
 			setupLog.Info("Starting volume condition reporter", "driver", driver)
