@@ -128,7 +128,3 @@ type CSIAddonsNodeList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CSIAddonsNode `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&CSIAddonsNode{}, &CSIAddonsNodeList{})
-}

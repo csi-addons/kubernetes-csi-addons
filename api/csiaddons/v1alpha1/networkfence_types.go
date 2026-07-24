@@ -141,7 +141,3 @@ type NetworkFenceList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NetworkFence `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&NetworkFence{}, &NetworkFenceList{})
-}
