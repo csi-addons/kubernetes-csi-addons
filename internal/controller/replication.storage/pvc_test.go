@@ -78,9 +78,10 @@ var mockPersistentVolumeClaim = &corev1.PersistentVolumeClaim{
 
 func createFakeScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
-	scheme, err := replicationv1alpha1.SchemeBuilder.Build()
+	scheme := runtime.NewScheme()
+	err := replicationv1alpha1.AddToScheme(scheme)
 	if err != nil {
-		assert.Fail(t, "unable to build scheme")
+		assert.Fail(t, "unable to add replicationv1alpha1 scheme")
 	}
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
