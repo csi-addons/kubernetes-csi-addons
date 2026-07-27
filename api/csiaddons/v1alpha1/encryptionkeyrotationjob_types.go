@@ -97,7 +97,3 @@ type EncryptionKeyRotationJobList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []EncryptionKeyRotationJob `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&EncryptionKeyRotationJob{}, &EncryptionKeyRotationJobList{})
-}

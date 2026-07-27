@@ -22,6 +22,7 @@ import (
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -36,7 +37,8 @@ func getVolumeReplicationClient() *replicationClient {
 	if err != nil {
 		panic(err.Error())
 	}
-	scheme, err := replicationv1alpha1.SchemeBuilder.Build()
+	runtimeScheme := runtime.NewScheme()
+	err = replicationv1alpha1.AddToScheme(runtimeScheme)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -44,7 +46,7 @@ func getVolumeReplicationClient() *replicationClient {
 	crdConfig := *config
 	crdConfig.GroupVersion = &replicationv1alpha1.GroupVersion
 	crdConfig.APIPath = "/apis"
-	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(scheme)
+	crdConfig.NegotiatedSerializer = serializer.NewCodecFactory(runtimeScheme)
 	crdConfig.UserAgent = rest.DefaultKubernetesUserAgent()
 
 	restClient, err := rest.UnversionedRESTClientFor(&crdConfig)

@@ -121,7 +121,3 @@ type ReclaimSpaceJobList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ReclaimSpaceJob `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&ReclaimSpaceJob{}, &ReclaimSpaceJobList{})
-}
