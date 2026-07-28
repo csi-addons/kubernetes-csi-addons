@@ -179,6 +179,8 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		},
 	}
 
+	var pvInfoMap PersistentVolumeInfoMap
+
 	// Create/Update dependent resources only if the instance is not marked for deletion
 	if instance.GetDeletionTimestamp().IsZero() {
 		// Add finalizer to VGR instance
@@ -226,21 +228,11 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			return reconcile.Result{}, err
 		}
 
-		pvInfoMap, err := r.getPVInfoForPVCs(vgrClassObj, pvcList)
+		pvInfoMap, err = r.getPVInfoForPVCs(vgrClassObj, pvcList)
 		if err != nil {
 			r.log.Error(err, "failed to get PVs for PVCs")
 			_ = r.setGroupReplicationFailure(instance, err)
 			return reconcile.Result{}, err
-		}
-
-		destinationInfoSupported, err := r.supportsGetReplicationDestinationInfo(vgrClassObj.Spec.Provisioner)
-		if err != nil {
-			_ = r.setGroupReplicationFailure(instance, err)
-			return reconcile.Result{}, err
-		}
-
-		if destinationInfoSupported {
-			r.updateReplicationDestinationCondition(instance, pvInfoMap, vgrContentObj.Status.PersistentVolumeMappingList)
 		}
 
 		// Update PersistentVolumeClaimsRefList in VGR Status
@@ -347,6 +339,17 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 	// Update VGR status based on VR Status
 	instance.Status.VolumeReplicationStatus = vrObj.Status
 	instance.Status.ObservedGeneration = instance.Generation
+
+	destinationInfoSupported, err := r.supportsGetReplicationDestinationInfo(vgrClassObj.Spec.Provisioner)
+	if err != nil {
+		_ = r.setGroupReplicationFailure(instance, err)
+		return reconcile.Result{}, err
+	}
+
+	if destinationInfoSupported {
+		r.updateReplicationDestinationCondition(instance, pvInfoMap, vgrContentObj.Status.PersistentVolumeMappingList)
+	}
+
 	for i := range instance.Status.Conditions {
 		instance.Status.Conditions[i].ObservedGeneration = instance.Generation
 	}
