@@ -118,17 +118,7 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	err = validatePrefixedParameters(vrcObj.Spec.Parameters)
-	if err != nil {
-		logger.Error(err, "failed to validate parameters of volumeReplicationClass", "VRCName", instance.Spec.VolumeReplicationClass)
-		setFailureCondition(instance, "failed to validate parameters of volumeReplicationClass", err.Error(), instance.Spec.DataSource.Kind)
-		uErr := r.updateReplicationStatus(instance, logger, GetCurrentReplicationState(instance.Status.State), err.Error())
-		if uErr != nil {
-			logger.Error(uErr, "failed to update volumeReplication status", "VRName", instance.Name)
-		}
-
-		return ctrl.Result{}, err
-	}
+	_ = validatePrefixedParameters(vrcObj.Spec.Parameters)
 	// remove the prefix keys in volume replication class parameters
 	parameters := filterPrefixedParameters(replicationParameterPrefix, vrcObj.Spec.Parameters)
 
