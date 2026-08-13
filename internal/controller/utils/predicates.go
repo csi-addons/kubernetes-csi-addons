@@ -40,29 +40,17 @@ func SilentPredicate() predicate.Predicate {
 	}
 }
 
-// PVCPredicate returns a predicate for PVC watch events.
-// Reconciliation on update is triggered only when
-// one of the relevant annotations changes value. Create and Delete
-// events are always reconciled.
+// PVCPredicate returns a predicate that only allows PVC Create events.
+// When schedule precedence is set to StorageClass, the controller reads
+// configuration from the StorageClass, not PVC annotations, so PVC
+// updates do not require reconciliation. Deletes are also ignored
+// because child resources are garbage-collected via owner references.
 func PVCPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return true },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
-		GenericFunc: func(e event.GenericEvent) bool { return true },
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.ObjectNew == nil || e.ObjectOld == nil {
-				return false
-			}
-
-			relevantAnnotations := []string{
-				KrcJobScheduleTimeAnnotation,
-				KrEnableAnnotation,
-				RsCronJobScheduleTimeAnnotation,
-				RsEnableAnnotation,
-			}
-
-			return AnnotationValueChanged(e.ObjectOld.GetAnnotations(), e.ObjectNew.GetAnnotations(), relevantAnnotations)
-		},
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return false },
 	}
 }
 
