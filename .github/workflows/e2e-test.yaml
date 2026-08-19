@@ -42,6 +42,9 @@ jobs:
           sudo dpkg -i "cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb"
           rm -f "cri-dockerd_0.3.21.3-0.ubuntu-focal_${ARCH}.deb"
 
+      - name: Workaround for medyagh/setup-minikube#835
+        run: sudo mkdir -p /etc/cni/net.d
+
       - name: Setup Minikube
         uses: medyagh/setup-minikube@latest
         with:
