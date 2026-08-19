@@ -3,7 +3,7 @@ module github.com/csi-addons/kubernetes-csi-addons
 go 1.26.3
 
 require (
-	github.com/container-storage-interface/spec v1.12.0
+	github.com/container-storage-interface/spec v1.13.0
 	github.com/csi-addons/spec v0.2.1-0.20260515055340-d4a373713b9a
 	github.com/go-logr/logr v1.4.4
 	github.com/google/uuid v1.6.0
