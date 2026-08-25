@@ -1,6 +1,6 @@
 ---
 name: Test deploying controller
-
+# yamllint disable rule:line-length
 # yamllint disable-line rule:truthy
 on:
   pull_request:
@@ -8,6 +8,11 @@ on:
       - "*"
 env:
   TAG: test
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   kind_deploy:
