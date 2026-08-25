@@ -1,5 +1,6 @@
 ---
 name: golangci-lint
+# yamllint disable rule:line-length
 # yamllint disable-line rule:truthy
 on:
   push:
@@ -9,6 +10,11 @@ on:
 
 permissions:
   contents: read
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   golangci:
