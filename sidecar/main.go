@@ -32,7 +32,7 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/csiaddonsnode"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/server"
 	sideutil "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/util"
-	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition"
+	condition "github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/volume-condition"
 
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
 	"github.com/kubernetes-csi/csi-lib-utils/standardflags"
@@ -200,10 +200,9 @@ func main() {
 	// CSIAddonNode object and then calling deploy()
 	go func() {
 		err := nodeMgr.DispatchWatcher()
-		if err != nil {
-			setupLog.Error(err, "Failed to start watcher")
-			os.Exit(1)
-		}
+		setupLog.Error(err, "Failed to start watcher")
+		os.Exit(1)
+
 	}()
 
 	// start the volume condition reporter

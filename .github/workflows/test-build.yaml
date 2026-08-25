@@ -1,11 +1,16 @@
 ---
 name: Test building container images
-
+# yamllint disable rule:line-length
 # yamllint disable-line rule:truthy
 on:
   pull_request:
     branches:
       - "*"
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   build_bundle:
