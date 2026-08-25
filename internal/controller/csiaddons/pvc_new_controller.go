@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
@@ -74,7 +75,7 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	if pvc.Status.Phase != corev1.ClaimBound {
 		logger.Info("PVC is not yet bound, requeue the request", "PVCInfo", req.NamespacedName)
 
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 1}, nil
 	}
 
 	// Fetch the PV and check if it is CSI provisioned, if not, do nothing

@@ -116,7 +116,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if pvc.Status.Phase != corev1.ClaimBound {
 		logger.Info("PVC is not in bound state", "PVCPhase", pvc.Status.Phase)
 		// requeue the request
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 1}, nil
 	}
 	// get the driver name from PV to check if it supports space reclamation.
 	pv := &corev1.PersistentVolume{}
@@ -607,7 +607,7 @@ func (r *PersistentVolumeClaimReconciler) processReclaimSpace(
 
 	schedule, err := r.determineScheduleAndRequeue(ctx, logger, pvc, pv.Spec.CSI.Driver, utils.RsCronJobScheduleTimeAnnotation)
 	if errors.Is(err, utils.ErrConnNotFoundRequeueNeeded) {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 1}, nil
 	}
 	if errors.Is(err, utils.ErrScheduleNotFound) {
 		// if schedule is not found,

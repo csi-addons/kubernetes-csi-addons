@@ -426,7 +426,6 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 
 		return ctrl.Result{
-			Requeue: true,
 			// Setting Requeue time for 30 seconds as the resync can take time
 			// and having default Requeue exponential backoff time can affect
 			// the RTO time.
@@ -504,7 +503,6 @@ func (r *VolumeReplicationReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if requeueForInfo {
 		reconcileInternal := getInfoReconcileInterval(parameters, logger)
 		return ctrl.Result{
-			Requeue:      true,
 			RequeueAfter: reconcileInternal,
 		}, nil
 	}
