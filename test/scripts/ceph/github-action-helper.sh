@@ -17,6 +17,7 @@ source "${SCRIPT_DIR}/utils.sh"
 #############
 : "${FUNCTION:=${1}}"
 
+CEPH_IMAGE=${CEPH_IMAGE:-"quay.io/ceph/ceph:v19.2.5"}
 #############
 # WRAPPER FUNCTIONS - Delegate to Rook's script
 #############
@@ -87,7 +88,8 @@ function deploy_first_ceph_cluster() {
 	  with(select(.kind == "CephCluster");
 	    .spec.dashboard.enabled = false |
 	    .spec.storage.useAllDevices = false |
-	    .spec.storage.deviceFilter = strenv(DEVICE_NAME) + "1"
+	    .spec.storage.deviceFilter = strenv(DEVICE_NAME) + "1" |
+		.spec.image = strenv(CEPH_IMAGE)
 	  )
 	' cluster-test.yaml
 	kubectl_retry create -f cluster-test.yaml
@@ -108,7 +110,8 @@ function deploy_second_ceph_cluster() {
 	DEVICE_NAME="$DEVICE_NAME" yq e -i '
 	  with(select(.kind == "CephCluster");
 	    .spec.dataDirHostPath = "/var/lib/rook-external" |
-	    .spec.storage.deviceFilter = strenv(DEVICE_NAME) + "2"
+	    .spec.storage.deviceFilter = strenv(DEVICE_NAME) + "2" |
+		.spec.image = strenv(CEPH_IMAGE)
 	  )
 	' cluster-test.yaml
 	kubectl_retry create -f cluster-test.yaml
