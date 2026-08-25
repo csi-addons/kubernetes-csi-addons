@@ -74,7 +74,7 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	if pvc.Status.Phase != corev1.ClaimBound {
 		logger.Info("PVC is not yet bound, requeue the request", "PVCInfo", req.NamespacedName)
 
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: pvcRequeueDelay}, nil
 	}
 
 	// Fetch the PV and check if it is CSI provisioned, if not, do nothing
