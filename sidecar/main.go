@@ -200,10 +200,8 @@ func main() {
 	// CSIAddonNode object and then calling deploy()
 	go func() {
 		err := nodeMgr.DispatchWatcher()
-		if err != nil {
-			setupLog.Error(err, "Failed to start watcher")
-			os.Exit(1)
-		}
+		setupLog.Error(err, "Failed to start watcher")
+		os.Exit(1)
 	}()
 
 	// start the volume condition reporter
