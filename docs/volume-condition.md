@@ -1,9 +1,21 @@
 # Volume Condition Reporter
 
-The Volume Condition Reporter uses the [Container Storage Interface
-Specification's `NodeGetVolumeStats` operation][nodegetvolumestats] to detect
-if a PersistentVolume has an _abnormal_ condition. CSI drivers can return the
-condition of a volume in the `NodeVolumeStatsResponse` message.
+The Volume Condition Reporter detects whether a PersistentVolume has a health
+problem by querying the CSI driver running on the same node.
+
+CSI spec v1.13.0 introduced the dedicated [`NodeGetVolumeHealth`
+operation][nodegetvolumehealth] for this purpose. Older drivers (CSI spec
+v1.12.0 and earlier) reported volume health as part of the
+[`NodeGetVolumeStats` response][nodegetvolumestats] via the `VolumeCondition`
+field.
+
+The sidecar automatically selects the right method based on the capability
+advertised by the driver:
+
+| Driver capability           | CSI spec            | Method used           |
+| --------------------------- | ------------------- | --------------------- |
+| `GET_VOLUME_HEALTH`         | v1.13.0+            | `NodeGetVolumeHealth` |
+| `VOLUME_CONDITION` (legacy) | v1.12.0 and earlier | `NodeGetVolumeStats`  |
 
 ## Usage
 
@@ -85,12 +97,14 @@ potential approaches that could use the reported volume condition:
 
 ## Dependencies
 
-The `NodeGetVolumeStats` operation in the current CSI Specification (v1.8.0)
-defines the `VolumeCondition` as an _alpha_ feature. Very few CSI-drivers seem
-to implement the volume condition at the moment. Drivers that implement the
-feature, are required to expose `VOLUME_CONDITION` as a
-`NodeServiceCapability`, otherwise the Volume Condition Reporter will not be
-able to check the condition of the volume.
+Drivers must expose a supported health-reporting capability in their
+`NodeGetCapabilities` response, otherwise the Volume Condition Reporter will not
+check the health of volumes managed by that driver.
+
+- Drivers implementing CSI spec v1.13.0 or later must expose
+  `GET_VOLUME_HEALTH` as a `NodeServiceCapability`.
+- Drivers implementing CSI spec v1.12.0 or earlier must expose
+  `VOLUME_CONDITION` as a `NodeServiceCapability`.
 
 ## Required Permissions (RBAC)
 
@@ -140,6 +154,7 @@ rules:
       - patch
 ```
 
+[nodegetvolumehealth]: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetvolumehealth
 [nodegetvolumestats]: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetvolumestats
 [rook_fencing]: https://rook.github.io/docs/rook/v1.12/Storage-Configuration/Block-Storage-RBD/block-storage/#handling-node-loss
 [k8s_npd]: https://github.com/kubernetes/node-problem-detector/
