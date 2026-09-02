@@ -110,7 +110,7 @@ func TestIsManagedByController(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "No CSIAddonsStateAnnotation",
+			name: "No csiaddonsv1alpha1.CSIAddonsStateAnnotation",
 			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{"other": "value"},
@@ -119,28 +119,28 @@ func TestIsManagedByController(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "CSIAddonsStateAnnotation set to managed",
+			name: "csiaddonsv1alpha1.CSIAddonsStateAnnotation set to managed",
 			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{CSIAddonsStateAnnotation: CSIAddonsStateManaged},
+					Annotations: map[string]string{csiaddonsv1alpha1.CSIAddonsStateAnnotation: csiaddonsv1alpha1.CSIAddonsStateManaged},
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "CSIAddonsStateAnnotation set to unmanaged",
+			name: "csiaddonsv1alpha1.CSIAddonsStateAnnotation set to unmanaged",
 			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{CSIAddonsStateAnnotation: "unmanaged"},
+					Annotations: map[string]string{csiaddonsv1alpha1.CSIAddonsStateAnnotation: "unmanaged"},
 				},
 			},
 			expected: false,
 		},
 		{
-			name: "CSIAddonsStateAnnotation set to empty string",
+			name: "csiaddonsv1alpha1.CSIAddonsStateAnnotation set to empty string",
 			obj: &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{CSIAddonsStateAnnotation: ""},
+					Annotations: map[string]string{csiaddonsv1alpha1.CSIAddonsStateAnnotation: ""},
 				},
 			},
 			expected: false,
