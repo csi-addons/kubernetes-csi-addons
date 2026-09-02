@@ -21,25 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	RsEnableAnnotation              = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/enable"
-	RsCronJobScheduleTimeAnnotation = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
-	RsCronJobNameAnnotation         = "reclaimspace." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
-
-	KrEnableAnnotation           = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/enable"
-	KrcJobScheduleTimeAnnotation = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/schedule"
-	KrcJobNameAnnotation         = "keyrotation." + csiaddonsv1alpha1.GroupVersion.Group + "/cronjob"
-
-	CSIAddonsStateAnnotation = csiaddonsv1alpha1.GroupVersion.Group + "/state"
-)
-
 const (
 	// Index keys
 	StorageClassIndex = "spec.storageClassName"
 	JobOwnerKey       = ".metadata.controller"
-
-	// Represents the CRs that are managed by the PVC controller
-	CSIAddonsStateManaged = "managed"
 )
 
 // AnnotationValueChanged checks if any of the specified keys have different values
@@ -60,7 +45,7 @@ func AnnotationValueChanged(oldAnnotations, newAnnotations map[string]string, ke
 // It returns false if the object has the CSIAddonsStateAnnotation set to a value
 // other than CSIAddonsStateManaged. If the annotation is missing it returns true.
 func IsManagedByController(obj client.Object) bool {
-	if v, ok := obj.GetAnnotations()[CSIAddonsStateAnnotation]; ok && v != CSIAddonsStateManaged {
+	if v, ok := obj.GetAnnotations()[csiaddonsv1alpha1.CSIAddonsStateAnnotation]; ok && v != csiaddonsv1alpha1.CSIAddonsStateManaged {
 		return false
 	}
 	return true
