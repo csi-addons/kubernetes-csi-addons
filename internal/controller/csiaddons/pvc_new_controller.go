@@ -107,8 +107,8 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 	// Reconcile for dependent features
 	// Reconcile - Key rotation
 	keyRotationName := fmt.Sprintf("%s-keyrotation", pvc.Name)
-	keyRotationSched := sc.Annotations[utils.KrcJobScheduleTimeAnnotation]
-	keyRotationEnabled := sc.Annotations[utils.KrEnableAnnotation]
+	keyRotationSched := sc.Annotations[csiaddonsv1alpha1.KrCronJobScheduleTimeAnnotation]
+	keyRotationEnabled := sc.Annotations[csiaddonsv1alpha1.KrEnableAnnotation]
 	keyRotationChild := &csiaddonsv1alpha1.EncryptionKeyRotationCronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      keyRotationName,
@@ -122,8 +122,8 @@ func (r *PVCReconiler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Re
 
 	// Reconcile - Reclaim space
 	reclaimSpaceName := fmt.Sprintf("%s-reclaimspace", pvc.Name)
-	reclaimSpaceSched := sc.Annotations[utils.RsCronJobScheduleTimeAnnotation]
-	reclaimSpaceEnabled := sc.Annotations[utils.RsEnableAnnotation]
+	reclaimSpaceSched := sc.Annotations[csiaddonsv1alpha1.RsCronJobScheduleTimeAnnotation]
+	reclaimSpaceEnabled := sc.Annotations[csiaddonsv1alpha1.RsEnableAnnotation]
 	reclaimSpaceChild := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      reclaimSpaceName,

@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -65,10 +66,10 @@ func StorageClassPredicate() predicate.Predicate {
 
 			// Only trigger if relevant annotations change
 			relevantAnnotations := []string{
-				KrcJobScheduleTimeAnnotation,
-				KrEnableAnnotation,
-				RsCronJobScheduleTimeAnnotation,
-				RsEnableAnnotation,
+				csiaddonsv1alpha1.KrCronJobScheduleTimeAnnotation,
+				csiaddonsv1alpha1.KrEnableAnnotation,
+				csiaddonsv1alpha1.RsCronJobScheduleTimeAnnotation,
+				csiaddonsv1alpha1.RsEnableAnnotation,
 			}
 
 			return AnnotationValueChanged(oldSC.GetAnnotations(), newSC.GetAnnotations(), relevantAnnotations)

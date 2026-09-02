@@ -69,7 +69,7 @@ func setKeyrotationSpec(v *csiaddonsv1alpha1.EncryptionKeyRotationCronJob, sched
 	if v.Annotations == nil {
 		v.Annotations = map[string]string{}
 	}
-	v.Annotations[CSIAddonsStateAnnotation] = CSIAddonsStateManaged
+	v.Annotations[csiaddonsv1alpha1.CSIAddonsStateAnnotation] = csiaddonsv1alpha1.CSIAddonsStateManaged
 
 	v.Spec.Schedule = schedule
 	v.Spec.FailedJobsHistoryLimit = &failedJobsHistoryLimit
@@ -95,7 +95,7 @@ func setReclaimspaceSpec(v *csiaddonsv1alpha1.ReclaimSpaceCronJob, schedule, pvc
 	if v.Annotations == nil {
 		v.Annotations = map[string]string{}
 	}
-	v.Annotations[CSIAddonsStateAnnotation] = CSIAddonsStateManaged
+	v.Annotations[csiaddonsv1alpha1.CSIAddonsStateAnnotation] = csiaddonsv1alpha1.CSIAddonsStateManaged
 
 	v.Spec.Schedule = schedule
 	v.Spec.FailedJobsHistoryLimit = &failedJobsHistoryLimit

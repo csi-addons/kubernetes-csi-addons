@@ -46,8 +46,8 @@ func TestSetSpec(t *testing.T) {
 					t.Errorf("expected pvcName 'test-pvc', got '%s'", ekrCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim)
 				}
 				// We set it by default when setting spec
-				if ekrCronJob.Annotations[CSIAddonsStateAnnotation] != CSIAddonsStateManaged {
-					t.Error("expected CSIAddonsStateManaged annotation")
+				if ekrCronJob.Annotations[csiaddonsv1alpha1.CSIAddonsStateAnnotation] != csiaddonsv1alpha1.CSIAddonsStateManaged {
+					t.Error("expected csiaddonsv1alpha1.CSIAddonsStateManaged annotation")
 				}
 			},
 		},
@@ -65,8 +65,8 @@ func TestSetSpec(t *testing.T) {
 					t.Errorf("expected pvcName 'another-pvc', got '%s'", rsCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim)
 				}
 				// We set it by default when setting spec
-				if rsCronJob.Annotations[CSIAddonsStateAnnotation] != CSIAddonsStateManaged {
-					t.Error("expected CSIAddonsStateManaged annotation")
+				if rsCronJob.Annotations[csiaddonsv1alpha1.CSIAddonsStateAnnotation] != csiaddonsv1alpha1.CSIAddonsStateManaged {
+					t.Error("expected csiaddonsv1alpha1.CSIAddonsStateManaged annotation")
 				}
 			},
 		},
