@@ -17,13 +17,8 @@ jobs:
     name: build_bundle
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v7.0.1
-
-      - name: Setup Golang
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - name: Checkout and setup Go
+        uses: ./.github/actions/setup-go
 
       - name: Generate the bundle contents
         run: make bundle
@@ -43,14 +38,8 @@ jobs:
     name: build_controller
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - name: Checkout and setup Docker Buildx
+        uses: ./.github/actions/setup-buildx
 
       - name: Build container container image
         uses: docker/build-push-action@v7
@@ -65,14 +54,8 @@ jobs:
     name: build_sidecar
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - name: Checkout and setup Docker Buildx
+        uses: ./.github/actions/setup-buildx
 
       - name: Build sidecar container image
         uses: docker/build-push-action@v7

@@ -1,0 +1,22 @@
+---
+name: Checkout and setup Go
+description: Checks out the repository and sets up Go using go.mod
+
+inputs:
+  fetch-depth:
+    description: Number of commits to fetch (0 = all history)
+    required: false
+    default: "1"
+
+runs:
+  using: composite
+  steps:
+    - name: Check out the repo
+      uses: actions/checkout@v7.0.1
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - name: Set up Golang
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
