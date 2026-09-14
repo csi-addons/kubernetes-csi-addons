@@ -17,6 +17,9 @@ jobs:
     name: make_test
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
 
@@ -34,6 +37,9 @@ jobs:
     name: go_mod_verify
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
 
@@ -44,6 +50,9 @@ jobs:
     name: go_mod_vendor
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
 

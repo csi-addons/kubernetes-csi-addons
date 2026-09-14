@@ -1,5 +1,6 @@
 ---
 name: Build and release versioned container images
+# yamllint disable rule:line-length
 
 # yamllint disable-line rule:truthy
 on:
@@ -14,6 +15,9 @@ jobs:
       github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
 
@@ -30,7 +34,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build bundle container image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
           context: .
           file: bundle.Dockerfile
@@ -45,6 +49,9 @@ jobs:
       github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Docker Buildx
         uses: ./.github/actions/setup-buildx
 
@@ -55,7 +62,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push controller container image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
           context: .
           file: Dockerfile
@@ -71,6 +78,9 @@ jobs:
       github.ref_type  == 'tag'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Docker Buildx
         uses: ./.github/actions/setup-buildx
 
@@ -81,7 +91,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push sidecar container image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
           context: .
           file: build/Containerfile.sidecar
@@ -103,16 +113,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
-        with:
-          fetch-depth: "0"
 
       - name: Generate manifests for installation by kubectl
         run: make manifests TAG=${{ github.ref_name }}
 
       - name: Publish the release and attach YAML files
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
         with:
           tag: ${{ github.ref_name }}
           artifacts: "deploy/*/*.yaml"

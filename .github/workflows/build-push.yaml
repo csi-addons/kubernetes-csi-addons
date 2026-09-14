@@ -1,5 +1,6 @@
 ---
 name: Publish container images in quay.io
+# yamllint disable rule:line-length
 
 # yamllint disable-line rule:truthy
 on:
@@ -13,6 +14,9 @@ jobs:
     if: github.repository == 'csi-addons/kubernetes-csi-addons'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
 
@@ -26,7 +30,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push bundle container image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
           context: .
           file: bundle.Dockerfile
@@ -38,6 +42,9 @@ jobs:
     if: github.repository == 'csi-addons/kubernetes-csi-addons'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Docker Buildx
         uses: ./.github/actions/setup-buildx
 
@@ -48,7 +55,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push controller container image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
           context: .
           file: Dockerfile
@@ -61,6 +68,9 @@ jobs:
     if: github.repository == 'csi-addons/kubernetes-csi-addons'
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
       - name: Checkout and setup Docker Buildx
         uses: ./.github/actions/setup-buildx
 
@@ -71,7 +81,7 @@ jobs:
           password: ${{ secrets.QUAY_PASSWORD }}
 
       - name: Build and push sidecar container image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a  # v7.3.0
         with:
           context: .
           file: build/Containerfile.sidecar
