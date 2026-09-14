@@ -29,12 +29,8 @@ jobs:
     name: ceph
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 1
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.mod
+      - name: Checkout and setup Go
+        uses: ./.github/actions/setup-go
       - name: Install cri-dockerd
         run: |
           ARCH="$(go env GOARCH)"
@@ -115,23 +111,8 @@ jobs:
       - name: Deploy the controller and CRDs
         run: make deploy TAG=${{ env.TAG }}
 
-      - name: Wait for controller pod creation
-        run: >
-          kubectl
-          -n csi-addons-system
-          wait pods
-          -l app.kubernetes.io/name=csi-addons
-          --for=create
-          --timeout=5m
-
-      - name: Wait for running controller pod
-        run: >
-          kubectl
-          -n csi-addons-system
-          wait pods
-          -l app.kubernetes.io/name=csi-addons
-          --for=condition=Ready=True
-          --timeout=5m
+      - name: Wait for controller pod
+        uses: ./.github/actions/wait-for-controller
 
       - name: Run e2e tests
         run: |

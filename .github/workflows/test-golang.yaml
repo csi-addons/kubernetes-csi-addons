@@ -17,13 +17,8 @@ jobs:
     name: make_test
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up Golang
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - name: Checkout and setup Go
+        uses: ./.github/actions/setup-go
 
       - name: Run "make test"
         run: make test
@@ -39,13 +34,8 @@ jobs:
     name: go_mod_verify
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up Golang
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - name: Checkout and setup Go
+        uses: ./.github/actions/setup-go
 
       - name: Verify Go modules
         run: go mod verify
@@ -54,13 +44,8 @@ jobs:
     name: go_mod_vendor
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v7.0.1
-
-      - name: Set up Golang
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - name: Checkout and setup Go
+        uses: ./.github/actions/setup-go
 
       - name: Vendor all dependencies
         run: go mod vendor
