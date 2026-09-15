@@ -1,0 +1,22 @@
+---
+name: Login to quay.io
+description: Authenticates to quay.io using repository secrets
+
+inputs:
+  username:
+    description: quay.io username
+    required: true
+  password:
+    description: quay.io password
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Login to quay.io
+      # yamllint disable-line rule:line-length
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+      with:
+        registry: quay.io
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}

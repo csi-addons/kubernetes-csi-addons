@@ -1,0 +1,26 @@
+---
+name: Wait for controller pod
+description: Waits for the csi-addons controller pod to be ready
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for controller pod creation
+      shell: bash
+      run: >
+        kubectl
+        -n csi-addons-system
+        wait pods
+        -l app.kubernetes.io/name=csi-addons
+        --for=create
+        --timeout=5m
+
+    - name: Wait for running controller pod
+      shell: bash
+      run: >
+        kubectl
+        -n csi-addons-system
+        wait pods
+        -l app.kubernetes.io/name=csi-addons
+        --for=condition=Ready=True
+        --timeout=5m
