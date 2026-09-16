@@ -120,11 +120,9 @@ func main() {
 
 	// Backward-compatible klog flag:
 	// -v was the klog flag for log verbosity; alias it to --zap-log-level
-	// so that "-v=3" or "-v 3" continues to work after the migration to
-	// controller-runtime's zap logger.
-	if f := flag.CommandLine.Lookup("zap-log-level"); f != nil {
-		flag.CommandLine.Var(f.Value, "v", "Alias for --zap-log-level")
-	}
+	// so that "-v=0", "-v=3" or "-v 3" continues to work after the migration
+	// to controller-runtime's zap logger.
+	util.AddKlogVerbosityFlag(flag.CommandLine)
 	standardflags.AddAutomaxprocs(setupLog.Info)
 	flag.Parse()
 
