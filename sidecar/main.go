@@ -105,10 +105,8 @@ func main() {
 	// startup with "flag provided but not defined" errors.
 
 	// -v was the klog flag for log verbosity; alias it to --zap-log-level
-	// so that "-v=3" or "-v 3" continues to work as expected.
-	if f := flag.CommandLine.Lookup("zap-log-level"); f != nil {
-		flag.CommandLine.Var(f.Value, "v", "Alias for --zap-log-level")
-	}
+	// so that "-v=0", "-v=3" or "-v 3" continues to work as expected.
+	util.AddKlogVerbosityFlag(flag.CommandLine)
 
 	// --logtostderr and --alsologtostderr are no longer meaningful because
 	// zap always writes to stderr. Accept them silently to avoid breakage.
