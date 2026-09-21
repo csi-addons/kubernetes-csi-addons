@@ -288,8 +288,10 @@ verify_mirroring_health() {
 
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
+
+# Bash does not honor set directives inside conditional calls.
+# Use TRAP instead and call the function normally.
+trap 'echo "Call to ${FUNCTION} was not successful" >&2; exit 1' ERR
+
 # call the function with the remainder of the user-provided args
-if ! $FUNCTION "$@"; then
-	echo "Call to $FUNCTION was not successful" >&2
-	exit 1
-fi
+"${FUNCTION}" "$@"
