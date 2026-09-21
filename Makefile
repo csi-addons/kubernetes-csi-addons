@@ -160,9 +160,18 @@ bundle-validate: container-cmd operator-sdk
 ##@ Build
 
 .PHONY: build
-build: generate fmt vet ## Build manager binary.
+build: generate fmt vet build-manager build-sidecar build-tool ## Build all binaries.
+
+.PHONY: build-manager
+build-manager: ## Build manager binary.
 	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-manager cmd/manager/main.go
+
+.PHONY: build-sidecar
+build-sidecar: ## Build sidecar binary.
 	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons-sidecar sidecar/main.go
+
+.PHONY: build-tool
+build-tool: ## Build csi-addons CLI tool.
 	go build -ldflags '$(LDFLAGS)' -a -o bin/csi-addons ./cmd/csi-addons
 
 .PHONY: run
