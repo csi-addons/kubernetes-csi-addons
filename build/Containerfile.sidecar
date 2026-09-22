@@ -17,7 +17,7 @@ WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
 # Build the sidecar and csi-addons tool for admin usage and testing.
 # Set GOARM=7 for the arm/v7 target.
-RUN if [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi; make build
+RUN if [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi; make build-sidecar build-tool
 
 # Use distroless as minimal base image to package the sidecar binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
