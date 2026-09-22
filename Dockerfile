@@ -15,8 +15,8 @@ COPY . /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 ENV GOPATH=/workspace/go CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 WORKDIR /workspace/go/src/github.com/csi-addons/kubernetes-csi-addons
 
-# Build. Set GOARM=7 for the arm/v7 target.
-RUN if [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi; make build
+# Build only the manager binary. Set GOARM=7 for the arm/v7 target.
+RUN if [ "$TARGETVARIANT" = "v7" ]; then export GOARM=7; fi; make build-manager
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
