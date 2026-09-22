@@ -17,7 +17,10 @@ source "${SCRIPT_DIR}/utils.sh"
 #############
 : "${FUNCTION:=${1}}"
 
-CEPH_IMAGE=${CEPH_IMAGE:-"quay.io/ceph/ceph:v19.2.5"}
+# Exported so `yq`'s strenv(CEPH_IMAGE) can read it when patching the
+# CephCluster manifests below.
+export CEPH_IMAGE=${CEPH_IMAGE:-"quay.io/ceph/ceph:v19.2.5"}
+
 #############
 # WRAPPER FUNCTIONS - Delegate to Rook's script
 #############
@@ -89,7 +92,7 @@ function deploy_first_ceph_cluster() {
 	    .spec.dashboard.enabled = false |
 	    .spec.storage.useAllDevices = false |
 	    .spec.storage.deviceFilter = strenv(DEVICE_NAME) + "1" |
-		.spec.image = strenv(CEPH_IMAGE)
+		.spec.cephVersion.image = strenv(CEPH_IMAGE)
 	  )
 	' cluster-test.yaml
 	kubectl_retry create -f cluster-test.yaml
@@ -111,7 +114,7 @@ function deploy_second_ceph_cluster() {
 	  with(select(.kind == "CephCluster");
 	    .spec.dataDirHostPath = "/var/lib/rook-external" |
 	    .spec.storage.deviceFilter = strenv(DEVICE_NAME) + "2" |
-		.spec.image = strenv(CEPH_IMAGE)
+		.spec.cephVersion.image = strenv(CEPH_IMAGE)
 	  )
 	' cluster-test.yaml
 	kubectl_retry create -f cluster-test.yaml
@@ -285,8 +288,10 @@ verify_mirroring_health() {
 
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
+
+# Bash does not honor set directives inside conditional calls.
+# Use TRAP instead and call the function normally.
+trap 'echo "Call to ${FUNCTION} was not successful" >&2; exit 1' ERR
+
 # call the function with the remainder of the user-provided args
-if ! $FUNCTION "$@"; then
-	echo "Call to $FUNCTION was not successful" >&2
-	exit 1
-fi
+"${FUNCTION}" "$@"
