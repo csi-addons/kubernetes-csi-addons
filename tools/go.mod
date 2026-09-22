@@ -6,7 +6,7 @@ require (
 	github.com/operator-framework/operator-sdk v1.42.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2
 	google.golang.org/protobuf v1.36.12
-	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.25.0
+	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.25.1
 	sigs.k8s.io/controller-tools v0.20.1
 	sigs.k8s.io/kustomize/kustomize/v5 v5.8.1
 )
