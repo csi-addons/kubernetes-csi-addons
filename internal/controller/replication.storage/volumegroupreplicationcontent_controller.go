@@ -177,11 +177,10 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 			logger.Info("volumeGroupReplicationContent object is terminated, skipping reconciliation")
 			return reconcile.Result{}, nil
 		} else {
-			err = fmt.Errorf("cannot delete VolumeGroupReplicationContent resource, until dependent VolumeReplication instance is deleted")
-			logger.Error(err, "failed to delete VolumeGroupReplicationContent resource")
+			logger.Info("cannot delete VolumeGroupReplicationContent resource, until dependent VolumeReplication instance is deleted")
 			// We should requeue with a delay as sometimes due to a failed update or multiple consecutive
 			// reconcile requests for different resources, the update gets missed and the deletion can take a long time.
-			return defaultRequeueForVGResources, err
+			return defaultRequeueForVGResources, nil
 		}
 	}
 
