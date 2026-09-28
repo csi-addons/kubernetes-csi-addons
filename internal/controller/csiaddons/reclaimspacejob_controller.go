@@ -270,15 +270,22 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 		}
 	}
 
-	controllerFound, controllerReclaimedSpace, err := r.controllerReclaimSpace(ctx, logger, target)
-	if err != nil {
-		logger.Error(err, "Failed to make controller request")
-		setFailedCondition(
-			&rsJob.Status.Conditions,
-			fmt.Sprintf("Failed to make controller request: %v", util.GetErrorMessage(err)),
-			rsJob.Generation)
+	var (
+		controllerFound          bool
+		controllerReclaimedSpace *int64
+	)
 
-		return err
+	if utils.EnableControllerReclaimSpace {
+		controllerFound, controllerReclaimedSpace, err = r.controllerReclaimSpace(ctx, logger, target)
+		if err != nil {
+			logger.Error(err, "Failed to make controller request")
+			setFailedCondition(
+				&rsJob.Status.Conditions,
+				fmt.Sprintf("Failed to make controller request: %v", util.GetErrorMessage(err)),
+				rsJob.Generation)
+
+			return err
+		}
 	}
 
 	if !controllerFound && !nodeFound {
