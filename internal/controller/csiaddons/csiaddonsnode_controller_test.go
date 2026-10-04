@@ -253,6 +253,7 @@ func TestStaleConnectionKeys(t *testing.T) {
 	}
 }
 
+// newTestCSIAddonsNode returns CSIAddonsNode "ns/node-1" with the given endpoint.
 func newTestCSIAddonsNode(endpoint string) *csiaddonsv1alpha1.CSIAddonsNode {
 	return &csiaddonsv1alpha1.CSIAddonsNode{
 		ObjectMeta: metav1.ObjectMeta{Name: "node-1", Namespace: "ns"},
@@ -262,6 +263,8 @@ func newTestCSIAddonsNode(endpoint string) *csiaddonsv1alpha1.CSIAddonsNode {
 	}
 }
 
+// newTestConnPool returns a pool with a connection of CSIAddonsNode "ns/node-1"
+// stored under each of the given keys.
 func newTestConnPool(keys ...string) *connection.ConnectionPool {
 	pool := connection.NewConnectionPool()
 	for _, k := range keys {
