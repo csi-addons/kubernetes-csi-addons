@@ -150,6 +150,10 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		// delete connections and remove finalizer.
 		logger.Info("Deleting connection", "Key", key)
 		r.ConnPool.Delete(key)
+		for k := range r.ConnPool.GetByCSIAddonsNode(csiAddonsNode.Namespace, csiAddonsNode.Name) {
+			logger.Info("Deleting connection", "Key", k)
+			r.ConnPool.Delete(k)
+		}
 		err = r.removeFinalizer(ctx, &logger, csiAddonsNode)
 		return ctrl.Result{}, err
 	}
@@ -169,6 +173,8 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Info("Successfully connected to the sidecar and added connection to the connection pool", "key", key)
+
+	r.removeStaleConnections(ctx, &logger, csiAddonsNode, key)
 
 	nfsc, err := r.getNetworkFenceClientStatus(ctx, &logger, newConn, csiAddonsNode)
 	if err != nil {
@@ -309,6 +315,60 @@ func (r *CSIAddonsNodeReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions
 		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{})).
 		WithOptions(ctrlOptions).
 		Complete(r)
+}
+
+// removeStaleConnections removes connections of the CSIAddonsNode that were
+// made to sidecar Pods which no longer exist. The pool key contains the Pod
+// name, so a replaced sidecar Pod leaves its connection under the old key,
+// where GetByNodeID() would still return it. Connections to Pods that still
+// exist are kept, as replicas on the same node share one CSIAddonsNode. This is
+// best effort: on failure the connections are kept and the next reconcile
+// retries.
+func (r *CSIAddonsNodeReconciler) removeStaleConnections(
+	ctx context.Context,
+	logger *logr.Logger,
+	csiAddonsNode *csiaddonsv1alpha1.CSIAddonsNode,
+	key string) {
+	conns := r.ConnPool.GetByCSIAddonsNode(csiAddonsNode.Namespace, csiAddonsNode.Name)
+	if len(conns) <= 1 {
+		return
+	}
+	// The Pods are only listed in the namespace of the CSIAddonsNode, which the
+	// sidecar creates in its own namespace.
+	podNamespace, _, _, err := parseEndpoint(csiAddonsNode.Spec.Driver.EndPoint)
+	if err != nil || podNamespace != csiAddonsNode.Namespace {
+		return
+	}
+
+	pods := &corev1.PodList{}
+	if err = r.List(ctx, pods, client.InNamespace(csiAddonsNode.Namespace)); err != nil {
+		logger.Error(err, "Failed to list Pods, keeping connections that may be stale")
+
+		return
+	}
+
+	for _, k := range staleConnectionKeys(conns, key, csiAddonsNode.Namespace, pods.Items) {
+		logger.Info("Removing connection to a sidecar Pod that no longer exists", "Key", k)
+		r.ConnPool.Delete(k)
+	}
+}
+
+// staleConnectionKeys returns the keys in conns, other than key, that do not
+// belong to any of the given Pods in namespace.
+func staleConnectionKeys(conns map[string]*connection.Connection, key, namespace string, pods []corev1.Pod) []string {
+	live := make(map[string]bool, len(pods))
+	for _, pod := range pods {
+		live[namespace+"/"+util.NormalizeLeaseName(pod.Name)] = true
+	}
+
+	var stale []string
+	for k := range conns {
+		if k != key && !live[k] {
+			stale = append(stale, k)
+		}
+	}
+
+	return stale
 }
 
 // addFinalizer adds finalizer to csiAddonsNode if it is not present.

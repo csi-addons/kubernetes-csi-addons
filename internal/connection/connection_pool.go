@@ -135,6 +135,22 @@ func (cp *ConnectionPool) getByDriverName(driverName string) (map[string]*Connec
 	return newPool, nil
 }
 
+// GetByCSIAddonsNode returns the connections stored for the CSIAddonsNode with
+// the given namespace and name, keyed by their connection pool key.
+func (cp *ConnectionPool) GetByCSIAddonsNode(namespace, name string) map[string]*Connection {
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
+
+	result := make(map[string]*Connection)
+	for k, v := range cp.pool {
+		if v.Namespace == namespace && v.Name == name {
+			result[k] = v
+		}
+	}
+
+	return result
+}
+
 // GetByNodeID returns map of connections, filtered with given driverName and optional nodeID.
 func (cp *ConnectionPool) GetByNodeID(driverName, nodeID string) (map[string]*Connection, error) {
 	cp.rwlock.RLock()

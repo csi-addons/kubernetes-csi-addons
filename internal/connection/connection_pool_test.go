@@ -389,3 +389,23 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectionPool_GetByCSIAddonsNode(t *testing.T) {
+	mockClient := newMockClient(t)
+	cp := &ConnectionPool{
+		pool: map[string]*Connection{
+			"ns/pod-a":    {Client: mockClient, Namespace: "ns", Name: "node-1"},
+			"ns/pod-b":    {Client: mockClient, Namespace: "ns", Name: "node-1"},
+			"ns/pod-c":    {Client: mockClient, Namespace: "ns", Name: "node-2"},
+			"other/pod-a": {Client: mockClient, Namespace: "other", Name: "node-1"},
+		},
+		rwlock: &sync.RWMutex{},
+	}
+
+	res := cp.GetByCSIAddonsNode("ns", "node-1")
+	assert.Equal(t, map[string]*Connection{
+		"ns/pod-a": cp.pool["ns/pod-a"],
+		"ns/pod-b": cp.pool["ns/pod-b"],
+	}, res)
+	assert.Empty(t, cp.GetByCSIAddonsNode("ns", "node-3"))
+}
