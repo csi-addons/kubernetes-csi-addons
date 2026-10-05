@@ -203,6 +203,10 @@ func TestStaleConnectionKeys(t *testing.T) {
 	pod := func(name string) corev1.Pod {
 		return corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ns"}}
 	}
+	terminating := func(p corev1.Pod) corev1.Pod {
+		p.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		return p
+	}
 	tests := []struct {
 		name  string
 		conns []string
@@ -234,6 +238,19 @@ func TestStaleConnectionKeys(t *testing.T) {
 			conns: []string{"ns/pod-a", "ns/pod-b"},
 			key:   "ns/pod-b",
 			pods:  []corev1.Pod{pod("pod-a"), pod("pod-b")},
+		},
+		{
+			name:  "connection to a terminating Pod",
+			conns: []string{"ns/pod-old", "ns/pod-new"},
+			key:   "ns/pod-new",
+			pods:  []corev1.Pod{terminating(pod("pod-old")), pod("pod-new")},
+			want:  []string{"ns/pod-old"},
+		},
+		{
+			name:  "current connection is kept while its Pod is terminating",
+			conns: []string{"ns/pod-a", "ns/pod-new"},
+			key:   "ns/pod-new",
+			pods:  []corev1.Pod{pod("pod-a"), terminating(pod("pod-new"))},
 		},
 		{
 			name:  "Pod name is normalized like the pool key",

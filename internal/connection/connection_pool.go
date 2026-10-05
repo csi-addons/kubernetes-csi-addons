@@ -141,7 +141,7 @@ func (cp *ConnectionPool) GetByCSIAddonsNode(namespace, name string) map[string]
 	cp.rwlock.RLock()
 	defer cp.rwlock.RUnlock()
 
-	result := make(map[string]*Connection)
+	result := make(map[string]*Connection, len(cp.pool))
 	for k, v := range cp.pool {
 		if v.Namespace == namespace && v.Name == name {
 			result[k] = v
