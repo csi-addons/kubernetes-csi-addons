@@ -161,7 +161,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Info("Connecting to sidecar")
-	newConn, err := r.ConnPool.GetOrCreateNew(ctx, key, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
+	newConn, err := r.ConnPool.GetOrCreateNew(ctx, key, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, podName, r.EnableAuth)
 	// If error occurs, we retry with exponential backoff until we reach `maxRetries`
 	if err != nil {
 		// We will either:
@@ -316,12 +316,13 @@ func (r *CSIAddonsNodeReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions
 }
 
 // removeStaleConnections removes connections of the CSIAddonsNode that were
-// made to sidecar Pods which no longer exist. The pool key contains the Pod
-// name, so a replaced sidecar Pod leaves its connection under the old key,
-// where GetByNodeID() would still return it. Connections to Pods that still
-// exist and are not terminating are kept, as replicas on the same node share
-// one CSIAddonsNode. This is best effort: on failure the connections are kept
-// and the next reconcile retries.
+// made to sidecar Pods which no longer exist or are terminating. The pool key
+// contains the Pod name, so a replaced sidecar Pod leaves its connection under
+// the old key, where GetByNodeID() would still return it. Connections to other
+// running Pods are kept, as replicas on the same node share one CSIAddonsNode.
+// Each Pod is fetched by name, as listing all Pods of the namespace is costly
+// without an informer cache. This is best effort: a connection whose Pod
+// cannot be fetched is kept and the next reconcile retries.
 func (r *CSIAddonsNodeReconciler) removeStaleConnections(
 	ctx context.Context,
 	logger *logr.Logger,
@@ -331,8 +332,8 @@ func (r *CSIAddonsNodeReconciler) removeStaleConnections(
 	if len(conns) <= 1 {
 		return
 	}
-	// The Pods are only listed in the namespace of the CSIAddonsNode, which the
-	// sidecar creates in its own namespace. resolveEndpoint() has already
+	// The Pods are only fetched from the namespace of the CSIAddonsNode, which
+	// the sidecar creates in its own namespace. resolveEndpoint() has already
 	// parsed the endpoint successfully, so the error is not checked again.
 	podNamespace, _, _, _ := parseEndpoint(csiAddonsNode.Spec.Driver.EndPoint)
 	if podNamespace != csiAddonsNode.Namespace {
@@ -342,38 +343,23 @@ func (r *CSIAddonsNodeReconciler) removeStaleConnections(
 		return
 	}
 
-	pods := &corev1.PodList{}
-	if err := r.List(ctx, pods, client.InNamespace(csiAddonsNode.Namespace)); err != nil {
-		logger.Error(err, "Failed to list Pods, keeping connections that may be stale")
-
-		return
-	}
-
-	for _, k := range staleConnectionKeys(conns, key, csiAddonsNode.Namespace, pods.Items) {
-		logger.Info("Removing connection to a sidecar Pod that no longer exists", "Key", k)
-		r.ConnPool.Delete(k)
-	}
-}
-
-// staleConnectionKeys returns the keys in conns, other than key, that do not
-// belong to any of the given Pods in namespace that are not terminating.
-func staleConnectionKeys(conns map[string]*connection.Connection, key, namespace string, pods []corev1.Pod) []string {
-	live := make(map[string]bool, len(pods))
-	for _, pod := range pods {
-		if !pod.DeletionTimestamp.IsZero() {
+	for k, conn := range conns {
+		if k == key {
 			continue
 		}
-		live[namespace+"/"+util.NormalizeLeaseName(pod.Name)] = true
-	}
+		pod := &corev1.Pod{}
+		err := r.Get(ctx, client.ObjectKey{Namespace: podNamespace, Name: conn.PodName}, pod)
+		if err != nil && !apierrors.IsNotFound(err) {
+			logger.Error(err, "Failed to get sidecar Pod, keeping its connection", "Key", k)
 
-	var stale []string
-	for k := range conns {
-		if k != key && !live[k] {
-			stale = append(stale, k)
+			continue
 		}
+		if err == nil && pod.DeletionTimestamp.IsZero() {
+			continue
+		}
+		logger.Info("Removing connection to a sidecar Pod that no longer exists or is terminating", "Key", k)
+		r.ConnPool.Delete(k)
 	}
-
-	return stale
 }
 
 // addFinalizer adds finalizer to csiAddonsNode if it is not present.
