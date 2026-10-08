@@ -66,6 +66,29 @@ spec:
                 maximum: 60
                 minimum: 0
                 type: integer
+              operations:
+                default:
+                - Node
+                description: |-
+                  Operations is the list of reclaim space operations to perform on the
+                  target volume. "Node" issues the node-side reclaim, which requires the
+                  volume to be attached to a node, and "Controller" issues the
+                  controller-side reclaim. At least one operation must be specified.
+                  If not specified, defaults to ["Node"]; the controller-side reclaim is
+                  opt-in because it is redundant once the node-side reclaim (for example,
+                  fstrim/discard) has run, and for some drivers it is costly or unsafe on
+                  in-use volumes.
+                items:
+                  description: |-
+                    ReclaimSpaceOperation specifies where a reclaim space operation is
+                    performed.
+                  enum:
+                  - Controller
+                  - Node
+                  type: string
+                minItems: 1
+                type: array
+                x-kubernetes-list-type: set
               retryDeadlineSeconds:
                 default: 600
                 description: |-
@@ -167,6 +190,56 @@ spec:
               message:
                 description: Message contains any message from the ReclaimSpaceJob.
                 type: string
+              operations:
+                description: |-
+                  Operations reports the progress of each requested reclaim space
+                  operation. Once the controller starts processing the job, there is one
+                  entry for every requested operation (spec.operations, or the default).
+                items:
+                  description: |-
+                    ReclaimSpaceOperationStatus describes the observed state of the requested
+                    reclaim space operation.
+                  properties:
+                    completionTime:
+                      description: CompletionTime is when the operation reached a
+                        terminal state.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message is a human-readable explanation of the
+                        current state.
+                      type: string
+                    operation:
+                      description: Operation identifies the reclaim space operation
+                        type.
+                      enum:
+                      - Controller
+                      - Node
+                      type: string
+                    reclaimedSpace:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: ReclaimedSpace is the amount of space reclaimed
+                        by this operation.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    state:
+                      description: State is the current state of the operation.
+                      enum:
+                      - Pending
+                      - Succeeded
+                      - Skipped
+                      - Failed
+                      type: string
+                  required:
+                  - operation
+                  - state
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - operation
+                x-kubernetes-list-type: map
               reclaimedSpace:
                 anyOf:
                 - type: integer
@@ -189,6 +262,10 @@ spec:
         required:
         - spec
         type: object
+        x-kubernetes-validations:
+        - fieldPath: .spec.operations
+          message: operations is immutable
+          rule: '!has(oldSelf.spec.operations) || self.spec.operations == oldSelf.spec.operations'
     served: true
     storage: true
     subresources:
