@@ -9,3 +9,8 @@ spec:
     spec:
       target:
         persistentVolumeClaim: data-pvc
+      # Defaults to ["Node"]; list "Controller" as well to additionally run
+      # the controller-side reclaim.
+      operations:
+        - Controller
+        - Node
