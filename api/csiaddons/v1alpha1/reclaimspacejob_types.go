@@ -109,7 +109,6 @@ type ReclaimSpaceJobSpec struct {
 	// +optional
 	// +kubebuilder:default:={Node}
 	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="operations is immutable"
 	// +listType=set
 	Operations []ReclaimSpaceOperation `json:"operations,omitempty"`
 }

@@ -992,9 +992,6 @@ spec:
                         minItems: 1
                         type: array
                         x-kubernetes-list-type: set
-                        x-kubernetes-validations:
-                        - message: operations is immutable
-                          rule: self == oldSelf
                       retryDeadlineSeconds:
                         default: 600
                         description: |-
@@ -1220,9 +1217,6 @@ spec:
                 minItems: 1
                 type: array
                 x-kubernetes-list-type: set
-                x-kubernetes-validations:
-                - message: operations is immutable
-                  rule: self == oldSelf
               retryDeadlineSeconds:
                 default: 600
                 description: |-
