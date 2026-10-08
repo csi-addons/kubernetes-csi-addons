@@ -17,13 +17,17 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
+	ginkgo "github.com/onsi/ginkgo/v2"
+	gomega "github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestSetFailedCondition(t *testing.T) {
@@ -209,3 +213,117 @@ func TestCanNodeReclaimSpace(t *testing.T) {
 		})
 	}
 }
+
+func TestSkipReason(t *testing.T) {
+	tests := []struct {
+		name                string
+		nodeRequested       bool
+		controllerRequested bool
+		want                string
+	}{
+		{
+			name:                "both requested",
+			nodeRequested:       true,
+			controllerRequested: true,
+			want: "the volume is not attached to any node for node-side reclaim, " +
+				"and no controller was found for controller-side reclaim",
+		},
+		{
+			name:          "only node requested",
+			nodeRequested: true,
+			want: "the volume is not attached to any node for node-side reclaim, " +
+				"and controller-side reclaim is not requested",
+		},
+		{
+			name:                "only controller requested",
+			controllerRequested: true,
+			want: "node-side reclaim is not requested, " +
+				"and no controller was found for controller-side reclaim",
+		},
+		{
+			name: "none requested",
+			want: "node-side reclaim is not requested, " +
+				"and controller-side reclaim is not requested",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := skipReason(tt.nodeRequested, tt.controllerRequested)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+var _ = ginkgo.Describe("ReclaimSpaceJob spec.operations", func() {
+	ctx := context.Background()
+
+	newJob := func(name string, operations []csiaddonsv1alpha1.ReclaimSpaceOperation) *csiaddonsv1alpha1.ReclaimSpaceJob {
+		return &csiaddonsv1alpha1.ReclaimSpaceJob{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      name,
+				Namespace: "default",
+			},
+			Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+				Target:     csiaddonsv1alpha1.TargetSpec{PersistentVolumeClaim: "data-pvc"},
+				Operations: operations,
+			},
+		}
+	}
+
+	ginkgo.It("defaults to the node operation when unset", func() {
+		job := newJob("rsjob-operations-unset", nil)
+		gomega.Expect(k8sClient.Create(ctx, job)).To(gomega.Succeed())
+		ginkgo.DeferCleanup(k8sClient.Delete, ctx, job)
+
+		gomega.Expect(job.Spec.Operations).To(gomega.Equal(csiaddonsv1alpha1.DefaultReclaimSpaceOperations()))
+	})
+
+	ginkgo.It("accepts both operations", func() {
+		job := newJob("rsjob-operations-both", []csiaddonsv1alpha1.ReclaimSpaceOperation{
+			csiaddonsv1alpha1.ReclaimSpaceOperationController,
+			csiaddonsv1alpha1.ReclaimSpaceOperationNode,
+		})
+		gomega.Expect(k8sClient.Create(ctx, job)).To(gomega.Succeed())
+		ginkgo.DeferCleanup(k8sClient.Delete, ctx, job)
+	})
+
+	// An empty list cannot be expressed through the typed client, the
+	// omitempty json tag drops it and the API server applies the default
+	// instead. Submit it the way `kubectl apply` would.
+	ginkgo.It("rejects an empty list", func() {
+		job := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": csiaddonsv1alpha1.GroupVersion.String(),
+				"kind":       "ReclaimSpaceJob",
+				"metadata": map[string]any{
+					"name":      "rsjob-operations-empty",
+					"namespace": "default",
+				},
+				"spec": map[string]any{
+					"target":     map[string]any{"persistentVolumeClaim": "data-pvc"},
+					"operations": []any{},
+				},
+			},
+		}
+		// minItems rejects this on every supported API server, the CEL rule
+		// adds the friendlier message once CEL validation is available.
+		gomega.Expect(k8sClient.Create(ctx, job)).To(gomega.MatchError(gomega.Or(
+			gomega.ContainSubstring("at least one reclaim space operation must be specified"),
+			gomega.ContainSubstring("should have at least 1 items"))))
+	})
+
+	ginkgo.It("rejects an unknown operation", func() {
+		job := newJob("rsjob-operations-unknown", []csiaddonsv1alpha1.ReclaimSpaceOperation{"Sparsify"})
+		gomega.Expect(k8sClient.Create(ctx, job)).To(gomega.MatchError(
+			gomega.ContainSubstring(`Unsupported value: "Sparsify": supported values: "Controller", "Node"`)))
+	})
+
+	ginkgo.It("rejects duplicate operations", func() {
+		job := newJob("rsjob-operations-duplicate", []csiaddonsv1alpha1.ReclaimSpaceOperation{
+			csiaddonsv1alpha1.ReclaimSpaceOperationNode,
+			csiaddonsv1alpha1.ReclaimSpaceOperationNode,
+		})
+		gomega.Expect(k8sClient.Create(ctx, job)).To(gomega.MatchError(
+			gomega.ContainSubstring("Duplicate value")))
+	})
+})

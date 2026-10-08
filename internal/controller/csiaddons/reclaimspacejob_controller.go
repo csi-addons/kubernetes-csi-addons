@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
@@ -214,6 +215,28 @@ func (td *targetDetails) canNodeReclaimSpace() bool {
 	return td.nodeID != ""
 }
 
+// skipReason explains why neither side of the reclaim space operation ran,
+// based on which operations spec.operations asked for. An operation that was
+// requested did not run because the volume or the controller was unavailable,
+// an operation that was not requested never ran at all.
+func skipReason(nodeRequested, controllerRequested bool) string {
+	reasons := make([]string, 0, 2)
+
+	if nodeRequested {
+		reasons = append(reasons, "the volume is not attached to any node for node-side reclaim")
+	} else {
+		reasons = append(reasons, "node-side reclaim is not requested")
+	}
+
+	if controllerRequested {
+		reasons = append(reasons, "no controller was found for controller-side reclaim")
+	} else {
+		reasons = append(reasons, "controller-side reclaim is not requested")
+	}
+
+	return strings.Join(reasons, ", and ")
+}
+
 // reconcile performs time based validation, fetches required details and makes
 // grpc request for controller and node reclaim space operation.
 func (r *ReclaimSpaceJobReconciler) reconcile(
@@ -253,10 +276,13 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 	}
 
 	var (
-		nodeFound          = false
-		nodeReclaimedSpace *int64
+		nodeFound, controllerFound                   bool
+		nodeReclaimedSpace, controllerReclaimedSpace *int64
 	)
-	if target.canNodeReclaimSpace() {
+	nodeRequested := rsJob.Spec.HasOperation(csiaddonsv1alpha1.ReclaimSpaceOperationNode)
+	controllerRequested := rsJob.Spec.HasOperation(csiaddonsv1alpha1.ReclaimSpaceOperationController)
+
+	if nodeRequested && target.canNodeReclaimSpace() {
 		nodeFound = true
 		nodeReclaimedSpace, err = r.nodeReclaimSpace(ctx, logger, target)
 		if err != nil {
@@ -270,19 +296,23 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 		}
 	}
 
-	controllerFound, controllerReclaimedSpace, err := r.controllerReclaimSpace(ctx, logger, target)
-	if err != nil {
-		logger.Error(err, "Failed to make controller request")
-		setFailedCondition(
-			&rsJob.Status.Conditions,
-			fmt.Sprintf("Failed to make controller request: %v", util.GetErrorMessage(err)),
-			rsJob.Generation)
+	if controllerRequested {
+		controllerFound, controllerReclaimedSpace, err = r.controllerReclaimSpace(ctx, logger, target)
+		if err != nil {
+			logger.Error(err, "Failed to make controller request")
+			setFailedCondition(
+				&rsJob.Status.Conditions,
+				fmt.Sprintf("Failed to make controller request: %v", util.GetErrorMessage(err)),
+				rsJob.Generation)
 
-		return err
+			return err
+		}
 	}
 
 	if !controllerFound && !nodeFound {
-		err = fmt.Errorf("controller and Node Client not found for %q nodeID", target.nodeID)
+		err = fmt.Errorf("no reclaim space operation performed for PVC %q: %s",
+			rsJob.Spec.Target.PersistentVolumeClaim,
+			skipReason(nodeRequested, controllerRequested))
 		setFailedCondition(
 			&rsJob.Status.Conditions,
 			err.Error(),

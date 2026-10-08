@@ -48,6 +48,10 @@ func (f *Framework) CreateReclaimSpaceJob(name string, pvcName string) *csiaddon
 			Target: csiaddonsv1alpha1.TargetSpec{
 				PersistentVolumeClaim: pvcName,
 			},
+			Operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{
+				csiaddonsv1alpha1.ReclaimSpaceOperationController,
+				csiaddonsv1alpha1.ReclaimSpaceOperationNode,
+			},
 			BackoffLimit:         15,
 			RetryDeadlineSeconds: 600,
 		},
@@ -116,6 +120,10 @@ func (f *Framework) CreateReclaimSpaceCronJob(name string, pvcName string, sched
 				Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
 					Target: csiaddonsv1alpha1.TargetSpec{
 						PersistentVolumeClaim: pvcName,
+					},
+					Operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{
+						csiaddonsv1alpha1.ReclaimSpaceOperationController,
+						csiaddonsv1alpha1.ReclaimSpaceOperationNode,
 					},
 					BackoffLimit:         3,
 					RetryDeadlineSeconds: 600,
