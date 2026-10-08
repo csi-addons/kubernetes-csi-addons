@@ -9,3 +9,7 @@ spec:
     spec:
       target:
         persistentVolumeClaim: data-pvc
+      # Defaults to ["Node"]. "Controller" is opt-in, as the controller-side
+      # reclaim can be costly or unsafe on in-use volumes for some drivers.
+      operations:
+        - Node
