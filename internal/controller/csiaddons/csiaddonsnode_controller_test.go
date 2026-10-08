@@ -17,11 +17,26 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
+	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
+	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 	"github.com/csi-addons/spec/lib/go/identity"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 func TestParseEndpoint(t *testing.T) {
@@ -186,4 +201,83 @@ func TestGetRetryCountFromReason(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newTestCSIAddonsNode returns CSIAddonsNode "ns/node-1" with the given endpoint.
+func newTestCSIAddonsNode(endpoint string) *csiaddonsv1alpha1.CSIAddonsNode {
+	return &csiaddonsv1alpha1.CSIAddonsNode{
+		ObjectMeta: metav1.ObjectMeta{Name: "node-1", Namespace: "ns"},
+		Spec: csiaddonsv1alpha1.CSIAddonsNodeSpec{
+			Driver: csiaddonsv1alpha1.CSIAddonsNodeDriver{Name: "driver", NodeID: "node-1", EndPoint: endpoint},
+		},
+	}
+}
+
+// newTestConnPool returns a pool with a connection of CSIAddonsNode "ns/node-1"
+// to each of the given sidecar Pods, stored under the key derived from the Pod
+// name like the reconciler does.
+func newTestConnPool(podNames ...string) *connection.ConnectionPool {
+	pool := connection.NewConnectionPool()
+	for _, n := range podNames {
+		pool.Put("ns/"+util.NormalizeLeaseName(n), &connection.Connection{Namespace: "ns", Name: "node-1", PodName: n})
+	}
+	return pool
+}
+
+func TestRemoveStaleConnections(t *testing.T) {
+	scheme := runtime.NewScheme()
+	assert.NoError(t, corev1.AddToScheme(scheme))
+	pod := func(name string) *corev1.Pod {
+		return &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "ns"}}
+	}
+	terminating := pod("pod-terminating")
+	terminating.Finalizers = []string{"test"}
+	terminating.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	cl := fake.NewClientBuilder().WithScheme(scheme).
+		WithObjects(pod("pod-a"), pod("rbd.csi.ceph.com-nodeplugin-b"), terminating).Build()
+	logger := logr.Discard()
+
+	// The current connection is kept although its Pod is not found, and a
+	// Pod name is matched before it is normalized into the key.
+	pool := newTestConnPool("pod-old", "pod-terminating", "pod-a", "rbd.csi.ceph.com-nodeplugin-b", "pod-new")
+	r := &CSIAddonsNodeReconciler{Client: cl, ConnPool: pool}
+	r.removeStaleConnections(context.Background(), &logger, newTestCSIAddonsNode("pod://pod-new.ns:9070"), "ns/pod-new")
+	assert.Nil(t, pool.GetByKey("ns/pod-old"))
+	assert.Nil(t, pool.GetByKey("ns/pod-terminating"))
+	assert.NotNil(t, pool.GetByKey("ns/pod-a"))
+	assert.NotNil(t, pool.GetByKey("ns/rbd-csi-ceph-com-nodeplugin-b"))
+	assert.NotNil(t, pool.GetByKey("ns/pod-new"))
+
+	// Pods outside the CSIAddonsNode namespace are not fetched, so nothing is removed.
+	pool = newTestConnPool("pod-old", "pod-new")
+	r = &CSIAddonsNodeReconciler{Client: cl, ConnPool: pool}
+	r.removeStaleConnections(context.Background(), &logger, newTestCSIAddonsNode("pod://pod-new.other:9070"), "ns/pod-new")
+	assert.NotNil(t, pool.GetByKey("ns/pod-old"))
+
+	// A connection is kept when its Pod cannot be fetched.
+	failing := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+		Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+			return errors.New("unavailable")
+		},
+	}).Build()
+	pool = newTestConnPool("pod-old", "pod-new")
+	r = &CSIAddonsNodeReconciler{Client: failing, ConnPool: pool}
+	r.removeStaleConnections(context.Background(), &logger, newTestCSIAddonsNode("pod://pod-new.ns:9070"), "ns/pod-new")
+	assert.NotNil(t, pool.GetByKey("ns/pod-old"))
+}
+
+func TestReconcileDeletionRemovesAllConnections(t *testing.T) {
+	scheme := runtime.NewScheme()
+	assert.NoError(t, corev1.AddToScheme(scheme))
+	assert.NoError(t, csiaddonsv1alpha1.AddToScheme(scheme))
+	node := newTestCSIAddonsNode("pod://pod-new.ns:9070")
+	node.Finalizers = []string{csiAddonsNodeFinalizer}
+	node.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node).Build()
+
+	pool := newTestConnPool("pod-old", "pod-new")
+	r := &CSIAddonsNodeReconciler{Client: cl, ConnPool: pool}
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "node-1", Namespace: "ns"}})
+	assert.NoError(t, err)
+	assert.Empty(t, pool.GetByCSIAddonsNode("ns", "node-1"))
 }

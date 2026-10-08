@@ -148,8 +148,10 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if !csiAddonsNode.DeletionTimestamp.IsZero() {
 		// if deletion timestamp is set, the CSIAddonsNode is getting deleted,
 		// delete connections and remove finalizer.
-		logger.Info("Deleting connection", "Key", key)
-		r.ConnPool.Delete(key)
+		for k := range r.ConnPool.GetByCSIAddonsNode(csiAddonsNode.Namespace, csiAddonsNode.Name) {
+			logger.Info("Deleting connection", "Key", k)
+			r.ConnPool.Delete(k)
+		}
 		err = r.removeFinalizer(ctx, &logger, csiAddonsNode)
 		return ctrl.Result{}, err
 	}
@@ -159,7 +161,7 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Info("Connecting to sidecar")
-	newConn, err := r.ConnPool.GetOrCreateNew(ctx, key, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, r.EnableAuth)
+	newConn, err := r.ConnPool.GetOrCreateNew(ctx, key, endPoint, nodeID, driverName, csiAddonsNode.Namespace, csiAddonsNode.Name, podName, r.EnableAuth)
 	// If error occurs, we retry with exponential backoff until we reach `maxRetries`
 	if err != nil {
 		// We will either:
@@ -169,6 +171,8 @@ func (r *CSIAddonsNodeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	logger.Info("Successfully connected to the sidecar and added connection to the connection pool", "key", key)
+
+	r.removeStaleConnections(ctx, &logger, csiAddonsNode, key)
 
 	nfsc, err := r.getNetworkFenceClientStatus(ctx, &logger, newConn, csiAddonsNode)
 	if err != nil {
@@ -309,6 +313,53 @@ func (r *CSIAddonsNodeReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptions
 		WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.AnnotationChangedPredicate{})).
 		WithOptions(ctrlOptions).
 		Complete(r)
+}
+
+// removeStaleConnections removes connections of the CSIAddonsNode that were
+// made to sidecar Pods which no longer exist or are terminating. The pool key
+// contains the Pod name, so a replaced sidecar Pod leaves its connection under
+// the old key, where GetByNodeID() would still return it. Connections to other
+// running Pods are kept, as replicas on the same node share one CSIAddonsNode.
+// Each Pod is fetched by name, as listing all Pods of the namespace is costly
+// without an informer cache. This is best effort: a connection whose Pod
+// cannot be fetched is kept and the next reconcile retries.
+func (r *CSIAddonsNodeReconciler) removeStaleConnections(
+	ctx context.Context,
+	logger *logr.Logger,
+	csiAddonsNode *csiaddonsv1alpha1.CSIAddonsNode,
+	key string) {
+	conns := r.ConnPool.GetByCSIAddonsNode(csiAddonsNode.Namespace, csiAddonsNode.Name)
+	if len(conns) <= 1 {
+		return
+	}
+	// The Pods are only fetched from the namespace of the CSIAddonsNode, which
+	// the sidecar creates in its own namespace. resolveEndpoint() has already
+	// parsed the endpoint successfully, so the error is not checked again.
+	podNamespace, _, _, _ := parseEndpoint(csiAddonsNode.Spec.Driver.EndPoint)
+	if podNamespace != csiAddonsNode.Namespace {
+		logger.Info("Sidecar Pod is not in the namespace of the CSIAddonsNode, keeping connections that may be stale",
+			"PodNamespace", podNamespace)
+
+		return
+	}
+
+	for k, conn := range conns {
+		if k == key {
+			continue
+		}
+		pod := &corev1.Pod{}
+		err := r.Get(ctx, client.ObjectKey{Namespace: podNamespace, Name: conn.PodName}, pod)
+		if err != nil && !apierrors.IsNotFound(err) {
+			logger.Error(err, "Failed to get sidecar Pod, keeping its connection", "Key", k)
+
+			continue
+		}
+		if err == nil && pod.DeletionTimestamp.IsZero() {
+			continue
+		}
+		logger.Info("Removing connection to a sidecar Pod that no longer exists or is terminating", "Key", k)
+		r.ConnPool.Delete(k)
+	}
 }
 
 // addFinalizer adds finalizer to csiAddonsNode if it is not present.

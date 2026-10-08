@@ -84,7 +84,6 @@ func TestConnect_ReuseExistingConnection(t *testing.T) {
 		DriverName: "test-driver",
 		Timeout:    time.Second * 5,
 		endpoint:   addr,
-		podName:    "test-pod",
 		enableAuth: false,
 	}
 
@@ -128,7 +127,6 @@ func TestConnect_RecreateOnShutdown(t *testing.T) {
 		DriverName: "test-driver",
 		Timeout:    time.Second * 5,
 		endpoint:   addr,
-		podName:    "test-pod",
 		enableAuth: false,
 	}
 
@@ -198,7 +196,6 @@ func TestConnect_NilClient(t *testing.T) {
 		DriverName: "test-driver",
 		Timeout:    time.Second * 5,
 		endpoint:   addr,
-		podName:    "test-pod",
 		enableAuth: false,
 		Client:     nil,
 	}
@@ -231,7 +228,6 @@ func TestClose(t *testing.T) {
 		DriverName: "test-driver",
 		Timeout:    time.Second * 5,
 		endpoint:   addr,
-		podName:    "test-pod",
 		enableAuth: false,
 	}
 
@@ -273,7 +269,6 @@ func TestConnect_ConcurrentAccess(t *testing.T) {
 		DriverName: "test-driver",
 		Timeout:    time.Second * 5,
 		endpoint:   addr,
-		podName:    "test-pod",
 		enableAuth: false,
 	}
 
@@ -314,6 +309,7 @@ func TestNewConnection(t *testing.T) {
 		"test-node",
 		"test-driver",
 		"test-ns",
+		"test-node",
 		"test-pod",
 		false,
 	)
@@ -328,7 +324,8 @@ func TestNewConnection(t *testing.T) {
 	assert.Equal(t, "test-node", conn.NodeID)
 	assert.Equal(t, "test-driver", conn.DriverName)
 	assert.Equal(t, "test-ns", conn.Namespace)
-	assert.Equal(t, "test-pod", conn.Name)
+	assert.Equal(t, "test-node", conn.Name)
+	assert.Equal(t, "test-pod", conn.PodName)
 	assert.Equal(t, time.Minute, conn.Timeout)
 	assert.True(t, conn.HasControllerService())
 }
