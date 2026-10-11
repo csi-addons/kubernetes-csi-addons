@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -280,4 +282,47 @@ func TestReconcileDeletionRemovesAllConnections(t *testing.T) {
 	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "node-1", Namespace: "ns"}})
 	assert.NoError(t, err)
 	assert.Empty(t, pool.GetByCSIAddonsNode("ns", "node-1"))
+}
+
+// identityServer is a sidecar that reports no capabilities, which is enough
+// for the reconciler to connect to it.
+type identityServer struct {
+	identity.UnimplementedIdentityServer
+}
+
+func (identityServer) GetCapabilities(context.Context, *identity.GetCapabilitiesRequest) (*identity.GetCapabilitiesResponse, error) {
+	return &identity.GetCapabilitiesResponse{}, nil
+}
+
+func TestReconcileRemovesStaleConnections(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	server := grpc.NewServer()
+	identity.RegisterIdentityServer(server, identityServer{})
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	defer server.Stop()
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	assert.NoError(t, err)
+
+	scheme := runtime.NewScheme()
+	assert.NoError(t, corev1.AddToScheme(scheme))
+	assert.NoError(t, csiaddonsv1alpha1.AddToScheme(scheme))
+	node := newTestCSIAddonsNode("pod://pod-new.ns:" + port)
+	sidecar := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "pod-new", Namespace: "ns"},
+		Status:     corev1.PodStatus{PodIP: "127.0.0.1"},
+	}
+	cl := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node, sidecar).WithStatusSubresource(node).Build()
+
+	// The connection of the replaced sidecar Pod "pod-old" is still in the pool.
+	pool := newTestConnPool("pod-old")
+	r := &CSIAddonsNodeReconciler{Client: cl, ConnPool: pool}
+	_, err = r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: "node-1", Namespace: "ns"}})
+	assert.NoError(t, err)
+	assert.Nil(t, pool.GetByKey("ns/pod-old"))
+	assert.NotNil(t, pool.GetByKey("ns/pod-new"))
 }
