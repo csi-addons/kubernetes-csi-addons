@@ -23,7 +23,18 @@ The CSI-Addons Controller can be deployed by different ways:
 
 ## Installation for latest deployments
 
-The latest CSI-Addons Controller can be installed using the YAML files in `deploy/controller` from `main` branch.
+The latest CSI-Addons Controller can be installed from the `main` branch:
+
+```console
+$ kubectl apply -k "https://github.com/csi-addons/kubernetes-csi-addons/deploy/controller?ref=main"
+namespace/csi-addons-system created
+...
+deployment.apps/csi-addons-controller-manager created
+```
+
+`deploy/controller/kustomization.yaml` groups `crds.yaml`, `rbac.yaml`, and `setup-controller.yaml`. Add any new required manifest to that `resources` list in the same change that introduces the file. `csi-addons-config.yaml` is an example ConfigMap and is not part of this install.
+
+Manifests committed on `main` and on Git tags set the controller image to `quay.io/csiaddons/k8s-controller:latest`. Pointing `-k` at a release tag is not a pinned install. Use the release assets in the next section for a version-pinned install.
 
 ## Installation for versioned deployments
 
