@@ -35,6 +35,9 @@ jobs:
       - name: Checkout and setup Go
         uses: ./.github/actions/setup-go
 
+      - name: Load the versions of the test cluster components
+        run: grep -E '^[A-Z_]+=' test/scripts/ceph/build.env >> "$GITHUB_ENV"
+
       - name: Install cri-dockerd
         run: |
           ARCH="$(go env GOARCH)"
@@ -48,10 +51,8 @@ jobs:
       - name: Setup Minikube
         uses: medyagh/setup-minikube@e9e035a86bbc3caea26a450bd4dbf9d0c453682e  # v0.0.21
         with:
-          # lock minikube version to ensure release branch CI doesn't fail when latest minikube no
-          # longer supports older k8s version we lock to
-          minikube-version: "1.38.0"
-          kubernetes-version: "1.31.0"
+          minikube-version: ${{ env.MINIKUBE_VERSION }}
+          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
           driver: none
           container-runtime: docker
           memory: 6g
@@ -60,7 +61,7 @@ jobs:
           cni: calico
 
       - name: checkout rook release
-        run: test/scripts/ceph/github-action-helper.sh checkout_rook_release "v1.19.1"
+        run: test/scripts/ceph/github-action-helper.sh checkout_rook_release
 
       - name: install deps
         run: test/scripts/ceph/github-action-helper.sh install_deps
