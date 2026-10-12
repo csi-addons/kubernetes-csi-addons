@@ -128,6 +128,6 @@ jobs:
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd  # v1.21.0
         with:
           tag: ${{ github.ref_name }}
-          artifacts: "deploy/*/*.yaml"
+          artifacts: "deploy/controller/crds.yaml,deploy/controller/rbac.yaml,deploy/controller/setup-controller.yaml,deploy/controller/csi-addons-config.yaml"
           generateReleaseNotes: true
           token: ${{ secrets.GITHUB_TOKEN }}
