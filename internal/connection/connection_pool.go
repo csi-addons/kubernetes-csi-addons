@@ -61,7 +61,7 @@ func (cp *ConnectionPool) GetByKey(key string) *Connection {
 // GetOrCreateNew returns an existing healthy connection for the given key if the
 // endpoint matches, otherwise it creates a new connection and stores it in the pool.
 // Old connection (if any) is closed when replaced by calling Put().
-func (cp *ConnectionPool) GetOrCreateNew(ctx context.Context, key, endpoint, nodeID, driverName, namespace, name string, enableAuth bool) (*Connection, error) {
+func (cp *ConnectionPool) GetOrCreateNew(ctx context.Context, key, endpoint, nodeID, driverName, namespace, name, podName string, enableAuth bool) (*Connection, error) {
 	cp.rwlock.RLock()
 	existing := cp.pool[key]
 	cp.rwlock.RUnlock()
@@ -75,7 +75,7 @@ func (cp *ConnectionPool) GetOrCreateNew(ctx context.Context, key, endpoint, nod
 	}
 
 	// We need to create a new connection
-	conn, err := NewConnection(ctx, endpoint, nodeID, driverName, namespace, name, enableAuth)
+	conn, err := NewConnection(ctx, endpoint, nodeID, driverName, namespace, name, podName, enableAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +133,22 @@ func (cp *ConnectionPool) getByDriverName(driverName string) (map[string]*Connec
 	}
 
 	return newPool, nil
+}
+
+// GetByCSIAddonsNode returns the connections stored for the CSIAddonsNode with
+// the given namespace and name, keyed by their connection pool key.
+func (cp *ConnectionPool) GetByCSIAddonsNode(namespace, name string) map[string]*Connection {
+	cp.rwlock.RLock()
+	defer cp.rwlock.RUnlock()
+
+	result := make(map[string]*Connection, len(cp.pool))
+	for k, v := range cp.pool {
+		if v.Namespace == namespace && v.Name == name {
+			result[k] = v
+		}
+	}
+
+	return result
 }
 
 // GetByNodeID returns map of connections, filtered with given driverName and optional nodeID.
