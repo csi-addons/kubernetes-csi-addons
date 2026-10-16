@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -221,13 +222,11 @@ func (nf *NetworkFenceInstance) processFencing(ctx context.Context) error {
 	return nf.processFencingRequest(ctx)
 }
 
-// processFencingRequest creates the fencing request based on
-// the spec and then calls appropriate function to either
-// fence or unfence based on the spec.
-func (nf *NetworkFenceInstance) processFencingRequest(ctx context.Context) error {
-	// send FenceClusterNetwork request.
+// getNetworkFenceRequest builds the NetworkFenceRequest without mutating
+// the in-memory NetworkFence.Spec.Parameters map when merging class parameters.
+func (nf *NetworkFenceInstance) getNetworkFenceRequest() *proto.NetworkFenceRequest {
 	request := &proto.NetworkFenceRequest{
-		Parameters:      nf.instance.Spec.Parameters,
+		Parameters:      maps.Clone(nf.instance.Spec.Parameters),
 		SecretName:      nf.instance.Spec.Secret.Name,
 		SecretNamespace: nf.instance.Spec.Secret.Namespace,
 		Cidrs:           nf.instance.Spec.Cidrs,
@@ -251,6 +250,16 @@ func (nf *NetworkFenceInstance) processFencingRequest(ctx context.Context) error
 			request.Parameters[k] = v
 		}
 	}
+
+	return request
+}
+
+// processFencingRequest creates the fencing request based on
+// the spec and then calls appropriate function to either
+// fence or unfence based on the spec.
+func (nf *NetworkFenceInstance) processFencingRequest(ctx context.Context) error {
+	// send FenceClusterNetwork request.
+	request := nf.getNetworkFenceRequest()
 
 	if nf.instance.Spec.FenceState == csiaddonsv1alpha1.Fenced {
 		return nf.fenceClusterNetwork(ctx, request)
