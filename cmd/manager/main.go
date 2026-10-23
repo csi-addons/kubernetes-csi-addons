@@ -221,6 +221,7 @@ func main() {
 		ConnPool:       connPool,
 		EnableAuth:     enableAuth,
 		BaseRetryDelay: time.Duration(cfg.CSIAddonsNodeRetryDelay),
+		Timeout:        defaultTimeout,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CSIAddonsNode")
 		os.Exit(1)
