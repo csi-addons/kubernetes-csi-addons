@@ -5,4 +5,13 @@ kind: ReclaimSpaceJob
 metadata:
   name: reclaimspacejob-sample
 spec:
-  # TODO(user): Add fields here
+  target:
+    persistentVolumeClaim: data-pvc
+  # operations selects which reclaim space operations to perform on the
+  # volume. Valid values are "Controller" and "Node", at least one must be
+  # specified. Defaults to ["Node"] when the field is omitted.
+  operations:
+    - Controller
+    - Node
+  backOffLimit: 6
+  retryDeadlineSeconds: 600

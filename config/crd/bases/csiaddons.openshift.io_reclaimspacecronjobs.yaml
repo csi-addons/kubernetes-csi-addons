@@ -106,6 +106,33 @@ spec:
                         maximum: 60
                         minimum: 0
                         type: integer
+                      operations:
+                        default:
+                        - Node
+                        description: |-
+                          Operations is the list of reclaim space operations to perform on the
+                          target volume. "Node" issues the node-side reclaim, which requires the
+                          volume to be attached to a node, and "Controller" issues the
+                          controller-side reclaim. At least one operation must be specified.
+                          If not specified, defaults to ["Node"]; the controller-side reclaim is
+                          opt-in because it is redundant once the node-side reclaim (for example,
+                          fstrim/discard) has run, and for some drivers it is costly or unsafe on
+                          in-use volumes.
+                        items:
+                          description: |-
+                            ReclaimSpaceOperation specifies where a reclaim space operation is
+                            performed.
+                          enum:
+                          - Controller
+                          - Node
+                          type: string
+                        maxItems: 2
+                        minItems: 1
+                        type: array
+                        x-kubernetes-list-type: set
+                        x-kubernetes-validations:
+                        - message: at least one reclaim space operation must be specified
+                          rule: size(self) > 0
                       retryDeadlineSeconds:
                         default: 600
                         description: |-
