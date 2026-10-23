@@ -81,14 +81,6 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	// set history limit defaults, if not specified.
-	if rsCronJob.Spec.FailedJobsHistoryLimit == nil {
-		*rsCronJob.Spec.FailedJobsHistoryLimit = utils.DefaultFailedJobsHistoryLimit
-	}
-	if rsCronJob.Spec.SuccessfulJobsHistoryLimit == nil {
-		*rsCronJob.Spec.SuccessfulJobsHistoryLimit = utils.DefaultSuccessfulJobsHistoryLimit
-	}
-
 	var childJobs csiaddonsv1alpha1.ReclaimSpaceJobList
 	err = r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{utils.JobOwnerKey: req.Name})
 	if err != nil {
@@ -118,6 +110,15 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 	if err := r.Status().Update(ctx, rsCronJob); err != nil {
 		logger.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
+	}
+
+	if rsCronJob.Spec.FailedJobsHistoryLimit == nil {
+		limit := utils.DefaultFailedJobsHistoryLimit
+		rsCronJob.Spec.FailedJobsHistoryLimit = &limit
+	}
+	if rsCronJob.Spec.SuccessfulJobsHistoryLimit == nil {
+		limit := utils.DefaultSuccessfulJobsHistoryLimit
+		rsCronJob.Spec.SuccessfulJobsHistoryLimit = &limit
 	}
 
 	// delete jobs older than history limit.
@@ -160,18 +161,18 @@ func (r *ReclaimSpaceCronJobReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	// replace existing ones, if replace concurrent policy is set.
-	if rsCronJob.Spec.ConcurrencyPolicy == csiaddonsv1alpha1.ReplaceConcurrent {
-		err = r.Delete(ctx, childJobsInfo.activeJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
-		if client.IgnoreNotFound(err) != nil {
-			logger.Error(err, "Failed to delete active reclaimSpaceJob", "reclaimSpaceJob", childJobsInfo.activeJob.Name)
-			return ctrl.Result{}, err
-		}
-	}
-
-	// default is to forbid concurrent execution
 	if childJobsInfo.activeJob != nil {
-		logger.Info("Concurrency policy blocks concurrent runs, skipping", "activeJob", childJobsInfo.activeJob.Name)
-		return scheduledResult, nil
+		if rsCronJob.Spec.ConcurrencyPolicy == csiaddonsv1alpha1.ReplaceConcurrent {
+			err = r.Delete(ctx, childJobsInfo.activeJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
+			if client.IgnoreNotFound(err) != nil {
+				logger.Error(err, "Failed to delete active reclaimSpaceJob", "reclaimSpaceJob", childJobsInfo.activeJob.Name)
+				return ctrl.Result{}, err
+			}
+		} else {
+			// default is to forbid concurrent execution
+			logger.Info("Concurrency policy blocks concurrent runs, skipping", "activeJob", childJobsInfo.activeJob.Name)
+			return scheduledResult, nil
+		}
 	}
 
 	rsJob, err := r.constructRSJobForCronJob(rsCronJob, missedRun)
