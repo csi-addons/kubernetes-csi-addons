@@ -511,6 +511,7 @@ func constructRSCronJob(name, namespace, schedule, pvcName string) *csiaddonsv1a
 			JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
 				Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
 					Target:               csiaddonsv1alpha1.TargetSpec{PersistentVolumeClaim: pvcName},
+					Operations:           csiaddonsv1alpha1.DefaultReclaimSpaceOperations(),
 					BackoffLimit:         defaultBackoffLimit,
 					RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
 				},

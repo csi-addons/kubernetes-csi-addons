@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"slices"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,6 +33,29 @@ const (
 	// OperationResultFailed represents the Failed operation state.
 	OperationResultFailed OperationResult = "Failed"
 )
+
+// ReclaimSpaceOperation specifies where a reclaim space operation is
+// performed.
+// +kubebuilder:validation:Enum=Controller;Node
+type ReclaimSpaceOperation string
+
+const (
+	// ReclaimSpaceOperationController performs the ControllerReclaimSpace
+	// CSI-Addons RPC against the CSI controller (for example, rbd sparsify).
+	ReclaimSpaceOperationController ReclaimSpaceOperation = "Controller"
+
+	// ReclaimSpaceOperationNode performs the NodeReclaimSpace CSI-Addons RPC
+	// (for example, fstrim) on the node the volume is attached to.
+	ReclaimSpaceOperationNode ReclaimSpaceOperation = "Node"
+)
+
+// DefaultReclaimSpaceOperations returns the operations that are performed when
+// ReclaimSpaceJobSpec.Operations is not set. It MUST be kept in sync with the
+// kubebuilder default on that field: callers that construct a spec and compare
+// it against an object defaulted by the API server rely on both matching.
+func DefaultReclaimSpaceOperations() []ReclaimSpaceOperation {
+	return []ReclaimSpaceOperation{ReclaimSpaceOperationNode}
+}
 
 // TargetSpec defines the targets on which the operation can be
 // performed.
@@ -72,6 +97,28 @@ type ReclaimSpaceJobSpec struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=60
 	Timeout *int64 `json:"timeout,omitempty"`
+
+	// Operations is the list of reclaim space operations to perform on the
+	// target volume. "Node" issues the node-side reclaim, which requires the
+	// volume to be attached to a node, and "Controller" issues the
+	// controller-side reclaim. At least one operation must be specified.
+	// If not specified, defaults to ["Node"]; the controller-side reclaim is
+	// opt-in because it is redundant once the node-side reclaim (for example,
+	// fstrim/discard) has run, and for some drivers it is costly or unsafe on
+	// in-use volumes.
+	// +optional
+	// +kubebuilder:default:={Node}
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=2
+	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="at least one reclaim space operation must be specified"
+	// +listType=set
+	Operations []ReclaimSpaceOperation `json:"operations,omitempty"`
+}
+
+// HasOperation returns true if op is among the requested reclaim space
+// operations.
+func (s *ReclaimSpaceJobSpec) HasOperation(op ReclaimSpaceOperation) bool {
+	return slices.Contains(s.Operations, op)
 }
 
 // ReclaimSpaceJobStatus defines the observed state of ReclaimSpaceJob
