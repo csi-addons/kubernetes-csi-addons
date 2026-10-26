@@ -72,14 +72,6 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 		return ctrl.Result{}, nil
 	}
 
-	// Set default values for the optionals
-	if krcJob.Spec.FailedJobsHistoryLimit == nil {
-		*krcJob.Spec.FailedJobsHistoryLimit = utils.DefaultFailedJobsHistoryLimit
-	}
-	if krcJob.Spec.SuccessfulJobsHistoryLimit == nil {
-		*krcJob.Spec.SuccessfulJobsHistoryLimit = utils.DefaultSuccessfulJobsHistoryLimit
-	}
-
 	var childJobs csiaddonsv1alpha1.EncryptionKeyRotationJobList
 	err = r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{utils.JobOwnerKey: req.Name})
 	if err != nil {
@@ -112,6 +104,15 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 	if err = r.Status().Update(ctx, krcJob); err != nil {
 		logger.Error(err, "failed to update status for encryptionkeyrotationcronjob")
 		return ctrl.Result{}, err
+	}
+
+	if krcJob.Spec.FailedJobsHistoryLimit == nil {
+		limit := utils.DefaultFailedJobsHistoryLimit
+		krcJob.Spec.FailedJobsHistoryLimit = &limit
+	}
+	if krcJob.Spec.SuccessfulJobsHistoryLimit == nil {
+		limit := utils.DefaultSuccessfulJobsHistoryLimit
+		krcJob.Spec.SuccessfulJobsHistoryLimit = &limit
 	}
 
 	// delete failed/successful jobs older than the specified history limit
@@ -152,18 +153,18 @@ func (r *EncryptionKeyRotationCronJobReconciler) Reconcile(ctx context.Context, 
 		return schedResult, nil
 	}
 
-	if krcJob.Spec.ConcurrencyPolicy == csiaddonsv1alpha1.ReplaceConcurrent {
-		err = r.Delete(ctx, childJobsInfo.activeJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
-		if client.IgnoreNotFound(err) != nil {
-			logger.Error(err, "failed to delete active encryptionkeyrotationjob", "encryptionkeyrotationjob", childJobsInfo.activeJob.Name)
-			return ctrl.Result{}, err
-		}
-	}
-
-	// return if a job is already active and concurrent jobs are forbidden
 	if childJobsInfo.activeJob != nil {
-		logger.Info("concurrent runs blocked by policy, skipping", "activeJob", childJobsInfo.activeJob.Name)
-		return schedResult, nil
+		if krcJob.Spec.ConcurrencyPolicy == csiaddonsv1alpha1.ReplaceConcurrent {
+			err = r.Delete(ctx, childJobsInfo.activeJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
+			if client.IgnoreNotFound(err) != nil {
+				logger.Error(err, "failed to delete active encryptionkeyrotationjob", "encryptionkeyrotationjob", childJobsInfo.activeJob.Name)
+				return ctrl.Result{}, err
+			}
+		} else {
+			// return if a job is already active and concurrent jobs are forbidden
+			logger.Info("concurrent runs blocked by policy, skipping", "activeJob", childJobsInfo.activeJob.Name)
+			return schedResult, nil
+		}
 	}
 
 	// now we construct the job
