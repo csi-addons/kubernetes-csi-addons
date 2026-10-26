@@ -47,6 +47,7 @@ type Connection struct {
 	Capabilities []*identity.Capability
 	Namespace    string
 	Name         string
+	PodName      string
 	NodeID       string
 	DriverName   string
 	Timeout      time.Duration
@@ -54,7 +55,6 @@ type Connection struct {
 	// Holds the internal state of the connection
 	enableAuth bool
 	endpoint   string
-	podName    string
 }
 
 // Connect creates a new grpc.ClientConn object and sets it as the
@@ -119,17 +119,17 @@ func (c *Connection) Connect() error {
 
 // NewConnection establishes connection with sidecar, fetches capability and returns Connection object
 // filled with required information.
-func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace, podName string, enableAuth bool) (*Connection, error) {
+func NewConnection(ctx context.Context, endpoint, nodeID, driverName, namespace, name, podName string, enableAuth bool) (*Connection, error) {
 
 	conn := &Connection{
 		Namespace:  namespace,
-		Name:       podName,
+		Name:       name,
+		PodName:    podName,
 		NodeID:     nodeID,
 		DriverName: driverName,
 		Timeout:    time.Minute,
 
 		endpoint:   endpoint,
-		podName:    podName,
 		enableAuth: enableAuth,
 	}
 
