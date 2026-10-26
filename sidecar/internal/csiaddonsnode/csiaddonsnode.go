@@ -45,8 +45,9 @@ import (
 
 const (
 	// nodeCreationRetry is the delay for calling newCSIAddonsNode after a
-	// failure.
-	nodeCreationRetry = time.Minute * 5
+	// failure. Keep it well below nodeCreationTimeout, otherwise the
+	// context is cancelled before a single retry is attempted.
+	nodeCreationRetry = time.Second * 10
 	// nodeCreationTimeout is the time after which the context for node creation request is cancelled.
 	nodeCreationTimeout = time.Minute * 3
 

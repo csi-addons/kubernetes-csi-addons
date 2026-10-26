@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/sidecar/internal/client"
@@ -246,6 +247,11 @@ func Test_generateName(t *testing.T) {
 			}
 		})
 	}
+}
+func Test_nodeCreationRetryIsRetryable(t *testing.T) {
+	assert.Less(t, nodeCreationRetry, nodeCreationTimeout)
+	assert.LessOrEqual(t, nodeCreationRetry, 1*time.Minute,
+		"keep the retry interval shorter so that we can retry several times.")
 }
 
 func generateExpectedLongName(nodeID, namespace, ownerKind, ownerName string) string {
