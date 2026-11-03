@@ -184,8 +184,15 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		}
 	}
 
-	// Create/Update volume group
-	if groupID == "" {
+	// When secondary and group already exists, skip Create/Modify.
+	// Group membership is managed by replication from the primary,
+	// not by this controller.
+	// Create/Modify resume when the VGR transitions to primary.
+	isSecondary := vgrObj.Spec.ReplicationState != replicationv1alpha1.Primary
+
+	if isSecondary && groupID != "" {
+		logger.Info("VGR is secondary with existing group, skipping Create/Modify", "groupID", groupID, "replicationState", vgrObj.Spec.ReplicationState)
+	} else if groupID == "" {
 		groupName := instance.Name
 		resp, err := volumeGroupClient.CreateVolumeGroup(groupName, instance.Spec.Source.VolumeHandles, secretName, secretNamespace, parameters)
 		if err != nil {
@@ -243,25 +250,29 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 	instance.Status.PersistentVolumeRefList = pvRefList
 	instance.Status.PersistentVolumeMappingList = pvMappings
 
-	// Fetch destination info if the driver supports it
-	repClient, destinationInfoSupported, err := getReplicationClient(ctx, r, instance.Spec.Provisioner, volumeGroupReplicationDataSource)
-	if err != nil {
-		logger.Error(err, "failed to get replication client")
-		return reconcile.Result{}, err
-	}
-	if destinationInfoSupported {
-		resp, err := repClient.GetReplicationDestinationInfo(groupID, secretName, secretNamespace)
+	// Fetch destination info only on primary — not meaningful from the
+	// destination/secondary side. On secondary, destination info
+	// is not needed and may fail after the replication session is torn down.
+	if !isSecondary {
+		repClient, destinationInfoSupported, err := getReplicationClient(ctx, r, instance.Spec.Provisioner, volumeGroupReplicationDataSource)
 		if err != nil {
-			// SP may return UNAVAILABLE if destination details are not yet available.
-			// Requeue to retry -- destination fields remain empty, so VGR keeps DestinationInfoAvailable=False.
-			logger.Error(err, "failed to get replication destination info")
+			logger.Error(err, "failed to get replication client")
 			return reconcile.Result{}, err
 		}
+		if destinationInfoSupported {
+			resp, err := repClient.GetReplicationDestinationInfo(groupID, secretName, secretNamespace)
+			if err != nil {
+				// SP may return UNAVAILABLE if destination details are not yet available.
+				// Requeue to retry -- destination fields remain empty, so VGR keeps DestinationInfoAvailable=False.
+				logger.Error(err, "failed to get replication destination info")
+				return reconcile.Result{}, err
+			}
 
-		if !updateReplicationDestinationInfo(instance, resp) {
-			err = fmt.Errorf("replication destination info is not yet available for all volumes in the group")
-			logger.Error(nil, err.Error())
-			return reconcile.Result{}, err
+			if !updateReplicationDestinationInfo(instance, resp) {
+				err = fmt.Errorf("replication destination info is not yet available for all volumes in the group")
+				logger.Error(nil, err.Error())
+				return reconcile.Result{}, err
+			}
 		}
 	}
 

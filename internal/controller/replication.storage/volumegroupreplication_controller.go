@@ -743,8 +743,14 @@ func (r *VolumeGroupReplicationReconciler) cleanupGroupPVC(vgr *replicationv1alp
 func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationContentCR(vgr *replicationv1alpha1.VolumeGroupReplication,
 	vgrContentObj *replicationv1alpha1.VolumeGroupReplicationContent, driver string, pvHandlesList []string) error {
 	vgrRef := fmt.Sprintf("%s/%s", vgr.Namespace, vgr.Name)
+	isSecondary := vgr.Spec.ReplicationState == replicationv1alpha1.Secondary
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, vgrContentObj, func() error {
 		if vgr.Spec.VolumeGroupReplicationContentName != "" && vgrContentObj.CreationTimestamp.IsZero() {
+			return errors.New("dependent VGRContent resource is not yet created, waiting for it to be created")
+		}
+		// Secondary never creates a new VGRC from the PVC selector — dest
+		// handles must already exist (S3 restore / orchestrator pre-bind).
+		if vgrContentObj.CreationTimestamp.IsZero() && isSecondary {
 			return errors.New("dependent VGRContent resource is not yet created, waiting for it to be created")
 		}
 		if vgrContentObj.CreationTimestamp.IsZero() {
@@ -782,8 +788,12 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 			}
 		}
 
-		vgrContentObj.Spec.Source = replicationv1alpha1.VolumeGroupReplicationContentSource{
-			VolumeHandles: pvHandlesList,
+		// On secondary, preserve existing volumeHandles (dest IDs). Overwriting
+		// from an empty PVC selector would wipe them and trigger Modify([]).
+		if !isSecondary {
+			vgrContentObj.Spec.Source = replicationv1alpha1.VolumeGroupReplicationContentSource{
+				VolumeHandles: pvHandlesList,
+			}
 		}
 
 		return nil
