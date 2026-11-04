@@ -189,6 +189,16 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 			return reconcile.Result{}, err
 		}
 
+		// Validate secondary contentName before PVC selector/claim work so an
+		// invalid secondary VGR does not leave finalizers on matching PVCs.
+		isSecondary := instance.Spec.ReplicationState == replicationv1alpha1.Secondary
+		if isSecondary && instance.Spec.VolumeGroupReplicationContentName == "" {
+			err = errors.New("VolumeGroupReplicationContentName is required when replicationState is secondary")
+			r.log.Error(err, "invalid VolumeGroupReplication spec")
+			_ = r.setGroupReplicationFailure(instance, err)
+			return reconcile.Result{}, err
+		}
+
 		// Check if PVCs exist based on provided selectors
 		pvcList, labelSelector, err := r.getMatchingPVCsFromSource(instance)
 		if err != nil {
@@ -746,11 +756,6 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 	isSecondary := vgr.Spec.ReplicationState == replicationv1alpha1.Secondary
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, vgrContentObj, func() error {
 		if vgr.Spec.VolumeGroupReplicationContentName != "" && vgrContentObj.CreationTimestamp.IsZero() {
-			return errors.New("dependent VGRContent resource is not yet created, waiting for it to be created")
-		}
-		// Secondary never creates a new VGRC from the PVC selector — dest
-		// handles must already exist (S3 restore / orchestrator pre-bind).
-		if vgrContentObj.CreationTimestamp.IsZero() && isSecondary {
 			return errors.New("dependent VGRContent resource is not yet created, waiting for it to be created")
 		}
 		if vgrContentObj.CreationTimestamp.IsZero() {

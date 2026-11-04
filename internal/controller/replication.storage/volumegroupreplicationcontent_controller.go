@@ -144,18 +144,18 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		} else if !slices.Contains(instance.Finalizers, volumeReplicationFinalizer) {
 			// Delete the volume group, if exists
 			if groupID != "" {
-				// Empty the volume group before deleting the volume group, if not empty
-				if len(instance.Spec.Source.VolumeHandles) != 0 {
-					_, err := volumeGroupClient.ModifyVolumeGroupMembership(groupID, []string{}, secretName, secretNamespace, parameters)
-					if err != nil {
-						if status.Code(err) != codes.NotFound {
-							logger.Error(err, "failed to get the volume group to be modified", "Volume Group", groupID)
-							return reconcile.Result{}, err
-						}
-						logger.Info("failed to get volume group to be modified, the volume group has already been deleted or doesn't exists")
+				// Always empty membership before delete. Secondary/pre-bound
+				// content can have a known groupID with empty VolumeHandles;
+				// drivers may reject DeleteVolumeGroup on a non-empty group.
+				_, err := volumeGroupClient.ModifyVolumeGroupMembership(groupID, []string{}, secretName, secretNamespace, parameters)
+				if err != nil {
+					if status.Code(err) != codes.NotFound {
+						logger.Error(err, "failed to get the volume group to be modified", "Volume Group", groupID)
+						return reconcile.Result{}, err
 					}
+					logger.Info("failed to get volume group to be modified, the volume group has already been deleted or doesn't exists")
 				}
-				_, err := volumeGroupClient.DeleteVolumeGroup(groupID, secretName, secretNamespace)
+				_, err = volumeGroupClient.DeleteVolumeGroup(groupID, secretName, secretNamespace)
 				if err != nil {
 					logger.Error(err, "failed to delete volume group", "Volume Group", groupID)
 					return reconcile.Result{}, err
@@ -184,13 +184,20 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		}
 	}
 
-	// When secondary and group already exists, skip Create/Modify.
-	// Group membership is managed by replication from the primary,
-	// not by this controller.
-	// Create/Modify resume when the VGR transitions to primary.
-	isSecondary := vgrObj.Spec.ReplicationState != replicationv1alpha1.Primary
+	// When secondary, skip Create/Modify. Group membership is managed by
+	// replication from the primary, not by this controller. Create/Modify
+	// resume when the VGR transitions to primary. Only Secondary skips —
+	// Resync must still be allowed to update membership / dest-info.
+	isSecondary := vgrObj.Spec.ReplicationState == replicationv1alpha1.Secondary
 
-	if isSecondary && groupID != "" {
+	if isSecondary {
+		// Secondary must be pre-bound to an existing dest group handle.
+		// Never CreateVolumeGroup from the secondary side.
+		if groupID == "" {
+			err := fmt.Errorf("VolumeGroupReplicationHandle is required when owning VGR replicationState is secondary")
+			logger.Error(err, "invalid secondary VolumeGroupReplicationContent")
+			return reconcile.Result{}, err
+		}
 		logger.Info("VGR is secondary with existing group, skipping Create/Modify", "groupID", groupID, "replicationState", vgrObj.Spec.ReplicationState)
 	} else if groupID == "" {
 		groupName := instance.Name
