@@ -127,7 +127,7 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		rsJob.Status.Message = fmt.Sprintf("Failed to validate ReclaimSpaceJob.Spec: %v", err)
 		rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
 		if statusErr := r.Status().Update(ctx, rsJob); statusErr != nil {
-			logger.Error(err, "Failed to update status")
+			logger.Error(statusErr, "Failed to update status")
 			return ctrl.Result{}, statusErr
 		}
 
