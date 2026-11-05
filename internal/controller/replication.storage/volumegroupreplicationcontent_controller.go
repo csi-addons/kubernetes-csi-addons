@@ -31,8 +31,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
@@ -59,16 +63,20 @@ var defaultRequeueForVGResources = ctrl.Result{
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents/finalizers,verbs=update
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationclasses,verbs=get;list;watch
+//+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplications,verbs=get;list;watch;update;patch
 
 /*
 Steps performed by the reconcile loop:
-- Watch for VGRContent CR
+- Watch for VGRContent CR (and owning VGR replicationState changes)
 - Fetch the VGRClass using the name from the VGRContent CR, and extract the secrets from it
 - Add VGRContent owner annotation to the VGR resource
 - Add finalizer to the VGRContent resource
-- Create/Modify the volume group based on the handle field
+- Create/Modify the volume group based on the handle field (skipped when VGR is secondary;
+  membership is owned by the primary replication relationship / pre-bound dest handles)
 - Update the group handle in VGRContent CR
 - Update the VGRContent status with the PV list
+- Fetch GetReplicationDestinationInfo when VGR is primary (skipped on secondary: this side
+  is the destination; peer mappings are restored from the orchestrator / prior primary upload)
 */
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -184,10 +192,15 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		}
 	}
 
-	// When secondary, skip Create/Modify. Group membership is managed by
-	// replication from the primary, not by this controller. Create/Modify
-	// resume when the VGR transitions to primary. Only Secondary skips —
-	// Resync must still be allowed to update membership / dest-info.
+	// When secondary, skip Create/Modify:
+	// - Create would allocate a new source-side group instead of attaching to the
+	//   existing destination group created by the primary.
+	// - Modify from an empty/local PVC selector would wipe pre-bound dest volume
+	//   handles that the orchestrator restored into Spec.Source.
+	// Membership on the destination is established by storage replication from the
+	// primary, not by this controller. Create/Modify resume when the VGR becomes
+	// primary. Only replicationState=Secondary skips — Resync must still be allowed
+	// to update membership / dest-info.
 	isSecondary := vgrObj.Spec.ReplicationState == replicationv1alpha1.Secondary
 
 	if isSecondary {
@@ -257,9 +270,12 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 	instance.Status.PersistentVolumeRefList = pvRefList
 	instance.Status.PersistentVolumeMappingList = pvMappings
 
-	// Fetch destination info only on primary — not meaningful from the
-	// destination/secondary side. On secondary, destination info
-	// is not needed and may fail after the replication session is torn down.
+	// Fetch destination info only on primary. On secondary this cluster *is* the
+	// destination; peer mappings were (or will be) published by the primary and
+	// restored by the orchestrator. Calling GetReplicationDestinationInfo here is
+	// not meaningful and may fail after the session is torn down. After promote
+	// (secondary→primary), this path must run again so peer dest-info can be
+	// published for a future failover — see SetupWithManager VGR watch below.
 	if !isSecondary {
 		repClient, destinationInfoSupported, err := getReplicationClient(ctx, r, instance.Spec.Provisioner, volumeGroupReplicationDataSource)
 		if err != nil {
@@ -326,9 +342,59 @@ func updateReplicationDestinationInfo(instance *replicationv1alpha1.VolumeGroupR
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VolumeGroupReplicationContentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Enqueue VGRContent when the owning VGR's replicationState changes (e.g.
+	// secondary→primary). Without this, CreateOrUpdate on content may be a no-op
+	// when VolumeHandles are unchanged, and GetReplicationDestinationInfo would
+	// never run after promote.
+	watchVGRReplicationStateChanges := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			oldObj, okOld := e.ObjectOld.(*replicationv1alpha1.VolumeGroupReplication)
+			newObj, okNew := e.ObjectNew.(*replicationv1alpha1.VolumeGroupReplication)
+			if !okOld || !okNew {
+				return false
+			}
+
+			return oldObj.Spec.ReplicationState != newObj.Spec.ReplicationState
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+
+	enqueueVGRContentForVGR := handler.EnqueueRequestsFromMapFunc(
+		func(_ context.Context, obj client.Object) []reconcile.Request {
+			vgr, ok := obj.(*replicationv1alpha1.VolumeGroupReplication)
+			if !ok {
+				return []reconcile.Request{}
+			}
+
+			contentName := vgr.Spec.VolumeGroupReplicationContentName
+			if contentName == "" && vgr.Annotations != nil {
+				contentName = vgr.Annotations[replicationv1alpha1.VolumeGroupReplicationContentNameAnnotation]
+			}
+			if contentName == "" {
+				return []reconcile.Request{}
+			}
+
+			return []reconcile.Request{{
+				NamespacedName: types.NamespacedName{Name: contentName},
+			}}
+		},
+	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&replicationv1alpha1.VolumeGroupReplicationContent{}).
+		Watches(&replicationv1alpha1.VolumeGroupReplication{}, enqueueVGRContentForVGR,
+			builder.WithPredicates(watchVGRReplicationStateChanges)).
 		Complete(r)
 }
 
