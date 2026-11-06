@@ -46,6 +46,13 @@ func GetReplicationState(instanceState replicationv1alpha1.ReplicationState) rep
 	return replicationv1alpha1.UnknownState
 }
 
+// isNonPrimaryReplicationState is true for Secondary and Resync. Resync maps to
+// SecondaryState and may be used as an intermediate demote state by orchestrators.
+// Empty/unknown states are not treated as non-primary.
+func isNonPrimaryReplicationState(state replicationv1alpha1.ReplicationState) bool {
+	return state == replicationv1alpha1.Secondary || state == replicationv1alpha1.Resync
+}
+
 func GetCurrentReplicationState(instanceStatusState replicationv1alpha1.State) replicationv1alpha1.State {
 	if instanceStatusState == "" {
 		return replicationv1alpha1.UnknownState
