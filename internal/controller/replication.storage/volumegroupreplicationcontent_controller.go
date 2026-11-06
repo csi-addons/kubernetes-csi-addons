@@ -31,8 +31,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
@@ -59,16 +63,20 @@ var defaultRequeueForVGResources = ctrl.Result{
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationcontents/finalizers,verbs=update
 //+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplicationclasses,verbs=get;list;watch
+//+kubebuilder:rbac:groups=replication.storage.openshift.io,resources=volumegroupreplications,verbs=get;list;watch;update;patch
 
 /*
 Steps performed by the reconcile loop:
-- Watch for VGRContent CR
+- Watch for VGRContent CR (and owning VGR replicationState changes)
 - Fetch the VGRClass using the name from the VGRContent CR, and extract the secrets from it
 - Add VGRContent owner annotation to the VGR resource
 - Add finalizer to the VGRContent resource
-- Create/Modify the volume group based on the handle field
+- Create/Modify the volume group based on the handle field (skipped when VGR is not primary;
+  membership is owned by the primary replication relationship / pre-bound dest handles)
 - Update the group handle in VGRContent CR
 - Update the VGRContent status with the PV list
+- Fetch GetReplicationDestinationInfo when VGR is primary (skipped when not primary: this side
+  is the destination; peer mappings are restored from the orchestrator / prior primary upload)
 */
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -144,18 +152,18 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		} else if !slices.Contains(instance.Finalizers, volumeReplicationFinalizer) {
 			// Delete the volume group, if exists
 			if groupID != "" {
-				// Empty the volume group before deleting the volume group, if not empty
-				if len(instance.Spec.Source.VolumeHandles) != 0 {
-					_, err := volumeGroupClient.ModifyVolumeGroupMembership(groupID, []string{}, secretName, secretNamespace, parameters)
-					if err != nil {
-						if status.Code(err) != codes.NotFound {
-							logger.Error(err, "failed to get the volume group to be modified", "Volume Group", groupID)
-							return reconcile.Result{}, err
-						}
-						logger.Info("failed to get volume group to be modified, the volume group has already been deleted or doesn't exists")
+				// Always empty membership before delete. Secondary/pre-bound
+				// content can have a known groupID with empty VolumeHandles;
+				// drivers may reject DeleteVolumeGroup on a non-empty group.
+				_, err := volumeGroupClient.ModifyVolumeGroupMembership(groupID, []string{}, secretName, secretNamespace, parameters)
+				if err != nil {
+					if status.Code(err) != codes.NotFound {
+						logger.Error(err, "failed to get the volume group to be modified", "Volume Group", groupID)
+						return reconcile.Result{}, err
 					}
+					logger.Info("failed to get volume group to be modified, the volume group has already been deleted or doesn't exists")
 				}
-				_, err := volumeGroupClient.DeleteVolumeGroup(groupID, secretName, secretNamespace)
+				_, err = volumeGroupClient.DeleteVolumeGroup(groupID, secretName, secretNamespace)
 				if err != nil {
 					logger.Error(err, "failed to delete volume group", "Volume Group", groupID)
 					return reconcile.Result{}, err
@@ -184,8 +192,27 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 		}
 	}
 
-	// Create/Update volume group
-	if groupID == "" {
+	// When not primary (Secondary or Resync), skip Create/Modify:
+	// - Create would allocate a new source-side group instead of attaching to the
+	//   existing destination group created by the primary.
+	// - Modify from an empty/local PVC selector would wipe pre-bound dest volume
+	//   handles that the orchestrator restored into Spec.Source.
+	// Membership on the destination is established by storage replication from the
+	// primary, not by this controller. Create/Modify resume when the VGR becomes
+	// primary. Resync is included because DR orchestrators may use it as an
+	// intermediate state when demoting Primary → Secondary.
+	isNonPrimary := isNonPrimaryReplicationState(vgrObj.Spec.ReplicationState)
+
+	if isNonPrimary {
+		// Non-primary must be pre-bound to an existing dest group handle.
+		// Never CreateVolumeGroup from the secondary/resync side.
+		if groupID == "" {
+			err := fmt.Errorf("VolumeGroupReplicationHandle is required when owning VGR replicationState is not primary")
+			logger.Error(err, "invalid VolumeGroupReplicationContent.Spec when VGR is in secondary state")
+			return reconcile.Result{}, err
+		}
+		logger.Info("VGR is not primary with existing group, skipping Create/Modify", "groupID", groupID, "replicationState", vgrObj.Spec.ReplicationState)
+	} else if groupID == "" {
 		groupName := instance.Name
 		resp, err := volumeGroupClient.CreateVolumeGroup(groupName, instance.Spec.Source.VolumeHandles, secretName, secretNamespace, parameters)
 		if err != nil {
@@ -243,25 +270,32 @@ func (r *VolumeGroupReplicationContentReconciler) Reconcile(ctx context.Context,
 	instance.Status.PersistentVolumeRefList = pvRefList
 	instance.Status.PersistentVolumeMappingList = pvMappings
 
-	// Fetch destination info if the driver supports it
-	repClient, destinationInfoSupported, err := getReplicationClient(ctx, r, instance.Spec.Provisioner, volumeGroupReplicationDataSource)
-	if err != nil {
-		logger.Error(err, "failed to get replication client")
-		return reconcile.Result{}, err
-	}
-	if destinationInfoSupported {
-		resp, err := repClient.GetReplicationDestinationInfo(groupID, secretName, secretNamespace)
+	// Fetch destination info only on primary. On non-primary this cluster *is* the
+	// destination; peer mappings were (or will be) published by the primary and
+	// restored by the orchestrator. Calling GetReplicationDestinationInfo here is
+	// not meaningful and may fail after the session is torn down. After promote
+	// (secondary→primary), this path must run again so peer dest-info can be
+	// published for a future failover — see SetupWithManager VGR watch below.
+	if !isNonPrimary {
+		repClient, destinationInfoSupported, err := getReplicationClient(ctx, r, instance.Spec.Provisioner, volumeGroupReplicationDataSource)
 		if err != nil {
-			// SP may return UNAVAILABLE if destination details are not yet available.
-			// Requeue to retry -- destination fields remain empty, so VGR keeps DestinationInfoAvailable=False.
-			logger.Error(err, "failed to get replication destination info")
+			logger.Error(err, "failed to get replication client")
 			return reconcile.Result{}, err
 		}
+		if destinationInfoSupported {
+			resp, err := repClient.GetReplicationDestinationInfo(groupID, secretName, secretNamespace)
+			if err != nil {
+				// SP may return UNAVAILABLE if destination details are not yet available.
+				// Requeue to retry -- destination fields remain empty, so VGR keeps DestinationInfoAvailable=False.
+				logger.Error(err, "failed to get replication destination info")
+				return reconcile.Result{}, err
+			}
 
-		if !updateReplicationDestinationInfo(instance, resp) {
-			err = fmt.Errorf("replication destination info is not yet available for all volumes in the group")
-			logger.Error(nil, err.Error())
-			return reconcile.Result{}, err
+			if !updateReplicationDestinationInfo(instance, resp) {
+				err = fmt.Errorf("replication destination info is not yet available for all volumes in the group")
+				logger.Error(nil, err.Error())
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -308,9 +342,59 @@ func updateReplicationDestinationInfo(instance *replicationv1alpha1.VolumeGroupR
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VolumeGroupReplicationContentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Enqueue VGRContent when the owning VGR's replicationState changes (e.g.
+	// secondary→primary). Without this, CreateOrUpdate on content may be a no-op
+	// when VolumeHandles are unchanged, and GetReplicationDestinationInfo would
+	// never run after promote.
+	watchVGRReplicationStateChanges := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			oldObj, okOld := e.ObjectOld.(*replicationv1alpha1.VolumeGroupReplication)
+			newObj, okNew := e.ObjectNew.(*replicationv1alpha1.VolumeGroupReplication)
+			if !okOld || !okNew {
+				return false
+			}
+
+			return oldObj.Spec.ReplicationState != newObj.Spec.ReplicationState
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
+
+	enqueueVGRContentForVGR := handler.EnqueueRequestsFromMapFunc(
+		func(_ context.Context, obj client.Object) []reconcile.Request {
+			vgr, ok := obj.(*replicationv1alpha1.VolumeGroupReplication)
+			if !ok {
+				return []reconcile.Request{}
+			}
+
+			contentName := vgr.Spec.VolumeGroupReplicationContentName
+			if contentName == "" && vgr.Annotations != nil {
+				contentName = vgr.Annotations[replicationv1alpha1.VolumeGroupReplicationContentNameAnnotation]
+			}
+			if contentName == "" {
+				return []reconcile.Request{}
+			}
+
+			return []reconcile.Request{{
+				NamespacedName: types.NamespacedName{Name: contentName},
+			}}
+		},
+	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&replicationv1alpha1.VolumeGroupReplicationContent{}).
+		Watches(&replicationv1alpha1.VolumeGroupReplication{}, enqueueVGRContentForVGR,
+			builder.WithPredicates(watchVGRReplicationStateChanges)).
 		Complete(r)
 }
 
@@ -320,19 +404,29 @@ func (r *VolumeGroupReplicationContentReconciler) getVolumeGroupClient(ctx conte
 		return nil, fmt.Errorf("no leader for the ControllerService of driver %q", driverName)
 	}
 
+	var hasVolumeGroup, hasModifyVolumeGroup bool
 	for _, cap := range conn.Capabilities {
-		// validate if VOLUME_GROUP capability is supported by the driver.
-		if cap.GetVolumeGroup() == nil {
+		vg := cap.GetVolumeGroup()
+		if vg == nil {
 			continue
 		}
 
-		// validate of VOLUME_GROUP capability is enabled by the storage driver.
-		if cap.GetVolumeGroup().GetType() == identity.Capability_VolumeGroup_VOLUME_GROUP {
-			return grpcClient.NewVolumeGroupClient(conn.Client, r.Timeout), nil
+		switch vg.GetType() {
+		case identity.Capability_VolumeGroup_VOLUME_GROUP:
+			hasVolumeGroup = true
+		case identity.Capability_VolumeGroup_MODIFY_VOLUME_GROUP:
+			hasModifyVolumeGroup = true
 		}
 	}
 
-	return nil, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support VolumeGroup", conn.Name, driverName)
+	if !hasVolumeGroup {
+		return nil, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support VolumeGroup", conn.Name, driverName)
+	}
+	if !hasModifyVolumeGroup {
+		return nil, fmt.Errorf("leading CSIAddonsNode %q for driver %q does not support ModifyVolumeGroupMembership", conn.Name, driverName)
+	}
+
+	return grpcClient.NewVolumeGroupClient(conn.Client, r.Timeout), nil
 }
 
 // annotateVolumeGroupReplicationWithVGRContentOwner will add the VolumeGroupReplicationContent owner to the VGR annotations.

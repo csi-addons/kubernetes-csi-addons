@@ -339,3 +339,160 @@ func TestVolumeGroupReplication(t *testing.T) {
 		}
 	}
 }
+
+func TestSecondaryVGRPreservesVGRCHandles(t *testing.T) {
+	t.Parallel()
+
+	// Pre-create a VGRContent with destination handles (simulating S3 restore)
+	vgrContentName := "vgrcontent-secondary-test"
+	destGroupHandle := "dest-group-123"
+	destVolumeHandles := []string{"dest-vol-1", "dest-vol-2"}
+
+	vgrContent := &replicationv1alpha1.VolumeGroupReplicationContent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              vgrContentName,
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: replicationv1alpha1.VolumeGroupReplicationContentSpec{
+			Provisioner:                     "test-driver",
+			VolumeGroupReplicationClassName: "volume-group-replication-class",
+			VolumeGroupReplicationHandle:    destGroupHandle,
+			Source: replicationv1alpha1.VolumeGroupReplicationContentSource{
+				VolumeHandles: destVolumeHandles,
+			},
+		},
+	}
+
+	// Create a secondary VGR pointing to the pre-created VGRContent
+	secondaryVGR := &replicationv1alpha1.VolumeGroupReplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "volume-group-replication",
+			Namespace: mockNamespace,
+			UID:       "testname",
+		},
+		Spec: replicationv1alpha1.VolumeGroupReplicationSpec{
+			VolumeGroupReplicationClassName:   "volume-group-replication-class",
+			VolumeReplicationClassName:        "volume-replication-class",
+			VolumeGroupReplicationContentName: vgrContentName,
+			ReplicationState:                  replicationv1alpha1.Secondary,
+			Source: replicationv1alpha1.VolumeGroupReplicationSource{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"test": "vgr_test",
+					},
+				},
+			},
+		},
+	}
+
+	volumeGroupReplicationClass := &replicationv1alpha1.VolumeGroupReplicationClass{}
+	mockVolumeGroupReplicationClassObj.DeepCopyInto(volumeGroupReplicationClass)
+
+	volumeReplicationClass := &replicationv1alpha1.VolumeReplicationClass{}
+	mockVolumeReplicationClassObj.DeepCopyInto(volumeReplicationClass)
+
+	r := createFakeVolumeGroupReplicationReconciler(t,
+		secondaryVGR, vgrContent, volumeReplicationClass, volumeGroupReplicationClass)
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: mockNamespace,
+			Name:      secondaryVGR.Name,
+		},
+	}
+	res, err := r.Reconcile(context.TODO(), req)
+	assert.Equal(t, reconcile.Result{}, res)
+	assert.NoError(t, err)
+
+	// Verify VGRC handles were NOT wiped
+	updatedVGRC := &replicationv1alpha1.VolumeGroupReplicationContent{}
+	err = r.Get(context.TODO(), types.NamespacedName{Name: vgrContentName}, updatedVGRC)
+	assert.NoError(t, err)
+	assert.Equal(t, destVolumeHandles, updatedVGRC.Spec.Source.VolumeHandles,
+		"Secondary VGR should not overwrite VGRC volumeHandles")
+	assert.Equal(t, destGroupHandle, updatedVGRC.Spec.VolumeGroupReplicationHandle,
+		"Secondary VGR should preserve VGRC group handle")
+
+	// Follow-up #1180: linking must still set owner ref and create child VR
+	assert.NotNil(t, updatedVGRC.Spec.VolumeGroupReplicationRef,
+		"Secondary VGR should set VolumeGroupReplicationRef on existing VGRC")
+	assert.Equal(t, secondaryVGR.Name, updatedVGRC.Spec.VolumeGroupReplicationRef.Name)
+	assert.Equal(t, secondaryVGR.Namespace, updatedVGRC.Spec.VolumeGroupReplicationRef.Namespace)
+
+	updatedVGR := &replicationv1alpha1.VolumeGroupReplication{}
+	err = r.Get(context.TODO(), types.NamespacedName{Namespace: mockNamespace, Name: secondaryVGR.Name}, updatedVGR)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, updatedVGR.Spec.VolumeReplicationName,
+		"Secondary VGR should create/link a child VolumeReplication")
+
+	vr := &replicationv1alpha1.VolumeReplication{}
+	err = r.Get(context.TODO(), types.NamespacedName{
+		Namespace: mockNamespace,
+		Name:      updatedVGR.Spec.VolumeReplicationName,
+	}, vr)
+	assert.NoError(t, err)
+	assert.Equal(t, replicationv1alpha1.Secondary, vr.Spec.ReplicationState)
+}
+
+func TestSecondaryVGRRequiresContentName(t *testing.T) {
+	t.Parallel()
+
+	// Secondary VGR without VolumeGroupReplicationContentName must error
+	// before claiming matching PVCs (no VGR finalizer on the PVC).
+	secondaryVGR := &replicationv1alpha1.VolumeGroupReplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "volume-group-replication",
+			Namespace: mockNamespace,
+			UID:       "testname-no-content",
+		},
+		Spec: replicationv1alpha1.VolumeGroupReplicationSpec{
+			VolumeGroupReplicationClassName: "volume-group-replication-class",
+			VolumeReplicationClassName:      "volume-replication-class",
+			ReplicationState:                replicationv1alpha1.Secondary,
+			Source: replicationv1alpha1.VolumeGroupReplicationSource{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"test": "vgr_test",
+					},
+				},
+			},
+		},
+	}
+
+	volumeGroupReplicationClass := &replicationv1alpha1.VolumeGroupReplicationClass{}
+	mockVolumeGroupReplicationClassObj.DeepCopyInto(volumeGroupReplicationClass)
+
+	volumeReplicationClass := &replicationv1alpha1.VolumeReplicationClass{}
+	mockVolumeReplicationClassObj.DeepCopyInto(volumeReplicationClass)
+
+	pvc := &corev1.PersistentVolumeClaim{}
+	mockVGRPersistentVolumeClaim.DeepCopyInto(pvc)
+	pv := &corev1.PersistentVolume{}
+	mockVGRPersistentVolume.DeepCopyInto(pv)
+
+	r := createFakeVolumeGroupReplicationReconciler(t,
+		secondaryVGR, volumeReplicationClass, volumeGroupReplicationClass, pvc, pv)
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: mockNamespace,
+			Name:      secondaryVGR.Name,
+		},
+	}
+	res, err := r.Reconcile(context.TODO(), req)
+	assert.Equal(t, reconcile.Result{}, res)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "VolumeGroupReplicationContentName is required")
+
+	updatedVGR := &replicationv1alpha1.VolumeGroupReplication{}
+	getErr := r.Get(context.TODO(), types.NamespacedName{Namespace: mockNamespace, Name: secondaryVGR.Name}, updatedVGR)
+	assert.NoError(t, getErr)
+	assert.Empty(t, updatedVGR.Spec.VolumeGroupReplicationContentName,
+		"Secondary VGR without contentName must not create a VGRC")
+
+	updatedPVC := &corev1.PersistentVolumeClaim{}
+	getErr = r.Get(context.TODO(), types.NamespacedName{Namespace: mockNamespace, Name: mockPVC}, updatedPVC)
+	assert.NoError(t, getErr)
+	assert.NotContains(t, updatedPVC.Finalizers, vgrReplicationFinalizer,
+		"invalid secondary VGR must not claim matching PVCs")
+}
