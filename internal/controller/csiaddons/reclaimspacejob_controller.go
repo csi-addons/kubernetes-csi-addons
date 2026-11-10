@@ -27,7 +27,6 @@ import (
 	"github.com/csi-addons/kubernetes-csi-addons/internal/connection"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/proto"
-	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
 	"github.com/csi-addons/spec/lib/go/identity"
 	"github.com/go-logr/logr"
@@ -36,7 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	scv1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -61,14 +60,33 @@ const (
 	reasonFailed = "failed"
 
 	// nodeClientRequeueInterval is the interval to requeue when the
-	// node client is not found in the connection pool, allowing time
-	// for the VolumeAttachment to be updated.
+	// volume is not attached to a node yet, or the node client is not
+	// found in the connection pool, allowing time for the
+	// VolumeAttachment to be updated or the node plugin to register.
 	nodeClientRequeueInterval = 30 * time.Second
 )
 
-// errNodeClientNotFound is a sentinel error returned when the node
-// client for the given nodeID is not found in the connection pool.
-var errNodeClientNotFound = errors.New("node client not found")
+var (
+	// errNodeClientNotFound is a sentinel error returned when the node
+	// client for the given nodeID is not found in the connection pool.
+	errNodeClientNotFound = errors.New("node client not found")
+
+	// errVolumeNotAttached is a sentinel error returned when a node-side
+	// reclaim was requested but the volume is not attached to a node yet.
+	errVolumeNotAttached = errors.New("volume is not attached to any node")
+
+	// errNodeReclaimUnsupported is a sentinel error returned when the node
+	// plugin for the given nodeID is registered but does not advertise the
+	// ReclaimSpace_ONLINE capability, or the NodeReclaimSpace RPC returns
+	// Unimplemented. Retrying will not make it available.
+	errNodeReclaimUnsupported = errors.New("NodeReclaimSpace is not supported")
+
+	// errControllerReclaimUnsupported is a sentinel error returned when the
+	// leading controller does not advertise the ReclaimSpace_OFFLINE
+	// capability, or the ControllerReclaimSpace RPC returns Unimplemented.
+	// Retrying will not make it available.
+	errControllerReclaimUnsupported = errors.New("ControllerReclaimSpace is not supported")
+)
 
 // ReclaimSpaceJobReconciler reconciles a ReclaimSpaceJob object.
 type ReclaimSpaceJobReconciler struct {
@@ -150,13 +168,6 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		req.Namespace,
 	)
 
-	if rsJob.Status.Result == "" && rsJob.Status.Retries == rsJob.Spec.BackoffLimit {
-		logger.Info("Maximum retry limit reached")
-		rsJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
-		rsJob.Status.Message = "Maximum retry limit reached"
-		rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
-	}
-
 	if statusErr := r.Status().Update(ctx, rsJob); statusErr != nil {
 		logger.Error(statusErr, "Failed to update status")
 
@@ -168,11 +179,19 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	// If the node client is not found, requeue after an interval
-	// to allow the VolumeAttachment to be updated instead of using
-	// the fast rate-limited requeue.
-	if errors.Is(err, errNodeClientNotFound) {
-		return ctrl.Result{RequeueAfter: nodeClientRequeueInterval}, nil
+	// If the volume is not attached yet or the node client is not found,
+	// requeue after an interval to allow the VolumeAttachment to be updated
+	// instead of using the fast rate-limited requeue. This also applies when
+	// another operation failed in the same pass, so that the fast backoff
+	// does not exhaust the retries before the node becomes available.
+	if errors.Is(err, errNodeClientNotFound) || errors.Is(err, errVolumeNotAttached) {
+		requeueAfter := nodeClientRequeueInterval
+		if result, ok := utils.ResultForAbortedError(err, rsJob.Status.Retries); ok && result.RequeueAfter > requeueAfter {
+			requeueAfter = result.RequeueAfter
+		}
+		logger.Info("Node not available, requeuing", "err", err, "after", requeueAfter)
+
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	}
 
 	if result, ok := utils.ResultForAbortedError(err, rsJob.Status.Retries); ok {
@@ -203,19 +222,14 @@ func (r *ReclaimSpaceJobReconciler) SetupWithManager(mgr ctrl.Manager, ctrlOptio
 type targetDetails struct {
 	driverName string
 	pvName     string
+	pvcName    string
 	nodeID     string
 	timeout    time.Duration
 }
 
-// canNodeReclaimSpace returns true if nodeID is not empty,
-// indicating volume is mounted to a pod and node reclaimspace
-// request can be sent.
-func (td *targetDetails) canNodeReclaimSpace() bool {
-	return td.nodeID != ""
-}
-
-// reconcile performs time based validation, fetches required details and makes
-// grpc request for controller and node reclaim space operation.
+// reconcile performs time based validation, fetches required details and
+// attempts the requested reclaim space operations. Operations that already
+// reached a terminal state are not attempted again.
 func (r *ReclaimSpaceJobReconciler) reconcile(
 	ctx context.Context,
 	logger *logr.Logger,
@@ -230,13 +244,15 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 		rsJob.Status.Retries++
 	}
 
+	// Ensure there is a status entry for every requested operation before
+	// any early return, so the reported state always covers the whole spec.
+	syncOperationStatuses(rsJob)
+
 	// check whether currentTime > CreationTime + RetryDeadlineSeconds,
 	// if true, mark it as Time limit reached and fail.
 	if time.Now().After(rsJob.CreationTimestamp.Add(time.Second * time.Duration(rsJob.Spec.RetryDeadlineSeconds))) {
 		logger.Info("Time limit reached")
-		rsJob.Status.Result = csiaddonsv1alpha1.OperationResultFailed
-		rsJob.Status.Message = "Time limit reached"
-		rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
+		r.failJob(rsJob, "Time limit reached")
 
 		return nil
 	}
@@ -244,70 +260,60 @@ func (r *ReclaimSpaceJobReconciler) reconcile(
 	target, err := r.getTargetDetails(ctx, logger, rsJob.Spec, namespace)
 	if err != nil {
 		logger.Error(err, "Failed to get target details")
-		setFailedCondition(
-			&rsJob.Status.Conditions,
-			"Failed to get target details",
-			rsJob.Generation)
+		message := fmt.Sprintf("failed to get target details: %v", err)
+		setPendingOperationsMessage(rsJob.Status.Operations, message)
+
+		if retryLimitReached(rsJob) {
+			logger.Info("Maximum retry limit reached")
+			r.failJob(rsJob, "Maximum retry limit reached")
+
+			return nil
+		}
+
+		setFailedCondition(&rsJob.Status.Conditions, message, rsJob.Generation)
 
 		return err
 	}
 
-	var (
-		nodeFound          = false
-		nodeReclaimedSpace *int64
-	)
-	if target.canNodeReclaimSpace() {
-		nodeFound = true
-		nodeReclaimedSpace, err = r.nodeReclaimSpace(ctx, logger, target)
-		if err != nil {
-			logger.Error(err, "Failed to make node request")
-			setFailedCondition(
-				&rsJob.Status.Conditions,
-				fmt.Sprintf("Failed to make node request: %v", util.GetErrorMessage(err)),
-				rsJob.Generation)
+	var retryErrs []error
+	for i := range rsJob.Status.Operations {
+		opStatus := &rsJob.Status.Operations[i]
+		if opStatus.State.IsTerminal() {
+			continue
+		}
 
-			return err
+		outcome := r.runOperation(ctx, *logger, target, opStatus.Operation)
+		setOperationOutcomeStatus(opStatus, outcome, time.Now())
+		if outcome.state == csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped {
+			logger.Info("Reclaim space operation skipped",
+				"operation", opStatus.Operation, "reason", outcome.message)
+		}
+		if outcome.err != nil {
+			retryErrs = append(retryErrs, outcome.err)
 		}
 	}
 
-	controllerFound, controllerReclaimedSpace, err := r.controllerReclaimSpace(ctx, logger, target)
-	if err != nil {
-		logger.Error(err, "Failed to make controller request")
-		setFailedCondition(
-			&rsJob.Status.Conditions,
-			fmt.Sprintf("Failed to make controller request: %v", util.GetErrorMessage(err)),
-			rsJob.Generation)
+	if allOperationsTerminal(rsJob.Status.Operations) {
+		r.completeJob(rsJob)
+		logger.Info("Reclaim space operation completed",
+			"result", rsJob.Status.Result, "message", rsJob.Status.Message)
 
-		return err
+		return nil
 	}
 
-	if !controllerFound && !nodeFound {
-		err = fmt.Errorf("controller and Node Client not found for %q nodeID", target.nodeID)
-		setFailedCondition(
-			&rsJob.Status.Conditions,
-			err.Error(),
-			rsJob.Generation)
+	if retryLimitReached(rsJob) {
+		logger.Info("Maximum retry limit reached")
+		r.failJob(rsJob, "Maximum retry limit reached")
 
-		return err
+		return nil
 	}
 
-	reclaimedSpace := int64(0)
-	if controllerFound && controllerReclaimedSpace != nil {
-		reclaimedSpace += *controllerReclaimedSpace
-	}
-	if nodeFound && nodeReclaimedSpace != nil {
-		reclaimedSpace += *nodeReclaimedSpace
-	}
+	setFailedCondition(
+		&rsJob.Status.Conditions,
+		incompleteMessage(rsJob.Status.Operations),
+		rsJob.Generation)
 
-	rsJob.Status.Result = csiaddonsv1alpha1.OperationResultSucceeded
-	rsJob.Status.Message = "Reclaim Space operation successfully completed."
-	if nodeReclaimedSpace != nil || controllerReclaimedSpace != nil {
-		rsJob.Status.ReclaimedSpace = resource.NewQuantity(reclaimedSpace, resource.DecimalSI)
-	}
-	rsJob.Status.CompletionTime = &metav1.Time{Time: time.Now()}
-	logger.Info("Successfully completed reclaim space operation")
-
-	return nil
+	return retryError(retryErrs)
 }
 
 // getTargetDetails fetches driverName, pvName and nodeID in targetDetails struct.
@@ -352,6 +358,7 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	details := targetDetails{
 		driverName: pv.Spec.CSI.Driver,
 		pvName:     pv.Name,
+		pvcName:    pvc.Name,
 		// Set global default timeout.
 		timeout: r.Timeout,
 	}
@@ -372,10 +379,10 @@ func (r *ReclaimSpaceJobReconciler) getTargetDetails(
 	return &details, nil
 }
 
-// getLeadingRSClient returns ReclaimSpaceClient that holds the lease given driverName.
+// getLeadingRSClient returns the ReclaimSpaceClient of the sidecar that holds
+// the lease for driverName.
 func (r *ReclaimSpaceJobReconciler) getLeadingRSClient(
 	ctx context.Context,
-	client client.Client,
 	driverName string) (proto.ReclaimSpaceClient, error) {
 	conn, err := r.ConnPool.GetLeaderByDriver(ctx, r.Client, driverName)
 	if err != nil {
@@ -391,17 +398,29 @@ func (r *ReclaimSpaceJobReconciler) getLeadingRSClient(
 		}
 	}
 
-	return nil, fmt.Errorf("leading controller for driver %q does not support ReclaimSpace_OFFLINE", driverName)
+	// The required cap is missing, the op is unsupported.
+	return nil, fmt.Errorf("%w: the leading controller of driver %q does not advertise the ReclaimSpace_OFFLINE capability",
+		errControllerReclaimUnsupported, driverName)
 }
 
 // getRSClientByNode returns ReclaimSpaceClient given driverName and nodeID.
+// A connection counts as a node plugin only when it advertises the
+// NODE_SERVICE capability. It returns errNodeClientNotFound when no node
+// plugin connection is registered for the node, and errNodeReclaimUnsupported
+// when a node plugin is registered but no connection on the node advertises
+// the ReclaimSpace_ONLINE capability.
 func (r *ReclaimSpaceJobReconciler) getRSClientByNode(
 	driverName, nodeID string) (string, proto.ReclaimSpaceClient, error) {
 	conns, err := r.ConnPool.GetByNodeID(driverName, nodeID)
 	if err != nil {
 		return "", nil, err
 	}
+
+	nodePluginSeen := false
 	for k, v := range conns {
+		if v.HasNodeService() {
+			nodePluginSeen = true
+		}
 		for _, cap := range v.Capabilities {
 			if cap.GetReclaimSpace() == nil {
 				continue
@@ -412,23 +431,30 @@ func (r *ReclaimSpaceJobReconciler) getRSClientByNode(
 		}
 	}
 
-	return "", nil, nil
+	// Only report the operation as unsupported once a node plugin has actually registered.
+	// Otherwise, it might still be starting up.
+	if !nodePluginSeen {
+		return "", nil, fmt.Errorf("%w for %q nodeID", errNodeClientNotFound, nodeID)
+	}
+
+	return "", nil, fmt.Errorf("%w: the node plugin on node %q does not advertise the ReclaimSpace_ONLINE capability",
+		errNodeReclaimUnsupported, nodeID)
 }
 
-// controllerReclaimSpace makes controller reclaim space request if controller client is found
-// and returns amount of reclaimed space.
-// This function returns
-// - boolean to indicate client was found or not
-// - pointer to int64 indicating amount of reclaimed space, it is nil if not available
-// - error
+// controllerReclaimSpace makes a ControllerReclaimSpace request and returns the
+// amount of reclaimed space, if available.
 func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	ctx context.Context,
-	logger *logr.Logger,
-	target *targetDetails) (bool, *int64, error) {
-	controllerClient, err := r.getLeadingRSClient(ctx, r.Client, target.driverName)
+	logger logr.Logger,
+	target *targetDetails) (*int64, error) {
+	controllerClient, err := r.getLeadingRSClient(ctx, target.driverName)
 	if err != nil {
-		logger.Error(err, "Failed to get controller client", "driverName", target.driverName)
-		return false, nil, err
+		// An unsupported operation is expected and logged as skipped by the caller.
+		if !errors.Is(err, errControllerReclaimUnsupported) {
+			logger.Error(err, "Failed to get controller client", "driverName", target.driverName)
+		}
+
+		return nil, err
 	}
 
 	logger.Info("Making controller reclaim space request")
@@ -437,38 +463,37 @@ func (r *ReclaimSpaceJobReconciler) controllerReclaimSpace(
 	}
 	newCtx, cancel := context.WithTimeout(ctx, target.timeout)
 	defer cancel()
+
 	resp, err := controllerClient.ControllerReclaimSpace(newCtx, req)
 	if err != nil {
-		// Unimplemented suggests that the function is not supported
+		// Unimplemented suggests that the function is not supported.
 		if status.Code(err) == codes.Unimplemented {
-			logger.Info(fmt.Sprintf("ControllerReclaimSpace is not implemented by driver: %v", err))
-			return true, nil, nil
+			return nil, fmt.Errorf("%w: %v", errControllerReclaimUnsupported, err)
 		}
-		return true, nil, err
+
+		return nil, err
 	}
 
-	return true, calculateReclaimedSpace(resp.PreUsage, resp.PostUsage), nil
+	return calculateReclaimedSpace(resp.PreUsage, resp.PostUsage), nil
 }
 
-// nodeReclaimSpace makes node reclaim space request if node client is found
-// and returns amount of reclaimed space.
-// This function returns
-// - pointer to int64 indicating amount of reclaimed space, it is nil if not available
-// - error
+// nodeReclaimSpace makes a NodeReclaimSpace request and returns the amount of
+// reclaimed space, if available.
 func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	ctx context.Context,
-	logger *logr.Logger,
+	logger logr.Logger,
 	target *targetDetails) (*int64, error) {
+	if target.nodeID == "" {
+		return nil, fmt.Errorf("%w: PVC %q", errVolumeNotAttached, target.pvcName)
+	}
+
 	clientName, nodeClient, err := r.getRSClientByNode(
 		target.driverName,
 		target.nodeID)
 	if err != nil {
 		return nil, err
 	}
-	if nodeClient == nil {
-		return nil, fmt.Errorf("%w for %q nodeID", errNodeClientNotFound, target.nodeID)
-	}
-	*logger = logger.WithValues("nodeClient", clientName)
+	logger = logger.WithValues("nodeClient", clientName)
 
 	logger.Info("Making node reclaim space request")
 	req := &proto.ReclaimSpaceRequest{
@@ -476,13 +501,14 @@ func (r *ReclaimSpaceJobReconciler) nodeReclaimSpace(
 	}
 	newCtx, cancel := context.WithTimeout(ctx, target.timeout)
 	defer cancel()
+
 	resp, err := nodeClient.NodeReclaimSpace(newCtx, req)
 	if err != nil {
-		// Unimplemented suggests that the function is not supported
+		// Unimplemented suggests that the function is not supported.
 		if status.Code(err) == codes.Unimplemented {
-			logger.Info(fmt.Sprintf("NodeReclaimSpace is not implemented by driver: %v", err))
-			return nil, nil
+			return nil, fmt.Errorf("%w: %v", errNodeReclaimUnsupported, err)
 		}
+
 		return nil, err
 	}
 
@@ -511,26 +537,22 @@ func validateReclaimSpaceJobSpec(
 	return nil
 }
 
-// setFailedCondition updates failedConditin type if it exists else
+// setFailedCondition updates failedCondition type if it exists else
 // appends a new condition.
 func setFailedCondition(
 	conditions *[]metav1.Condition,
 	message string,
 	observedGeneration int64) {
-	newCondition := metav1.Condition{
+	meta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               conditionFailed,
 		Status:             metav1.ConditionTrue,
 		ObservedGeneration: observedGeneration,
-		LastTransitionTime: metav1.NewTime(time.Now()),
 		Message:            message,
 		Reason:             reasonFailed,
-	}
-	for i := range *conditions {
-		if (*conditions)[i].Type == conditionFailed {
-			(*conditions)[i] = newCondition
-			return
-		}
-	}
+	})
+}
 
-	*conditions = append(*conditions, newCondition)
+// clearFailedCondition removes the failed condition, if present.
+func clearFailedCondition(conditions *[]metav1.Condition) {
+	meta.RemoveStatusCondition(conditions, conditionFailed)
 }
