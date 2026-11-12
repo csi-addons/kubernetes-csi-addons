@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"slices"
 	"testing"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
@@ -63,6 +64,10 @@ func TestSetSpec(t *testing.T) {
 				}
 				if rsCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim != "another-pvc" {
 					t.Errorf("expected pvcName 'another-pvc', got '%s'", rsCronJob.Spec.JobSpec.Spec.Target.PersistentVolumeClaim)
+				}
+				// Must match the CRD default, see DefaultReclaimSpaceOperations.
+				if !slices.Equal(rsCronJob.Spec.JobSpec.Spec.Operations, csiaddonsv1alpha1.DefaultReclaimSpaceOperations()) {
+					t.Errorf("expected default operations, got %v", rsCronJob.Spec.JobSpec.Spec.Operations)
 				}
 				// We set it by default when setting spec
 				if rsCronJob.Annotations[csiaddonsv1alpha1.CSIAddonsStateAnnotation] != csiaddonsv1alpha1.CSIAddonsStateManaged {

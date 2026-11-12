@@ -10,6 +10,8 @@ metadata:
 spec:
   target:
     persistentVolumeClaim: pvc-1
+  operations:
+    - Node
   backOffLimit: 10
   retryDeadlineSeconds: 900
   timeout: 600
@@ -17,9 +19,54 @@ spec:
 
 - `target` represents volume target on which the operation will be performed.
   - `persistentVolumeClaim` contains a string indicating the name of `PersistentVolumeClaim`.
+- `operations` is the list of reclaim space operations to perform on the target volume. At least one
+  operation must be specified. If not specified, defaults to `["Node"]`.
+  - `Node` issues the node-side reclaim (for example, `fstrim`), and requires the volume to be
+    attached to a node. The node is discovered from the volume's `VolumeAttachment`. CSI drivers
+    that set `attachRequired: false` in their `CSIDriver` object do not get a `VolumeAttachment`,
+    so node-side reclaim cannot run for their volumes. Request `Controller` explicitly for those
+    volumes when the driver supports it.
+  - `Controller` issues the controller-side reclaim (for example, `rbd sparsify`). It is opt-in
+    because it is redundant once the node-side reclaim has run, and for some drivers it is costly
+    or unsafe on in-use volumes.
+  - When both are requested, the node-side reclaim is attempted first.
+  - The node-side reclaim is reported as `Skipped` only when a node plugin that advertises the
+    CSI-Addons `NODE_SERVICE` capability is registered on the node without the
+    `ReclaimSpace_ONLINE` capability. Otherwise the node plugin is assumed to be still starting,
+    and the operation is retried until the job fails.
+- `operations` is immutable on a `ReclaimSpaceJob`. A new job must be created to run different operations.
+  `operations` can be modified on the `ReclaimSpaceCronJob`, future runs will use the updated `operations`.
 - `backOfflimit` specifies the number of retries before marking reclaim space operation as failed. If not specified, defaults to 6. Maximum allowed value is 60 and minimum allowed value is 0.
 - `retryDeadlineSeconds` specifies the duration in seconds relative to the start time that the operation may be retried; value must be positive integer. If not specified, defaults to 600 seconds. Maximum allowed value is 1800.
 - `timeout` specifies the timeout in seconds for the gRPC request sent to the CSI driver. If not specified, defaults to global reclaimspace timeout. Minimum allowed value is 60.
+
+### Status
+
+`status.operations` reports the progress of each requested operation:
+
+```yaml
+status:
+  result: Succeeded
+  message: Reclaim Space operation successfully completed.
+  reclaimedSpace: "1073741824"
+  operations:
+    - operation: Node
+      state: Succeeded
+      reclaimedSpace: "1073741824"
+      completionTime: "2026-01-01T00:00:00Z"
+```
+
+- `Pending`: the operation has not completed yet and will be retried. `message` explains why.
+- `Succeeded`: the operation completed. `reclaimedSpace` is set when the driver reports usage.
+- `Skipped`: the driver does not support the operation (a capability is missing or the RPC returns
+  `Unimplemented`). The operation is not retried.
+- `Failed`: the job's `backOffLimit` or `retryDeadlineSeconds` was reached before the operation
+  completed.
+
+Operations that already succeeded or were skipped are not attempted again when the job is retried.
+All pending operations share the job's `status.retries`, `backOffLimit` and `retryDeadlineSeconds`.
+The job `result` is `Failed` if any operation failed, or if every operation was skipped. A
+`Succeeded` result can include skipped operations; check `status.operations` or `status.message`.
 
 ## ReclaimSpaceCronJob
 
@@ -44,6 +91,8 @@ spec:
       retryDeadlineSeconds: 600
       target:
         persistentVolumeClaim: data-pvc
+      operations:
+        - Node
   schedule: "@weekly"
   successfulJobsHistoryLimit: 3
 ```
@@ -156,6 +205,26 @@ CSI Addons will not perform any further modifications on the `ReclaimSpaceCronJo
 To have a custom schedule the user can then modify the `schedule` field of the `ReclaimSpaceCronJob` spec.
 
 ## Disabling Reclaim Space
+
+### Disabling a Single Reclaim Space Operation
+
+The `operations` field of the `ReclaimSpaceJob` spec selects which reclaim space operations run,
+so an individual operation can be turned off while keeping the other. Annotation driven
+`ReclaimSpaceCronJob` CRs are created with `operations: ["Node"]`, which means the controller-side
+reclaim is not performed unless it is asked for explicitly.
+
+To change the operations of an existing `ReclaimSpaceCronJob`, first mark it as unmanaged,
+otherwise CSI Addons may restore the whole `jobTemplate` on the next reconcile:
+
+```bash
+kubectl annotate reclaimspacecronjobs <RECLAIMSPACECRONJOB_NAME> "csiaddons.openshift.io/state=unmanaged" --overwrite=true
+
+kubectl patch reclaimspacecronjobs <RECLAIMSPACECRONJOB_NAME> \
+  -p '{"spec": {"jobTemplate": {"spec": {"operations": ["Controller", "Node"]}}}}' --type=merge
+```
+
+`operations` cannot be set to an empty list; to stop reclaim space altogether, follow the sections
+below instead.
 
 ### Disabling Reclaim Space for a Specific PersistentVolumeClaim
 

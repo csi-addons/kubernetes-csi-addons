@@ -17,16 +17,21 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/controller/utils"
 
+	ginkgo "github.com/onsi/ginkgo/v2"
+	gomega "github.com/onsi/gomega"
 	"github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 )
@@ -303,3 +308,80 @@ func TestGetNextSchedule_StaggerPreservesStartingDeadline(t *testing.T) {
 			gotLastMissed, deadline, testNow)
 	}
 }
+
+func TestConstructRSJobForCronJobKeepsOperations(t *testing.T) {
+	scheme := runtime.NewScheme()
+	if err := csiaddonsv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("failed to add scheme: %v", err)
+	}
+	r := &ReclaimSpaceCronJobReconciler{Scheme: scheme}
+	rsCronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+		ObjectMeta: metav1.ObjectMeta{Name: "rscj", Namespace: "default", UID: "uid"},
+		Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+			JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+				Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+					Target:     csiaddonsv1alpha1.TargetSpec{PersistentVolumeClaim: "data-pvc"},
+					Operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{csiaddonsv1alpha1.ReclaimSpaceOperationController},
+				},
+			},
+		},
+	}
+
+	job, err := r.constructRSJobForCronJob(rsCronJob, time.Now())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []csiaddonsv1alpha1.ReclaimSpaceOperation{csiaddonsv1alpha1.ReclaimSpaceOperationController}
+	if !reflect.DeepEqual(job.Spec.Operations, want) {
+		t.Errorf("job operations = %v, want %v", job.Spec.Operations, want)
+	}
+}
+
+var _ = ginkgo.Describe("ReclaimSpaceCronJob jobTemplate", func() {
+	ctx := context.Background()
+
+	// The PVC controller compares the cronjob it constructs against the one
+	// stored by the API server, so the CRD default must match the Go default.
+	ginkgo.It("defaults jobTemplate.spec.operations to DefaultReclaimSpaceOperations", func() {
+		rsCronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+			ObjectMeta: metav1.ObjectMeta{Name: "rscj-operations-default", Namespace: "default"},
+			Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+				Schedule: "@weekly",
+				JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+					Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+						Target: csiaddonsv1alpha1.TargetSpec{PersistentVolumeClaim: "data-pvc"},
+					},
+				},
+			},
+		}
+		gomega.Expect(k8sClient.Create(ctx, rsCronJob)).To(gomega.Succeed())
+		ginkgo.DeferCleanup(k8sClient.Delete, ctx, rsCronJob)
+
+		gomega.Expect(rsCronJob.Spec.JobSpec.Spec.Operations).To(
+			gomega.Equal(csiaddonsv1alpha1.DefaultReclaimSpaceOperations()))
+	})
+
+	ginkgo.It("allows updating jobTemplate.spec.operations", func() {
+		rsCronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
+			ObjectMeta: metav1.ObjectMeta{Name: "rscj-operations", Namespace: "default"},
+			Spec: csiaddonsv1alpha1.ReclaimSpaceCronJobSpec{
+				Schedule: "@weekly",
+				JobSpec: csiaddonsv1alpha1.ReclaimSpaceJobTemplateSpec{
+					Spec: csiaddonsv1alpha1.ReclaimSpaceJobSpec{
+						Target:     csiaddonsv1alpha1.TargetSpec{PersistentVolumeClaim: "data-pvc"},
+						Operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{csiaddonsv1alpha1.ReclaimSpaceOperationNode},
+					},
+				},
+			},
+		}
+		gomega.Expect(k8sClient.Create(ctx, rsCronJob)).To(gomega.Succeed())
+		ginkgo.DeferCleanup(k8sClient.Delete, ctx, rsCronJob)
+
+		rsCronJob.Spec.JobSpec.Spec.Operations = []csiaddonsv1alpha1.ReclaimSpaceOperation{
+			csiaddonsv1alpha1.ReclaimSpaceOperationController,
+			csiaddonsv1alpha1.ReclaimSpaceOperationNode,
+		}
+		gomega.Expect(k8sClient.Update(ctx, rsCronJob)).To(gomega.Succeed())
+	})
+})
