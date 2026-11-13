@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -186,6 +185,17 @@ func (r *VolumeGroupReplicationReconciler) Reconcile(ctx context.Context, req ct
 		// Add finalizer to VGR instance
 		if err = addFinalizerToVGR(r.Client, r.log, instance); err != nil {
 			r.log.Error(err, "failed to add VolumeGroupReplication finalizer")
+			return reconcile.Result{}, err
+		}
+
+		// Validate if VGR is secondary and contentName is not empty,
+		// before we find PVCs using selector work so an invalid
+		// secondary VGR does not leave finalizers on matching PVCs.
+		isSecondary := instance.Spec.ReplicationState == replicationv1alpha1.Secondary
+		if isSecondary && instance.Spec.VolumeGroupReplicationContentName == "" {
+			err = fmt.Errorf("VolumeGroupReplicationContentName is required when replicationState is secondary")
+			r.log.Error(err, "invalid VolumeGroupReplication spec")
+			_ = r.setGroupReplicationFailure(instance, err)
 			return reconcile.Result{}, err
 		}
 
@@ -743,9 +753,10 @@ func (r *VolumeGroupReplicationReconciler) cleanupGroupPVC(vgr *replicationv1alp
 func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationContentCR(vgr *replicationv1alpha1.VolumeGroupReplication,
 	vgrContentObj *replicationv1alpha1.VolumeGroupReplicationContent, driver string, pvHandlesList []string) error {
 	vgrRef := fmt.Sprintf("%s/%s", vgr.Namespace, vgr.Name)
+	isSecondary := vgr.Spec.ReplicationState == replicationv1alpha1.Secondary
 	_, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, vgrContentObj, func() error {
 		if vgr.Spec.VolumeGroupReplicationContentName != "" && vgrContentObj.CreationTimestamp.IsZero() {
-			return errors.New("dependent VGRContent resource is not yet created, waiting for it to be created")
+			return fmt.Errorf("dependent VGRContent resource is not yet created, waiting for it to be created")
 		}
 		if vgrContentObj.CreationTimestamp.IsZero() {
 			metav1.SetMetaDataAnnotation(&vgrContentObj.ObjectMeta, volumeGroupReplicationRef, vgrRef)
@@ -782,8 +793,12 @@ func (r *VolumeGroupReplicationReconciler) createOrUpdateVolumeGroupReplicationC
 			}
 		}
 
-		vgrContentObj.Spec.Source = replicationv1alpha1.VolumeGroupReplicationContentSource{
-			VolumeHandles: pvHandlesList,
+		// On secondary, preserve existing volumeHandles (dest IDs). Overwriting
+		// from an empty PVC selector would wipe them and trigger Modify([]).
+		if !isSecondary {
+			vgrContentObj.Spec.Source = replicationv1alpha1.VolumeGroupReplicationContentSource{
+				VolumeHandles: pvHandlesList,
+			}
 		}
 
 		return nil
