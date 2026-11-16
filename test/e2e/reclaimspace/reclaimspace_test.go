@@ -63,6 +63,20 @@ func TestReclaimSpace(t *testing.T) {
 var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 	var (
 		f *framework.Framework
+
+		// controllerAndNode is used when a pod keeps the volume attached, so
+		// both reclaim space operations can run.
+		controllerAndNode = []csiaddonsv1alpha1.ReclaimSpaceOperation{
+			csiaddonsv1alpha1.ReclaimSpaceOperationController,
+			csiaddonsv1alpha1.ReclaimSpaceOperationNode,
+		}
+
+		// controllerOnly is used for volumes that are not attached to a node.
+		// A requested Node operation would stay pending until the retry budget
+		// is exhausted because node-side reclaim needs a VolumeAttachment.
+		controllerOnly = []csiaddonsv1alpha1.ReclaimSpaceOperation{
+			csiaddonsv1alpha1.ReclaimSpaceOperationController,
+		}
 	)
 
 	ginkgo.BeforeAll(func() {
@@ -120,7 +134,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				ginkgo.By("Waiting for pod to complete writing data")
 
 				ginkgo.By("Creating a ReclaimSpaceJob")
-				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs", pvc.Name)
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs", pvc.Name, controllerAndNode)
 
 				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -147,7 +161,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				pvc = f.WaitForPVCBound(pvc.Name)
 
 				ginkgo.By("Creating a ReclaimSpaceJob while filesystem volume is unmounted")
-				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs-unmounted", pvc.Name)
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs-unmounted", pvc.Name, controllerOnly)
 
 				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -166,7 +180,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				f.WaitForPodRunning(pod.Name)
 
 				ginkgo.By("Creating a ReclaimSpaceJob while filesystem volume is mounted")
-				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs-mounted", pvc.Name)
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs-mounted", pvc.Name, controllerAndNode)
 
 				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -197,7 +211,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				ginkgo.By("Waiting for pod to complete writing data")
 
 				ginkgo.By("Creating a ReclaimSpaceJob")
-				rsJob := f.CreateReclaimSpaceJob("test-rsjob-block", pvc.Name)
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-block", pvc.Name, controllerAndNode)
 
 				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -223,7 +237,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				pvc = f.WaitForPVCBound(pvc.Name)
 
 				ginkgo.By("Creating a ReclaimSpaceJob while block volume is unmounted")
-				rsJob := f.CreateReclaimSpaceJob("test-rsjob-block-unmounted", pvc.Name)
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-block-unmounted", pvc.Name, controllerOnly)
 
 				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -242,7 +256,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 				f.WaitForPodRunning(pod.Name)
 
 				ginkgo.By("Creating a ReclaimSpaceJob while block volume is mounted")
-				rsJob := f.CreateReclaimSpaceJob("test-rsjob-block-mounted", pvc.Name)
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-block-mounted", pvc.Name, controllerAndNode)
 
 				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -258,7 +272,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 
 		ginkgo.It("should handle ReclaimSpaceJob on non-existent PVC", func() {
 			ginkgo.By("Creating a ReclaimSpaceJob for non-existent PVC")
-			rsJob := f.CreateReclaimSpaceJob("test-rsjob-fail", "non-existent-pvc")
+			rsJob := f.CreateReclaimSpaceJob("test-rsjob-fail", "non-existent-pvc", controllerOnly)
 
 			ginkgo.By("Waiting for ReclaimSpaceJob to complete")
 			rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
@@ -276,7 +290,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 			gomega.Expect(pvc.Status.Phase).To(gomega.Equal(corev1.ClaimBound))
 
 			ginkgo.By("Creating a ReclaimSpaceCronJob with 1-minute schedule")
-			cronJob := f.CreateReclaimSpaceCronJob("test-rs-cronjob-fs", pvc.Name, "*/1 * * * *")
+			cronJob := f.CreateReclaimSpaceCronJob("test-rs-cronjob-fs", pvc.Name, "*/1 * * * *", controllerOnly)
 			gomega.Expect(cronJob).NotTo(gomega.BeNil())
 
 			ginkgo.By("Waiting for the first ReclaimSpaceJob to be created")
@@ -302,7 +316,7 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 			gomega.Expect(pvc.Status.Phase).To(gomega.Equal(corev1.ClaimBound))
 
 			ginkgo.By("Creating a ReclaimSpaceCronJob with 1-minute schedule")
-			cronJob := f.CreateReclaimSpaceCronJob("test-rs-cronjob-block", pvc.Name, "*/1 * * * *")
+			cronJob := f.CreateReclaimSpaceCronJob("test-rs-cronjob-block", pvc.Name, "*/1 * * * *", controllerOnly)
 			gomega.Expect(cronJob).NotTo(gomega.BeNil())
 
 			ginkgo.By("Waiting for the first ReclaimSpaceJob to be created")
