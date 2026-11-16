@@ -81,6 +81,21 @@ func TestSetFailedCondition(t *testing.T) {
 	}
 }
 
+func TestClearFailedCondition(t *testing.T) {
+	conditions := []v1.Condition{
+		{Type: "Other", Message: "keep"},
+		{Type: conditionFailed, Message: "remove"},
+	}
+
+	clearFailedCondition(&conditions)
+	assert.Len(t, conditions, 1)
+	assert.Equal(t, "Other", conditions[0].Type)
+
+	// Clearing again is a no-op.
+	clearFailedCondition(&conditions)
+	assert.Len(t, conditions, 1)
+}
+
 func TestValidateReclaimSpaceJobSpec(t *testing.T) {
 	type args struct {
 		rsJob *csiaddonsv1alpha1.ReclaimSpaceJob
