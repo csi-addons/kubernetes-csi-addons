@@ -588,6 +588,7 @@ func TestConstructRSCronJob(t *testing.T) {
 							Target: csiaddonsv1alpha1.TargetSpec{
 								PersistentVolumeClaim: "test-pvc",
 							},
+							Operations:           csiaddonsv1alpha1.DefaultReclaimSpaceOperations(),
 							BackoffLimit:         defaultBackoffLimit,
 							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
 						},
@@ -618,6 +619,7 @@ func TestConstructRSCronJob(t *testing.T) {
 							Target: csiaddonsv1alpha1.TargetSpec{
 								PersistentVolumeClaim: "data-pvc",
 							},
+							Operations:           csiaddonsv1alpha1.DefaultReclaimSpaceOperations(),
 							BackoffLimit:         defaultBackoffLimit,
 							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
 						},
@@ -648,6 +650,7 @@ func TestConstructRSCronJob(t *testing.T) {
 							Target: csiaddonsv1alpha1.TargetSpec{
 								PersistentVolumeClaim: "pvc-with-special-chars-!@#$%^&*()",
 							},
+							Operations:           csiaddonsv1alpha1.DefaultReclaimSpaceOperations(),
 							BackoffLimit:         defaultBackoffLimit,
 							RetryDeadlineSeconds: defaultRetryDeadlineSeconds,
 						},
