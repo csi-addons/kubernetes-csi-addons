@@ -66,9 +66,27 @@ const (
 	nodeClientRequeueInterval = 30 * time.Second
 )
 
-// errNodeClientNotFound is a sentinel error returned when the node
-// client for the given nodeID is not found in the connection pool.
-var errNodeClientNotFound = errors.New("node client not found")
+var (
+	// errNodeClientNotFound is a sentinel error returned when the node
+	// client for the given nodeID is not found in the connection pool.
+	errNodeClientNotFound = errors.New("node client not found")
+
+	// errVolumeNotAttached is a sentinel error returned when a node-side
+	// reclaim was requested but the volume is not attached to a node yet.
+	errVolumeNotAttached = errors.New("volume is not attached to any node")
+
+	// errNodeReclaimUnsupported is a sentinel error returned when the node
+	// plugin for the given nodeID is registered but does not advertise the
+	// ReclaimSpace_ONLINE capability, or the NodeReclaimSpace RPC returns
+	// Unimplemented. Retrying will not make it available.
+	errNodeReclaimUnsupported = errors.New("NodeReclaimSpace is not supported")
+
+	// errControllerReclaimUnsupported is a sentinel error returned when the
+	// leading controller does not advertise the ReclaimSpace_OFFLINE
+	// capability, or the ControllerReclaimSpace RPC returns Unimplemented.
+	// Retrying will not make it available.
+	errControllerReclaimUnsupported = errors.New("ControllerReclaimSpace is not supported")
+)
 
 // ReclaimSpaceJobReconciler reconciles a ReclaimSpaceJob object.
 type ReclaimSpaceJobReconciler struct {
@@ -524,4 +542,9 @@ func setFailedCondition(
 		Message:            message,
 		Reason:             reasonFailed,
 	})
+}
+
+// clearFailedCondition removes the failed condition, if present.
+func clearFailedCondition(conditions *[]metav1.Condition) {
+	meta.RemoveStatusCondition(conditions, conditionFailed)
 }
