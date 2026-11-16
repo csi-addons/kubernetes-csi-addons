@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -26,6 +27,7 @@ import (
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
 	"github.com/csi-addons/kubernetes-csi-addons/internal/util"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -52,6 +54,36 @@ type operationOutcome struct {
 	reclaimed *int64
 	message   string
 	err       error
+}
+
+// runOperation dispatches op to the matching reclaim space RPC and classifies
+// its result.
+func (r *ReclaimSpaceJobReconciler) runOperation(
+	ctx context.Context,
+	logger logr.Logger,
+	target *targetDetails,
+	op csiaddonsv1alpha1.ReclaimSpaceOperation) operationOutcome {
+	var (
+		reclaimed *int64
+		err       error
+	)
+
+	switch op {
+	case csiaddonsv1alpha1.ReclaimSpaceOperationNode:
+		reclaimed, err = r.nodeReclaimSpace(ctx, logger, target)
+	case csiaddonsv1alpha1.ReclaimSpaceOperationController:
+		reclaimed, err = r.controllerReclaimSpace(ctx, logger, target)
+	default:
+		err = fmt.Errorf("unknown reclaim space operation %q", op)
+
+		return operationOutcome{
+			state:   csiaddonsv1alpha1.ReclaimSpaceOperationStateFailed,
+			message: err.Error(),
+			err:     err,
+		}
+	}
+
+	return classifyOperationOutcome(op, reclaimed, err)
 }
 
 // classifyOperationOutcome maps an RPC result to the state recorded in
