@@ -188,3 +188,15 @@ func (c *Connection) HasControllerService() bool {
 
 	return false
 }
+
+// HasNodeService returns true if the connection belongs to a node plugin.
+func (c *Connection) HasNodeService() bool {
+	for _, capability := range c.Capabilities {
+		svc := capability.GetService()
+		if svc != nil && svc.GetType() == identity.Capability_Service_NODE_SERVICE {
+			return true
+		}
+	}
+
+	return false
+}

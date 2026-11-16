@@ -332,3 +332,24 @@ func TestNewConnection(t *testing.T) {
 	assert.Equal(t, time.Minute, conn.Timeout)
 	assert.True(t, conn.HasControllerService())
 }
+
+func TestHasNodeService(t *testing.T) {
+	nodeService := &identity.Capability{
+		Type: &identity.Capability_Service_{
+			Service: &identity.Capability_Service{
+				Type: identity.Capability_Service_NODE_SERVICE,
+			},
+		},
+	}
+	controllerService := &identity.Capability{
+		Type: &identity.Capability_Service_{
+			Service: &identity.Capability_Service{
+				Type: identity.Capability_Service_CONTROLLER_SERVICE,
+			},
+		},
+	}
+
+	assert.True(t, (&Connection{Capabilities: []*identity.Capability{nodeService}}).HasNodeService())
+	assert.False(t, (&Connection{Capabilities: []*identity.Capability{controllerService}}).HasNodeService())
+	assert.False(t, (&Connection{}).HasNodeService())
+}
