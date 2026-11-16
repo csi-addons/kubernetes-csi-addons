@@ -35,6 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	scv1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -510,26 +511,17 @@ func validateReclaimSpaceJobSpec(
 	return nil
 }
 
-// setFailedCondition updates failedConditin type if it exists else
+// setFailedCondition updates failedCondition type if it exists else
 // appends a new condition.
 func setFailedCondition(
 	conditions *[]metav1.Condition,
 	message string,
 	observedGeneration int64) {
-	newCondition := metav1.Condition{
+	meta.SetStatusCondition(conditions, metav1.Condition{
 		Type:               conditionFailed,
 		Status:             metav1.ConditionTrue,
 		ObservedGeneration: observedGeneration,
-		LastTransitionTime: metav1.NewTime(time.Now()),
 		Message:            message,
 		Reason:             reasonFailed,
-	}
-	for i := range *conditions {
-		if (*conditions)[i].Type == conditionFailed {
-			(*conditions)[i] = newCondition
-			return
-		}
-	}
-
-	*conditions = append(*conditions, newCondition)
+	})
 }
