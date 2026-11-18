@@ -11,9 +11,10 @@
   controller does not advertise `ReclaimSpace_OFFLINE`. Previously, jobs whose RPCs returned
   `Unimplemented` reported success without reclaiming any space, and jobs with a missing
   capability were retried until they failed.
-- Node-side reclaim requires a `VolumeAttachment`. A `ReclaimSpaceJob` that requests `Node` for a
-  volume that is not attached to any node fails once its `backOffLimit` or `retryDeadlineSeconds`
-  is reached, even if `Controller` succeeded. CSI drivers that set `attachRequired: false` in their
+- Node-side reclaim requires a `VolumeAttachment`. A `Node` operation requested for a volume that
+  is not attached to any node is reported as `Skipped` with the reason, and is not retried. When
+  the job requests only `Node`, or every requested operation is skipped, the job fails because no
+  reclaim space operation was performed. CSI drivers that set `attachRequired: false` in their
   `CSIDriver` object don't have `VolumeAttachment`, so their `ReclaimSpaceJob` CRs must request
   `Controller` explicitly when the driver supports it.
 - `operations` is immutable on a `ReclaimSpaceJob`. A new job must be created to run different operations.

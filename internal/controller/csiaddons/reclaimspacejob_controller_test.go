@@ -737,14 +737,19 @@ func TestReconcileReclaimSpaceOperations(t *testing.T) {
 			},
 		},
 		{
-			name:                "node only on an unattached volume requeues",
+			name:                "node only on an unattached volume is skipped",
 			operations:          []csiaddonsv1alpha1.ReclaimSpaceOperation{csiaddonsv1alpha1.ReclaimSpaceOperationNode},
 			attached:            false,
 			wantNodeCalls:       0,
 			wantControllerCalls: 0,
-			wantErr:             errVolumeNotAttached,
+			wantResult:          csiaddonsv1alpha1.OperationResultFailed,
+			wantMessageSubstrings: []string{
+				"no reclaim space operation performed",
+				"not attached to any node",
+			},
+			wantConditionSubstring: "no reclaim space operation performed",
 			wantStates: map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-				csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
+				csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
 			},
 		},
 		{
@@ -784,18 +789,21 @@ func TestReconcileReclaimSpaceOperations(t *testing.T) {
 			},
 		},
 		{
-			name: "both on an unattached volume keep the controller result and retry node",
+			name: "both on an unattached volume skip node and run controller",
 			operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{
 				csiaddonsv1alpha1.ReclaimSpaceOperationNode,
 				csiaddonsv1alpha1.ReclaimSpaceOperationController,
 			},
-			attached:               false,
-			wantNodeCalls:          0,
-			wantControllerCalls:    1,
-			wantErr:                errVolumeNotAttached,
-			wantConditionSubstring: "not attached to any node",
+			attached:            false,
+			wantNodeCalls:       0,
+			wantControllerCalls: 1,
+			wantResult:          csiaddonsv1alpha1.OperationResultSucceeded,
+			wantMessageSubstrings: []string{
+				"successfully completed",
+				"not attached to any node",
+			},
 			wantStates: map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-				csiaddonsv1alpha1.ReclaimSpaceOperationNode:       csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
+				csiaddonsv1alpha1.ReclaimSpaceOperationNode:       csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
 				csiaddonsv1alpha1.ReclaimSpaceOperationController: csiaddonsv1alpha1.ReclaimSpaceOperationStateSucceeded,
 			},
 		},
@@ -949,7 +957,7 @@ func TestReconcileReclaimSpaceOperations(t *testing.T) {
 			},
 		},
 		{
-			name: "unattached node reports the unsupported controller reason",
+			name: "unattached node is skipped alongside an unsupported controller",
 			operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{
 				csiaddonsv1alpha1.ReclaimSpaceOperationNode,
 				csiaddonsv1alpha1.ReclaimSpaceOperationController,
@@ -958,23 +966,16 @@ func TestReconcileReclaimSpaceOperations(t *testing.T) {
 			controllerWithoutOffline: true,
 			wantNodeCalls:            0,
 			wantControllerCalls:      0,
-			wantErr:                  errVolumeNotAttached,
-			wantConditionSubstring:   "ControllerReclaimSpace is not supported",
-			wantStates: map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-				csiaddonsv1alpha1.ReclaimSpaceOperationNode:       csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
-				csiaddonsv1alpha1.ReclaimSpaceOperationController: csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
+			wantResult:               csiaddonsv1alpha1.OperationResultFailed,
+			wantMessageSubstrings: []string{
+				"no reclaim space operation performed",
+				"not attached to any node",
+				"ControllerReclaimSpace is not supported",
 			},
-		},
-		{
-			name:                   "unattached node-only records the attachment reason",
-			operations:             []csiaddonsv1alpha1.ReclaimSpaceOperation{csiaddonsv1alpha1.ReclaimSpaceOperationNode},
-			attached:               false,
-			wantNodeCalls:          0,
-			wantControllerCalls:    0,
-			wantErr:                errVolumeNotAttached,
-			wantConditionSubstring: "not attached to any node",
+			wantConditionSubstring: "no reclaim space operation performed",
 			wantStates: map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-				csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
+				csiaddonsv1alpha1.ReclaimSpaceOperationNode:       csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
+				csiaddonsv1alpha1.ReclaimSpaceOperationController: csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
 			},
 		},
 	}
@@ -1056,13 +1057,8 @@ func assertOperationStates(
 	assert.Equal(t, want, got)
 }
 
-func TestReconcileClearsFailedConditionWhenAttachmentAppears(t *testing.T) {
-	serverImpl := &fakeReclaimSpaceServer{
-		nodeResp: &proto.ReclaimSpaceResponse{
-			PreUsage:  &proto.StorageConsumption{UsageBytes: 100},
-			PostUsage: &proto.StorageConsumption{UsageBytes: 40},
-		},
-	}
+func TestReconcileSkipsUnattachedVolumeWithoutRetrying(t *testing.T) {
+	serverImpl := &fakeReclaimSpaceServer{}
 	reconciler := newReclaimSpaceTestReconciler(t, serverImpl, reclaimSpaceTestConnections{})
 
 	job := &csiaddonsv1alpha1.ReclaimSpaceJob{
@@ -1081,33 +1077,17 @@ func TestReconcileClearsFailedConditionWhenAttachmentAppears(t *testing.T) {
 	logger := logr.Discard()
 
 	err := reconciler.reconcile(context.Background(), &logger, job, rsTestNamespace)
-	assert.ErrorIs(t, err, errVolumeNotAttached)
-	assert.NotEmpty(t, job.Status.Conditions, "waiting for the attachment should be recorded")
-	assertOperationStates(t, job, map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-		csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
-	})
 
-	pvName := rsTestPVName
-	assert.NoError(t, reconciler.Create(context.Background(), &scv1.VolumeAttachment{
-		ObjectMeta: v1.ObjectMeta{Name: "va-1"},
-		Spec: scv1.VolumeAttachmentSpec{
-			Attacher: rsTestDriver,
-			NodeName: rsTestNodeID,
-			Source:   scv1.VolumeAttachmentSource{PersistentVolumeName: &pvName},
-		},
-		Status: scv1.VolumeAttachmentStatus{Attached: true},
-	}))
-
-	err = reconciler.reconcile(context.Background(), &logger, job, rsTestNamespace)
-	assert.NoError(t, err)
-	assert.Equal(t, csiaddonsv1alpha1.OperationResultSucceeded, job.Status.Result)
-	assert.Empty(t, job.Status.Conditions, "the transient failed condition should be cleared on success")
+	assert.NoError(t, err, "an unattached volume must not requeue the job")
+	assert.Equal(t, csiaddonsv1alpha1.OperationResultFailed, job.Status.Result)
+	assert.Contains(t, job.Status.Message, "not attached to any node")
+	assert.NotNil(t, job.Status.CompletionTime, "the skipped operation completes the job")
 	assertOperationStates(t, job, map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-		csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStateSucceeded,
+		csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
 	})
 
 	nodeCalls, controllerCalls := serverImpl.callCounts()
-	assert.Equal(t, 1, nodeCalls)
+	assert.Equal(t, 0, nodeCalls)
 	assert.Equal(t, 0, controllerCalls)
 }
 
@@ -1373,7 +1353,7 @@ func TestReconcileUnknownOperationFailsJob(t *testing.T) {
 	assert.NotNil(t, meta.FindStatusCondition(job.Status.Conditions, conditionFailed))
 }
 
-func TestReconcileRequeuesWhileNodeUnavailable(t *testing.T) {
+func TestReconcileRequeuesWhileNodeClientIsMissing(t *testing.T) {
 	tests := []struct {
 		name          string
 		operations    []csiaddonsv1alpha1.ReclaimSpaceOperation
@@ -1381,14 +1361,6 @@ func TestReconcileRequeuesWhileNodeUnavailable(t *testing.T) {
 		controllerErr error
 		wantStates    map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState
 	}{
-		{
-			name:       "node only on an unattached volume",
-			operations: []csiaddonsv1alpha1.ReclaimSpaceOperation{csiaddonsv1alpha1.ReclaimSpaceOperationNode},
-			conns:      reclaimSpaceTestConnections{attached: false},
-			wantStates: map[csiaddonsv1alpha1.ReclaimSpaceOperation]csiaddonsv1alpha1.ReclaimSpaceOperationState{
-				csiaddonsv1alpha1.ReclaimSpaceOperationNode: csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
-			},
-		},
 		{
 			// The controller error must not switch to the fast rate-limited
 			// requeue, which would use up the retries before the node is ready.

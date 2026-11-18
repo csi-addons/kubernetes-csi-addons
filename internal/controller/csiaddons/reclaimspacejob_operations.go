@@ -99,15 +99,19 @@ func classifyOperationOutcome(
 			state:     csiaddonsv1alpha1.ReclaimSpaceOperationStateSucceeded,
 			reclaimed: reclaimed,
 		}
-	case errors.Is(err, errNodeReclaimUnsupported), errors.Is(err, errControllerReclaimUnsupported):
-		// Operation unsupported, no more attempts. The error explains whether
-		// a capability is missing or the RPC is not implemented.
+	case errors.Is(err, errNodeReclaimUnsupported),
+		errors.Is(err, errControllerReclaimUnsupported),
+		errors.Is(err, errVolumeNotAttached):
+		// The operation cannot be performed, no more attempts. The error
+		// explains whether a capability is missing, the RPC is not
+		// implemented, or node-side reclaim was requested for a volume that
+		// is not attached. Retrying does not change any of these.
 		return operationOutcome{
 			state:   csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped,
 			message: err.Error(),
 		}
-	case errors.Is(err, errVolumeNotAttached), errors.Is(err, errNodeClientNotFound):
-		// Either the vol is not attached or node client is not found, retry until exhaustion.
+	case errors.Is(err, errNodeClientNotFound):
+		// The node plugin may still be starting up, retry until exhaustion.
 		return operationOutcome{
 			state:   csiaddonsv1alpha1.ReclaimSpaceOperationStatePending,
 			message: err.Error(),
@@ -270,8 +274,8 @@ func incompleteMessage(statuses []csiaddonsv1alpha1.ReclaimSpaceOperationStatus)
 	return fmt.Sprintf("reclaim space operations not complete: %s", summarizeOperations(incomplete))
 }
 
-// retryError returns the error that decides how the job is requeued. When any
-// operation waits for the node to become available, all errors are joined so
+// retryError returns the error that decides how the job is requeued. When an
+// operation waits for the node plugin to register, all errors are joined so
 // that the caller requeues with the fixed node interval instead of the fast
 // rate-limited backoff, which would otherwise use up the retries before the
 // node is ready. Otherwise the first failure is returned as-is. gRPC status
@@ -282,7 +286,7 @@ func retryError(errs []error) error {
 	}
 
 	for _, err := range errs {
-		if errors.Is(err, errVolumeNotAttached) || errors.Is(err, errNodeClientNotFound) {
+		if errors.Is(err, errNodeClientNotFound) {
 			return errors.Join(errs...)
 		}
 	}

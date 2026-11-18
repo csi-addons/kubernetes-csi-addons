@@ -64,8 +64,10 @@ const (
 	// successfully.
 	ReclaimSpaceOperationStateSucceeded ReclaimSpaceOperationState = "Succeeded"
 
-	// ReclaimSpaceOperationStateSkipped means the driver does not support the
-	// operation. The operation is not retried.
+	// ReclaimSpaceOperationStateSkipped means the operation cannot be
+	// performed. The driver does not support it, or a Node operation was
+	// requested for a volume that is not attached to any node. The operation
+	// is not retried.
 	ReclaimSpaceOperationStateSkipped ReclaimSpaceOperationState = "Skipped"
 
 	// ReclaimSpaceOperationStateFailed means the operation failed and will not
