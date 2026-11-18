@@ -142,7 +142,6 @@ func TestAllOperationsTerminal(t *testing.T) {
 func TestRetryError(t *testing.T) {
 	aborted := status.Error(codes.Aborted, "operation in progress")
 	unavailable := status.Error(codes.Unavailable, "unavailable")
-	notAttached := fmt.Errorf("%w: PVC %q", errVolumeNotAttached, "data-pvc")
 	notFound := fmt.Errorf("%w for %q nodeID", errNodeClientNotFound, "node-1")
 
 	t.Run("no errors", func(t *testing.T) {
@@ -165,12 +164,17 @@ func TestRetryError(t *testing.T) {
 		assert.ErrorIs(t, err, aborted)
 		assert.True(t, util.IsAbortedError(err), "gRPC codes must stay detectable")
 	})
+}
 
-	t.Run("volume not attached is detectable alongside other failures", func(t *testing.T) {
-		err := retryError([]error{unavailable, notAttached})
-		assert.ErrorIs(t, err, errVolumeNotAttached)
-		assert.ErrorIs(t, err, unavailable)
-	})
+func TestClassifyOperationOutcomeVolumeNotAttachedIsSkipped(t *testing.T) {
+	cause := fmt.Errorf("%w: PVC %q", errVolumeNotAttached, "data-pvc")
+
+	outcome := classifyOperationOutcome(csiaddonsv1alpha1.ReclaimSpaceOperationNode, nil, cause)
+
+	assert.Equal(t, csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped, outcome.state)
+	assert.NoError(t, outcome.err, "a skipped operation must not be retried")
+	assert.Contains(t, outcome.message, "not attached to any node")
+	assert.Contains(t, outcome.message, "data-pvc")
 }
 
 func TestCompleteJobFailedCondition(t *testing.T) {

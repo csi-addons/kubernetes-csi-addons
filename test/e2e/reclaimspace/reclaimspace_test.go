@@ -72,10 +72,16 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 		}
 
 		// controllerOnly is used for volumes that are not attached to a node.
-		// A requested Node operation would stay pending until the retry budget
-		// is exhausted because node-side reclaim needs a VolumeAttachment.
+		// A requested Node operation would be skipped because node-side
+		// reclaim needs a VolumeAttachment.
 		controllerOnly = []csiaddonsv1alpha1.ReclaimSpaceOperation{
 			csiaddonsv1alpha1.ReclaimSpaceOperationController,
+		}
+
+		// nodeOnly is used to verify that node-side reclaim on an unattached
+		// volume is skipped instead of being retried.
+		nodeOnly = []csiaddonsv1alpha1.ReclaimSpaceOperation{
+			csiaddonsv1alpha1.ReclaimSpaceOperationNode,
 		}
 	)
 
@@ -168,6 +174,29 @@ var _ = ginkgo.Describe("ReclaimSpace", ginkgo.Ordered, func() {
 
 				ginkgo.By("Verifying ReclaimSpaceJob succeeded")
 				gomega.Expect(rsJob.Status.Result).To(gomega.Equal(csiaddonsv1alpha1.OperationResultSucceeded))
+			})
+
+			ginkgo.It("should skip node reclaim on an unattached volume", func() {
+				ginkgo.By("Creating a filesystem PVC")
+				pvc := f.CreatePVC("test-pvc-fs-unattached", "", f.GetReclaimSpaceStorageClassName())
+				pvc = f.WaitForPVCBound(pvc.Name)
+
+				ginkgo.By("Creating a ReclaimSpaceJob that requests node reclaim while the volume is unattached")
+				rsJob := f.CreateReclaimSpaceJob("test-rsjob-fs-unattached", pvc.Name, nodeOnly)
+
+				ginkgo.By("Waiting for ReclaimSpaceJob to complete")
+				rsJob = f.WaitForReclaimSpaceJobComplete(rsJob.Name)
+
+				ginkgo.By("Verifying the node operation was skipped with the attachment reason")
+				gomega.Expect(rsJob.Status.Operations).To(gomega.HaveLen(1))
+				opStatus := rsJob.Status.Operations[0]
+				gomega.Expect(opStatus.Operation).To(gomega.Equal(csiaddonsv1alpha1.ReclaimSpaceOperationNode))
+				gomega.Expect(opStatus.State).To(gomega.Equal(csiaddonsv1alpha1.ReclaimSpaceOperationStateSkipped))
+				gomega.Expect(opStatus.Message).To(gomega.ContainSubstring("not attached to any node"))
+				gomega.Expect(opStatus.CompletionTime).NotTo(gomega.BeNil())
+
+				ginkgo.By("Verifying the job failed because no operation was performed")
+				gomega.Expect(rsJob.Status.Result).To(gomega.Equal(csiaddonsv1alpha1.OperationResultFailed))
 			})
 
 			ginkgo.It("should reclaim space on mounted filesystem volume", func() {
