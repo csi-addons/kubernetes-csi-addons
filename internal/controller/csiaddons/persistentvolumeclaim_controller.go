@@ -180,7 +180,7 @@ func (r *PersistentVolumeClaimReconciler) checkDriverSupportCapability(
 		return false, false, nil
 	}
 
-	if drivers, ok := annotations[driverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driverAnnotation) {
+	if drivers, ok := annotations[driverAnnotation]; ok && slices.Contains(strings.Split(drivers, ","), driverName) {
 		driverSupportsCap = true
 	}
 
