@@ -306,6 +306,51 @@ func TestDetermineScheduleAndRequeue(t *testing.T) {
 		})
 	}
 
+	// A driver listed in the namespace /drivers annotation supports the
+	// operation even when its sidecar is not registered in the connection
+	// pool yet, so the request must be requeued instead of being treated as
+	// "driver does not support the capability".
+	t.Run("namespace drivers annotation with unregistered driver requeues", func(t *testing.T) {
+		pvc.Annotations = nil
+		sc.Annotations = nil
+		ns.Annotations = map[string]string{
+			csiaddonsv1alpha1.RsCronJobScheduleTimeAnnotation: "@daily",
+			rsCSIAddonsDriverAnnotation:                       driverName,
+		}
+
+		err = r.Update(ctx, ns)
+		assert.NoError(t, err)
+		err = r.Update(ctx, sc)
+		assert.NoError(t, err)
+		err = r.Update(ctx, pvc)
+		assert.NoError(t, err)
+
+		schedule, err := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, csiaddonsv1alpha1.RsCronJobScheduleTimeAnnotation)
+		assert.ErrorIs(t, err, utils.ErrConnNotFoundRequeueNeeded)
+		assert.Equal(t, "", schedule)
+	})
+
+	// Without the driver in the namespace /drivers annotation, the driver is
+	// considered unsupported and the request must not be requeued.
+	t.Run("namespace schedule annotation without drivers annotation", func(t *testing.T) {
+		pvc.Annotations = nil
+		sc.Annotations = nil
+		ns.Annotations = map[string]string{
+			csiaddonsv1alpha1.RsCronJobScheduleTimeAnnotation: "@daily",
+		}
+
+		err = r.Update(ctx, ns)
+		assert.NoError(t, err)
+		err = r.Update(ctx, sc)
+		assert.NoError(t, err)
+		err = r.Update(ctx, pvc)
+		assert.NoError(t, err)
+
+		schedule, err := r.determineScheduleAndRequeue(ctx, &logger, pvc, driverName, csiaddonsv1alpha1.RsCronJobScheduleTimeAnnotation)
+		assert.ErrorIs(t, err, utils.ErrScheduleNotFound)
+		assert.Equal(t, "", schedule)
+	})
+
 	t.Run("empty StorageClassName for static pv", func(t *testing.T) {
 		emptyScName := ""
 		pvc.Spec.StorageClassName = &emptyScName
