@@ -30,10 +30,11 @@ spec:
     because it is redundant once the node-side reclaim has run, and for some drivers it is costly
     or unsafe on in-use volumes.
   - When both are requested, the node-side reclaim is attempted first.
-  - The node-side reclaim is reported as `Skipped` only when a node plugin that advertises the
-    CSI-Addons `NODE_SERVICE` capability is registered on the node without the
-    `ReclaimSpace_ONLINE` capability. Otherwise the node plugin is assumed to be still starting,
-    and the operation is retried until the job fails.
+  - The node-side reclaim is reported as `Skipped` when the volume is not attached to a node,
+    when the `NodeReclaimSpace` RPC returns `Unimplemented`, or when a node plugin that advertises
+    the CSI-Addons `NODE_SERVICE` capability is registered on the node without the
+    `ReclaimSpace_ONLINE` capability. If no node plugin has registered yet, the node plugin is
+    assumed to be still starting, and the operation is retried until the job fails.
 - `operations` is immutable on a `ReclaimSpaceJob`. A new job must be created to run different operations.
   `operations` can be modified on the `ReclaimSpaceCronJob`, future runs will use the updated `operations`.
 - `backOfflimit` specifies the number of retries before marking reclaim space operation as failed. If not specified, defaults to 6. Maximum allowed value is 60 and minimum allowed value is 0.
@@ -58,8 +59,9 @@ status:
 
 - `Pending`: the operation has not completed yet and will be retried. `message` explains why.
 - `Succeeded`: the operation completed. `reclaimedSpace` is set when the driver reports usage.
-- `Skipped`: the driver does not support the operation (a capability is missing or the RPC returns
-  `Unimplemented`). The operation is not retried.
+- `Skipped`: the operation cannot be performed. The driver does not support it (a capability is
+  missing or the RPC returns `Unimplemented`), or node-side reclaim was requested for a volume
+  that is not attached to a node. The operation is not retried.
 - `Failed`: the job's `backOffLimit` or `retryDeadlineSeconds` was reached before the operation
   completed.
 

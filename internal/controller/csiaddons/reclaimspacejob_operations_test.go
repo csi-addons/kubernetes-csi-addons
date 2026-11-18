@@ -152,8 +152,14 @@ func TestRetryError(t *testing.T) {
 		assert.Same(t, unavailable, retryError([]error{unavailable}))
 	})
 
-	t.Run("the first failure is returned when the node is available", func(t *testing.T) {
+	t.Run("an Aborted failure is preferred over later failures", func(t *testing.T) {
 		err := retryError([]error{aborted, unavailable})
+		assert.Same(t, aborted, err)
+		assert.True(t, util.IsAbortedError(err))
+	})
+
+	t.Run("an Aborted failure is not masked by an earlier node failure", func(t *testing.T) {
+		err := retryError([]error{unavailable, aborted})
 		assert.Same(t, aborted, err)
 		assert.True(t, util.IsAbortedError(err))
 	})
