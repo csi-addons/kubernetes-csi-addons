@@ -58,10 +58,9 @@ const (
 	// TODO: add more useful reason types.
 	reasonFailed = "failed"
 
-	// nodeClientRequeueInterval is the interval to requeue when the
-	// volume is not attached to a node yet, or the node client is not
-	// found in the connection pool, allowing time for the
-	// VolumeAttachment to be updated or the node plugin to register.
+	// nodeClientRequeueInterval is the interval to requeue when the node
+	// client is not found in the connection pool, allowing time for the node
+	// plugin to register.
 	nodeClientRequeueInterval = 30 * time.Second
 )
 
@@ -71,7 +70,9 @@ var (
 	errNodeClientNotFound = errors.New("node client not found")
 
 	// errVolumeNotAttached is a sentinel error returned when a node-side
-	// reclaim was requested but the volume is not attached to a node yet.
+	// reclaim was requested but the volume is not attached to a node. The
+	// operation is reported as Skipped, because retrying cannot attach the
+	// volume.
 	errVolumeNotAttached = errors.New("volume is not attached to any node")
 
 	// errNodeReclaimUnsupported is a sentinel error returned when the node
@@ -178,12 +179,12 @@ func (r *ReclaimSpaceJobReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, nil
 	}
 
-	// If the volume is not attached yet or the node client is not found,
-	// requeue after an interval to allow the VolumeAttachment to be updated
-	// instead of using the fast rate-limited requeue. This also applies when
-	// another operation failed in the same pass, so that the fast backoff
-	// does not exhaust the retries before the node becomes available.
-	if errors.Is(err, errNodeClientNotFound) || errors.Is(err, errVolumeNotAttached) {
+	// If the node client is not found, requeue after an interval to allow the
+	// node plugin to register instead of using the fast rate-limited requeue.
+	// This also applies when another operation failed in the same pass, so
+	// that the fast backoff does not exhaust the retries before the node
+	// becomes available.
+	if errors.Is(err, errNodeClientNotFound) {
 		requeueAfter := nodeClientRequeueInterval
 		if result, ok := utils.ResultForAbortedError(err, rsJob.Status.Retries); ok && result.RequeueAfter > requeueAfter {
 			requeueAfter = result.RequeueAfter
