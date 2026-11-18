@@ -278,8 +278,10 @@ func incompleteMessage(statuses []csiaddonsv1alpha1.ReclaimSpaceOperationStatus)
 // operation waits for the node plugin to register, all errors are joined so
 // that the caller requeues with the fixed node interval instead of the fast
 // rate-limited backoff, which would otherwise use up the retries before the
-// node is ready. Otherwise the first failure is returned as-is. gRPC status
-// codes (for example Aborted) remain detectable in both cases.
+// node is ready. Otherwise an Aborted error takes precedence over the other
+// failures, so that a failing operation does not hide a controller operation
+// that is still in progress and make the caller requeue too fast. When no
+// failure is Aborted, the first one is returned as-is.
 func retryError(errs []error) error {
 	if len(errs) == 0 {
 		return errors.New("reclaim space operations are still pending")
@@ -288,6 +290,12 @@ func retryError(errs []error) error {
 	for _, err := range errs {
 		if errors.Is(err, errNodeClientNotFound) {
 			return errors.Join(errs...)
+		}
+	}
+
+	for _, err := range errs {
+		if util.IsAbortedError(err) {
+			return err
 		}
 	}
 
