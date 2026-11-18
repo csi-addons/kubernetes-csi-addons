@@ -220,7 +220,7 @@ func main() {
 		Scheme:         mgr.GetScheme(),
 		ConnPool:       connPool,
 		EnableAuth:     enableAuth,
-		BaseRetryDelay: time.Duration(cfg.CSIAddonsNodeRetryDelay),
+		BaseRetryDelay: time.Duration(cfg.CSIAddonsNodeRetryDelay) * time.Second,
 		Timeout:        defaultTimeout,
 	}).SetupWithManager(mgr, ctrlOptions); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CSIAddonsNode")
