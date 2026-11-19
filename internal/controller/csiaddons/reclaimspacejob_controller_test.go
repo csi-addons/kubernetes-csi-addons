@@ -125,9 +125,9 @@ func TestCalculateReclaimedSpace(t *testing.T) {
 		PreUsage  *proto.StorageConsumption
 		PostUsage *proto.StorageConsumption
 	}
-	pre := int64(0)
-	post := int64(5)
-	result := post - pre
+	pre := int64(10)
+	post := int64(4)
+	result := pre - post
 	result2 := int64(0)
 	tests := []struct {
 		name string
@@ -167,13 +167,13 @@ func TestCalculateReclaimedSpace(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "reclaimed space is negative",
+			name: "usage grew during the operation",
 			args: args{
 				PreUsage: &proto.StorageConsumption{
-					UsageBytes: pre,
+					UsageBytes: post,
 				},
 				PostUsage: &proto.StorageConsumption{
-					UsageBytes: -post,
+					UsageBytes: pre,
 				},
 			},
 			want: &result2,
