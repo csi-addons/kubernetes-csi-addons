@@ -251,11 +251,12 @@ func TestConnectionPool_GetOrConnect(t *testing.T) {
 		defer cleanup()
 
 		cp := NewConnectionPool()
-		conn, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		conn, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 		assert.NotNil(t, conn)
 		assert.Equal(t, "node1", conn.NodeID)
 		assert.Equal(t, "driver1", conn.DriverName)
+		assert.Equal(t, "pod1", conn.PodName)
 
 		assert.Same(t, conn, cp.GetByKey("key1"))
 	})
@@ -265,10 +266,10 @@ func TestConnectionPool_GetOrConnect(t *testing.T) {
 		defer cleanup()
 
 		cp := NewConnectionPool()
-		conn1, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		conn1, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 
-		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 		assert.Same(t, conn1, conn2)
 	})
@@ -280,10 +281,10 @@ func TestConnectionPool_GetOrConnect(t *testing.T) {
 		defer cleanup2()
 
 		cp := NewConnectionPool()
-		conn1, err := cp.GetOrCreateNew(context.Background(), "key1", addr1, "node1", "driver1", "ns1", "pod1", false)
+		conn1, err := cp.GetOrCreateNew(context.Background(), "key1", addr1, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 
-		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr2, "node1", "driver1", "ns1", "pod1", false)
+		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr2, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 		assert.NotSame(t, conn1, conn2)
 		assert.Equal(t, addr2, conn2.Endpoint())
@@ -294,13 +295,13 @@ func TestConnectionPool_GetOrConnect(t *testing.T) {
 		defer cleanup()
 
 		cp := NewConnectionPool()
-		conn, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		conn, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 
 		oldClient := conn.Client
 		_ = oldClient.Close()
 
-		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "pod1", false)
+		conn2, err := cp.GetOrCreateNew(context.Background(), "key1", addr, "node1", "driver1", "ns1", "node1", "pod1", false)
 		assert.NoError(t, err)
 		assert.Same(t, conn, conn2, "should reuse the same Connection object")
 		assert.NotSame(t, oldClient, conn2.Client, "should have a new underlying gRPC client")
@@ -388,4 +389,24 @@ func TestConnectionPool_getByDriverName(t *testing.T) {
 			assert.Equal(t, tt.want, res)
 		})
 	}
+}
+
+func TestConnectionPool_GetByCSIAddonsNode(t *testing.T) {
+	mockClient := newMockClient(t)
+	cp := &ConnectionPool{
+		pool: map[string]*Connection{
+			"ns/pod-a":    {Client: mockClient, Namespace: "ns", Name: "node-1"},
+			"ns/pod-b":    {Client: mockClient, Namespace: "ns", Name: "node-1"},
+			"ns/pod-c":    {Client: mockClient, Namespace: "ns", Name: "node-2"},
+			"other/pod-a": {Client: mockClient, Namespace: "other", Name: "node-1"},
+		},
+		rwlock: &sync.RWMutex{},
+	}
+
+	res := cp.GetByCSIAddonsNode("ns", "node-1")
+	assert.Equal(t, map[string]*Connection{
+		"ns/pod-a": cp.pool["ns/pod-a"],
+		"ns/pod-b": cp.pool["ns/pod-b"],
+	}, res)
+	assert.Empty(t, cp.GetByCSIAddonsNode("ns", "node-3"))
 }
