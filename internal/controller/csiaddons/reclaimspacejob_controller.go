@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	csiaddonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/csiaddons/v1alpha1"
@@ -497,7 +496,7 @@ func calculateReclaimedSpace(PreUsage, PostUsage *proto.StorageConsumption) *int
 	preUsage := PreUsage.UsageBytes
 	postUsage := PostUsage.UsageBytes
 
-	result := int64(math.Max(float64(postUsage)-float64(preUsage), 0))
+	result := max(preUsage-postUsage, 0)
 	return &result
 }
 
