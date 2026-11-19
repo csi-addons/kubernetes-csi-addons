@@ -35,9 +35,13 @@ import (
 	replicationv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/api/replication.storage/v1alpha1"
 )
 
-// CreateReclaimSpaceJob creates a ReclaimSpaceJob
-func (f *Framework) CreateReclaimSpaceJob(name string, pvcName string) *csiaddonsv1alpha1.ReclaimSpaceJob {
-	ginkgo.By(fmt.Sprintf("Creating ReclaimSpaceJob %s for PVC %s", name, pvcName))
+// CreateReclaimSpaceJob creates a ReclaimSpaceJob that requests the given
+// reclaim space operations.
+func (f *Framework) CreateReclaimSpaceJob(
+	name string,
+	pvcName string,
+	operations []csiaddonsv1alpha1.ReclaimSpaceOperation) *csiaddonsv1alpha1.ReclaimSpaceJob {
+	ginkgo.By(fmt.Sprintf("Creating ReclaimSpaceJob %s for PVC %s with operations %v", name, pvcName, operations))
 
 	rsJob := &csiaddonsv1alpha1.ReclaimSpaceJob{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,6 +52,7 @@ func (f *Framework) CreateReclaimSpaceJob(name string, pvcName string) *csiaddon
 			Target: csiaddonsv1alpha1.TargetSpec{
 				PersistentVolumeClaim: pvcName,
 			},
+			Operations:           operations,
 			BackoffLimit:         15,
 			RetryDeadlineSeconds: 600,
 		},
@@ -101,9 +106,15 @@ func (f *Framework) GetReclaimSpaceJob(name string) *csiaddonsv1alpha1.ReclaimSp
 	return rsJob
 }
 
-// CreateReclaimSpaceCronJob creates a ReclaimSpaceCronJob
-func (f *Framework) CreateReclaimSpaceCronJob(name string, pvcName string, schedule string) *csiaddonsv1alpha1.ReclaimSpaceCronJob {
-	ginkgo.By(fmt.Sprintf("Creating ReclaimSpaceCronJob %s for PVC %s with schedule %s", name, pvcName, schedule))
+// CreateReclaimSpaceCronJob creates a ReclaimSpaceCronJob that requests the
+// given reclaim space operations.
+func (f *Framework) CreateReclaimSpaceCronJob(
+	name string,
+	pvcName string,
+	schedule string,
+	operations []csiaddonsv1alpha1.ReclaimSpaceOperation) *csiaddonsv1alpha1.ReclaimSpaceCronJob {
+	ginkgo.By(fmt.Sprintf("Creating ReclaimSpaceCronJob %s for PVC %s with schedule %s and operations %v",
+		name, pvcName, schedule, operations))
 
 	rsCronJob := &csiaddonsv1alpha1.ReclaimSpaceCronJob{
 		ObjectMeta: metav1.ObjectMeta{
@@ -117,6 +128,7 @@ func (f *Framework) CreateReclaimSpaceCronJob(name string, pvcName string, sched
 					Target: csiaddonsv1alpha1.TargetSpec{
 						PersistentVolumeClaim: pvcName,
 					},
+					Operations:           operations,
 					BackoffLimit:         3,
 					RetryDeadlineSeconds: 600,
 				},
