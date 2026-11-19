@@ -4,7 +4,7 @@
 # for the target platform. quay.io/projectquay/golang does not publish an
 # arm/v7 variant, so building it natively (under emulation) is not possible.
 # CGO is disabled, so the Go toolchain can cross-compile to every target.
-FROM --platform=$BUILDPLATFORM quay.io/projectquay/golang:1.26 AS builder
+FROM --platform=$BUILDPLATFORM quay.io/projectquay/golang:1.27 AS builder
 
 # Populated automatically by buildx from the requested target platform.
 ARG TARGETOS TARGETARCH TARGETVARIANT
